@@ -19,6 +19,16 @@ def check_db_connection() -> bool:
         print(f"Database connection failed: {e}")
         return False
 
+def get_db():
+    """
+    FastAPI dependency that yields a SQLAlchemy database session and closes it afterwards.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 def init_db(bind_engine=None):
     """
     Initializes database schema, applies PostgreSQL RLS policies where supported,
@@ -33,7 +43,6 @@ def init_db(bind_engine=None):
     # Enable Row-Level Security (RLS) on PostgreSQL
     if target_engine.dialect.name == "postgresql":
         with target_engine.connect() as connection:
-            # Check if auth schema / auth.uid() function exists, if not create dummy auth.uid() for testing/standalone
             connection.execute(text("""
                 CREATE SCHEMA IF NOT EXISTS auth;
                 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid AS $$
