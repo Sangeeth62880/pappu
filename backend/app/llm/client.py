@@ -112,7 +112,9 @@ class SarvamLLMClient:
             response.raise_for_status()
 
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
+        # Handle None content (can happen if model returns empty response)
+        return content if content is not None else ""
 
     def parse_intent(self, user_text: str, max_retries: int = 1) -> IntentObject:
         """
@@ -142,7 +144,8 @@ class SarvamLLMClient:
         for attempt in range(1 + max_retries):
             raw_response = self._make_request(messages)
             logger.debug(
-                "LLM response (attempt %d): %s", attempt + 1, raw_response[:500]
+                "LLM response (attempt %d): %s", attempt + 1,
+                raw_response[:500] if raw_response else "(empty)"
             )
 
             extracted_json = _extract_json_from_response(raw_response)
