@@ -508,3 +508,97 @@ class TestClientSchemaRejection:
             intent = client.parse_intent("add 250 for food")
         assert intent.action == "add"
         assert intent.fields.amount == 250
+
+    def test_missing_required_action_field_rejected(self):
+        """LLM response missing 'action' field is rejected, not passed downstream."""
+        client = _make_client()
+        bad_response = json.dumps({
+            "language": "en",
+            "confidence": "high",
+            "requires_confirmation": False,
+            "missing_fields": []
+        })
+        with patch.object(client, "_make_request", return_value=bad_response):
+            with pytest.raises(IntentValidationError, match="Schema validation failed"):
+                client.parse_intent("some user input")
+
+    def test_invalid_confidence_enum_rejected(self):
+        """LLM response with invalid confidence ('medium') is rejected."""
+        client = _make_client()
+        bad_response = json.dumps({
+            "action": "add",
+            "language": "en",
+            "fields": {"amount": 100, "category": "Food"},
+            "matched_transactions": [],
+            "confidence": "medium",  # invalid enum value
+            "requires_confirmation": False,
+            "missing_fields": []
+        })
+        with patch.object(client, "_make_request", return_value=bad_response):
+            with pytest.raises(IntentValidationError, match="Schema validation failed"):
+                client.parse_intent("add 100 food")
+
+    def test_missing_confidence_field_rejected(self):
+        """LLM response missing 'confidence' field is rejected."""
+        client = _make_client()
+        bad_response = json.dumps({
+            "action": "query",
+            "language": "en",
+            "fields": {},
+            "matched_transactions": [],
+            "requires_confirmation": False,
+            "missing_fields": []
+        })
+        with patch.object(client, "_make_request", return_value=bad_response):
+            with pytest.raises(IntentValidationError, match="Schema validation failed"):
+                client.parse_intent("show summary")
+
+    def test_missing_requires_confirmation_field_rejected(self):
+        """LLM response missing 'requires_confirmation' field is rejected."""
+        client = _make_client()
+        bad_response = json.dumps({
+            "action": "add",
+            "language": "en",
+            "fields": {"amount": 200, "category": "Food"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "missing_fields": []
+        })
+        with patch.object(client, "_make_request", return_value=bad_response):
+            with pytest.raises(IntentValidationError, match="Schema validation failed"):
+                client.parse_intent("add 200 food")
+
+    def test_add_with_illegal_requires_confirmation_true_rejected(self):
+        """LLM response for 'add' with requires_confirmation=True violates §5 and is rejected."""
+        client = _make_client()
+        bad_response = json.dumps({
+            "action": "add",
+            "language": "en",
+            "fields": {"amount": 500, "category": "Food"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": True,  # illegal for add per §5
+            "missing_fields": []
+        })
+        with patch.object(client, "_make_request", return_value=bad_response):
+            with pytest.raises(IntentValidationError, match="requires_confirmation=false"):
+                client.parse_intent("add 500 food")
+
+    def test_non_numeric_amount_coerced_to_low_confidence_missing_field(self):
+        """Non-numeric amount string ('unknown') is safely coerced to None + low confidence."""
+        client = _make_client()
+        response_with_str_amount = json.dumps({
+            "action": "add",
+            "language": "en",
+            "fields": {"amount": "unknown", "category": "Food"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": False,
+            "missing_fields": []
+        })
+        with patch.object(client, "_make_request", return_value=response_with_str_amount):
+            intent = client.parse_intent("I bought food")
+        assert intent.fields.amount is None
+        assert "amount" in intent.missing_fields
+        assert intent.confidence == "low"
+

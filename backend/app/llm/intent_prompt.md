@@ -62,8 +62,7 @@ You MUST output ONLY a single valid JSON object with NO additional text, explana
 
 ### requires_confirmation
 - For "add" actions: ALWAYS set to false (executes immediately, confirmed verbally after).
-- For "edit" or "delete" with exactly one matched transaction: set to true.
-- For "edit" or "delete" with multiple matched transactions: set to false (will route to disambiguation).
+- For "edit" or "delete": ALWAYS set to true (destructive/modifying actions must never auto-execute; they always require user confirmation before execution per Tier 2).
 - For "query" actions: set to false.
 
 ### missing_fields
@@ -120,13 +119,13 @@ Input: "I bought something"
 ### Delete
 Input: "Delete the food expense from yesterday"
 ```json
-{"action": "delete", "language": "en", "fields": {"amount": null, "category": "Food", "date": "2026-08-29", "description": null}, "matched_transactions": [], "confidence": "high", "requires_confirmation": false, "missing_fields": []}
+{"action": "delete", "language": "en", "fields": {"amount": null, "category": "Food", "date": "2026-08-29", "description": null}, "matched_transactions": [], "confidence": "high", "requires_confirmation": true, "missing_fields": []}
 ```
 
 ### Edit
 Input: "Change yesterday's transport expense to 150"
 ```json
-{"action": "edit", "language": "en", "fields": {"amount": 150, "category": "Transport", "date": "2026-08-29", "description": null}, "matched_transactions": [], "confidence": "high", "requires_confirmation": false, "missing_fields": []}
+{"action": "edit", "language": "en", "fields": {"amount": 150, "category": "Transport", "date": "2026-08-29", "description": null}, "matched_transactions": [], "confidence": "high", "requires_confirmation": true, "missing_fields": []}
 ```
 
 Remember: Output ONLY the JSON object. No explanation, no markdown formatting, no extra text.

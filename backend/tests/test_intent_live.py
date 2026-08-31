@@ -94,6 +94,7 @@ class TestLiveEditIntent:
         assert isinstance(intent, IntentObject)
         assert intent.action == "edit"
         assert intent.fields.amount is not None
+        assert intent.requires_confirmation is True
 
 
 class TestLiveDeleteIntent:
@@ -104,6 +105,8 @@ class TestLiveDeleteIntent:
         intent = llm_client.parse_intent("Delete the food expense from yesterday")
         assert isinstance(intent, IntentObject)
         assert intent.action == "delete"
+        assert intent.requires_confirmation is True
+
 
 
 class TestLiveCodeMixed:
