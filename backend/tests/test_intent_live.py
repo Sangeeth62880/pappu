@@ -39,6 +39,8 @@ class TestLiveAddIntent:
         assert isinstance(intent, IntentObject)
         assert intent.action == "add"
         assert intent.fields.amount is not None
+        assert isinstance(intent.fields.amount, (int, float))
+        assert type(intent.model_dump()["fields"]["amount"]) in (int, float)
         assert intent.fields.category is not None
         assert intent.requires_confirmation is False
 
@@ -47,7 +49,20 @@ class TestLiveAddIntent:
         intent = llm_client.parse_intent("Paid 2k for shopping yesterday")
         assert intent.action == "add"
         assert intent.fields.amount == 2000
+        assert isinstance(intent.fields.amount, (int, float))
+        assert type(intent.model_dump()["fields"]["amount"]) in (int, float)
         assert intent.fields.category == "Shopping"
+
+    def test_malayalam_add_food_numeric_amount(self, llm_client):
+        """'ഇന്ന് ഭക്ഷണത്തിന് 300 രൂപ ചെലവായി' → add, Food, 300 as a JSON number."""
+        intent = llm_client.parse_intent("ഇന്ന് ഭക്ഷണത്തിന് 300 രൂപ ചെലവായി")
+        assert isinstance(intent, IntentObject)
+        assert intent.action == "add"
+        assert intent.fields.amount == 300
+        assert isinstance(intent.fields.amount, (int, float))
+        assert type(intent.model_dump()["fields"]["amount"]) in (int, float)
+        assert intent.fields.category == "Food"
+
 
 
 class TestLiveQueryIntent:
@@ -136,3 +151,7 @@ class TestLiveSchemaConformance:
         assert intent.confidence in ("high", "low")
         assert isinstance(intent.requires_confirmation, bool)
         assert isinstance(intent.missing_fields, list)
+        if intent.fields.amount is not None:
+            assert isinstance(intent.fields.amount, (int, float))
+            assert type(intent.model_dump()["fields"]["amount"]) in (int, float)
+

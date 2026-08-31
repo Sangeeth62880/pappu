@@ -37,11 +37,11 @@ You MUST output ONLY a single valid JSON object with NO additional text, explana
 - "mixed": Input is a mix of English and Malayalam (code-mixed).
 
 ### fields
-- **amount**: Numeric value. Supports:
+- **amount**: Numeric value as an UNQUOTED JSON number (e.g. 500, 1200.50). NEVER use a quoted string (e.g. do NOT output "500" or "300").
   - Plain numbers: 500, 1200
   - "k" shorthand: "5k" = 5000, "2.5k" = 2500
   - Common Malayalam number words: "അഞ്ഞൂറ്" (500), "ആയിരം" (1000), "രണ്ടായിരം" (2000), etc.
-  - Always convert to a plain number.
+  - Always convert to an unquoted JSON number (e.g. 500, not "500"). If amount is unknown or not specified, use null.
 - **category**: MUST be one of these fixed categories ONLY: Food, Transport, Shopping, Bills, Entertainment, Salary, Other.
   - Map user descriptions to the closest category.
   - If genuinely ambiguous, use "Other".

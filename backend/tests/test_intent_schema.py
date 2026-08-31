@@ -273,3 +273,76 @@ class TestValidationRules:
         })
         with pytest.raises(IntentValidationError, match="disambiguation"):
             parse_and_validate_intent(raw)
+
+
+# -- Amount Coercion and Validation Tests --
+
+class TestAmountCoercionAndValidation:
+    """Explicitly verify that amount is parsed as numeric, coerced, and serialized as a JSON number."""
+
+    def test_numeric_string_coerced_to_number(self):
+        """String '300' must be coerced to numeric (int or float)."""
+        raw = json.dumps({
+            "action": "add",
+            "language": "ml",
+            "fields": {
+                "amount": "300",
+                "category": "Food",
+                "date": "2026-08-31",
+                "description": "lunch"
+            },
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": False,
+            "missing_fields": []
+        })
+        intent = parse_and_validate_intent(raw)
+        assert isinstance(intent.fields.amount, (int, float))
+        assert intent.fields.amount == 300
+
+        # Assert serialized output is a JSON number, not a string
+        dumped = intent.model_dump()
+        assert type(dumped["fields"]["amount"]) in (int, float)
+        assert dumped["fields"]["amount"] == 300
+
+    def test_numeric_string_with_comma_and_decimals_coerced(self):
+        """String '1,250.50' must be coerced to numeric float 1250.5."""
+        raw = json.dumps({
+            "action": "add",
+            "language": "en",
+            "fields": {
+                "amount": "1,250.50",
+                "category": "Shopping",
+                "date": "2026-08-31",
+                "description": "shoes"
+            },
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": False,
+            "missing_fields": []
+        })
+        intent = parse_and_validate_intent(raw)
+        assert isinstance(intent.fields.amount, (int, float))
+        assert intent.fields.amount == 1250.5
+
+    def test_non_numeric_string_handled_as_missing_field_and_low_confidence(self):
+        """Genuinely non-numeric string 'unknown' triggers missing_fields=['amount'] and low confidence."""
+        raw = json.dumps({
+            "action": "add",
+            "language": "en",
+            "fields": {
+                "amount": "unknown",
+                "category": "Food",
+                "date": "2026-08-31",
+                "description": "something"
+            },
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": False,
+            "missing_fields": []
+        })
+        intent = parse_and_validate_intent(raw)
+        assert intent.fields.amount is None
+        assert "amount" in intent.missing_fields
+        assert intent.confidence == "low"
+
