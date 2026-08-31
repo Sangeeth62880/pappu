@@ -50,7 +50,12 @@ def test_db_session():
 
 def test_user_data_isolation_between_two_users(test_db_session):
     """
-    Test: User A cannot see, edit, or delete User B's transactions, and vice versa.
+    Test per-user data isolation via application-layer filtering:
+    - User A and User B both hold valid ES256 JWT tokens.
+    - Scoping is enforced by FastAPI's WHERE user_id = :verified_user_id.
+    - User A cannot see, edit, or delete User B's transactions via the API.
+    - User B cannot see, edit, or delete User A's transactions via the API.
+    - Summaries for each user are strictly computed from their own transactions.
     """
     user_a = str(uuid.uuid4())
     user_b = str(uuid.uuid4())
@@ -60,7 +65,7 @@ def test_user_data_isolation_between_two_users(test_db_session):
     food_cat = test_db_session.query(Category).filter_by(name="Food").first()
     salary_cat = test_db_session.query(Category).filter_by(name="Salary").first()
 
-    # User A creates a transaction
+    # User A creates an expense: 350.00
     res_a = client.post(
         "/transactions",
         headers={"Authorization": f"Bearer {token_a}"},
@@ -69,7 +74,7 @@ def test_user_data_isolation_between_two_users(test_db_session):
     assert res_a.status_code == 201
     txn_a_id = res_a.json()["id"]
 
-    # User B creates a transaction
+    # User B creates an income: 8000.00
     res_b = client.post(
         "/transactions",
         headers={"Authorization": f"Bearer {token_b}"},
@@ -107,7 +112,25 @@ def test_user_data_isolation_between_two_users(test_db_session):
     )
     assert del_b_on_a.status_code == 404
 
-    # 5. User A can still view and modify their own transaction
+    # 5. User A's summary only reflects User A's data
+    summary_a = client.get("/summary", headers={"Authorization": f"Bearer {token_a}"})
+    assert summary_a.status_code == 200
+    data_a = summary_a.json()
+    assert float(data_a["total_income"]) == 0.00
+    assert float(data_a["total_expense"]) == 350.00
+    assert float(data_a["balance"]) == -350.00
+    assert data_a["transaction_count"] == 1
+
+    # 6. User B's summary only reflects User B's data
+    summary_b = client.get("/summary", headers={"Authorization": f"Bearer {token_b}"})
+    assert summary_b.status_code == 200
+    data_b = summary_b.json()
+    assert float(data_b["total_income"]) == 8000.00
+    assert float(data_b["total_expense"]) == 0.00
+    assert float(data_b["balance"]) == 8000.00
+    assert data_b["transaction_count"] == 1
+
+    # 7. User A can still view and modify their own transaction
     res_a_check = client.get("/transactions", headers={"Authorization": f"Bearer {token_a}"})
     assert len(res_a_check.json()) == 1
     assert res_a_check.json()[0]["id"] == txn_a_id

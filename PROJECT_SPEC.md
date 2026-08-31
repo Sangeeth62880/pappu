@@ -75,7 +75,9 @@ CREATE TABLE transactions (
 );
 ```
 
-**Row-Level Security (RLS):** enabled on `profiles` and `transactions`. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`. This enforces per-user data isolation at the database level, not just in application code — the isolation test in Phase 2 of `BUILD_PHASES.md` should confirm this holds even if application-layer checks were somehow bypassed.
+**Row-Level Security (RLS):** enabled on `profiles` and `transactions` as a defense-in-depth safeguard. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`.
+
+**Important — the actual enforcement mechanism is application-layer filtering, not RLS.** FastAPI connects to Postgres directly via the `postgres` role (the connection string from Supabase's dashboard), and that role bypasses RLS by default — RLS only applies automatically when a query goes through Supabase's own Data API (PostgREST) using the user's JWT, which this backend does not do. The real guarantee is: FastAPI verifies the JWT (§8), extracts `user_id` from the verified claims, and scopes every query with `WHERE user_id = :verified_user_id`. RLS stays enabled as a secondary safeguard in case anything ever queries the DB by another path (e.g. Supabase's Data API directly from the frontend for a future feature), but it is not what's protecting the backend's own queries today. The isolation test in Phase 2 of `BUILD_PHASES.md` should verify the *application-layer* filtering, not assume RLS is doing the work.
 
 ---
 
@@ -132,7 +134,15 @@ This is implemented as a single routing function the backend calls before any wr
 
 ## 8. API Contracts (Backend)
 
-Login/registration happen client-side via the Supabase client SDK (React Native) — there are no custom `/auth/*` endpoints. The frontend obtains a Supabase session/JWT directly from Supabase, then sends it as a bearer token on every request below. FastAPI verifies the JWT (via Supabase's JWT secret) on each request and extracts `user_id` from it — it never accepts a `user_id` from the request body.
+Login/registration happen client-side via the Supabase client SDK (React Native) — there are no custom `/auth/*` endpoints. The frontend obtains a Supabase session/JWT directly from Supabase, then sends it as a bearer token on every request below.
+
+**JWT verification (important — this project uses asymmetric signing, not a shared secret):** This Supabase project signs tokens with an asymmetric ECC (ES256) key, not the legacy symmetric HS256 secret. There is no static secret string to store in `.env`. FastAPI must verify incoming tokens against Supabase's public JWKS endpoint instead:
+
+```
+https://mvobtveaewxgiczulyrq.supabase.co/auth/v1/.well-known/jwks.json
+```
+
+Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client support, to fetch and cache the public key and verify tokens are signed with `ES256`. Do **not** implement HMAC/shared-secret verification against a `SUPABASE_JWT_SECRET` env var — that only works for the legacy key type this project isn't using. FastAPI extracts `user_id` from the verified token claims; it never accepts a `user_id` from the request body.
 
 | Method | Endpoint | Purpose |
 |---|---|---|

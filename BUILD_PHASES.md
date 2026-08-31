@@ -45,10 +45,10 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 **Tests**
 - pytest: a request with a valid Supabase JWT resolves to the correct `user_id`; a request with a missing/invalid JWT is rejected (401).
 - pytest: each CRUD endpoint — happy path, plus rejection when accessed without a valid token.
-- pytest: RLS isolation test — using two seeded users, confirm user A cannot read/edit/delete user B's transactions, both via the API and (if feasible) via a direct DB query as user A's role, to confirm RLS itself is doing the enforcing and not just app-layer code.
+- pytest: isolation test — using two seeded users, confirm user A cannot read/edit/delete user B's transactions via the API. This is enforced by FastAPI's `WHERE user_id = :verified_user_id` filtering (using the `user_id` extracted from the verified JWT), not by RLS — the backend connects via the `postgres` role, which bypasses RLS. Don't test this by trying to bypass application code directly against the DB; test it the way it's actually enforced, through the API with two different verified tokens.
 - pytest: `/summary` returns correct totals/balance against a known seeded set of transactions.
 
-**Acceptance criteria**: Full transaction lifecycle works end-to-end via API calls, sign-up/sign-in works through Supabase Auth, and isolation is enforced at the database level (RLS), not just the application level.
+**Acceptance criteria**: Full transaction lifecycle works end-to-end via API calls, sign-up/sign-in works through Supabase Auth, and isolation is enforced and verified at the application layer (JWT-derived `user_id` scoping on every query).
 
 ---
 
