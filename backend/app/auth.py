@@ -1,12 +1,23 @@
 import uuid
+import ssl
+import certifi
 import jwt
+from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientError, PyJWKError, ExpiredSignatureError, InvalidTokenError
 from fastapi import Header, HTTPException, status
-from app.config import SUPABASE_JWT_SECRET
+from app.config import SUPABASE_JWKS_URL
+
+# Create SSL context using certifi CA bundle to ensure reliable TLS handshake across platforms
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+# Initialize cached JWKS client for asymmetric ES256 public key verification
+jwks_client = PyJWKClient(SUPABASE_JWKS_URL, cache_keys=True, ssl_context=ssl_context)
 
 def get_current_user_id(authorization: str | None = Header(None)) -> uuid.UUID:
     """
-    FastAPI dependency to extract and verify the Supabase JWT from the Authorization header.
-    Extracts user_id from the 'sub' claim.
+    FastAPI dependency to extract and verify the Supabase JWT from the Authorization header
+    using Supabase's public JWKS endpoint (ES256 asymmetric signing keys).
+    Extracts user_id from the verified 'sub' claim.
     Never trusts user_id from request body (per PROJECT_SPEC.md §8 & CLAUDE.md).
     """
     if not authorization:
@@ -27,10 +38,11 @@ def get_current_user_id(authorization: str | None = Header(None)) -> uuid.UUID:
     token = parts[1]
 
     try:
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256", "HS384", "HS512", "RS256"],
+            signing_key.key,
+            algorithms=["ES256"],
             options={"verify_aud": False},
         )
         user_id_str = payload.get("sub")
@@ -41,13 +53,13 @@ def get_current_user_id(authorization: str | None = Header(None)) -> uuid.UUID:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return uuid.UUID(user_id_str)
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except (jwt.InvalidTokenError, ValueError) as e:
+    except (InvalidTokenError, PyJWKClientError, PyJWKError, ValueError) as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid token: {str(e)}",

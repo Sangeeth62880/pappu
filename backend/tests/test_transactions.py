@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -9,7 +10,8 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.database import Base, get_db, init_db
 from app.models import Category
-from tests.test_auth import create_test_jwt
+from app.auth import jwks_client
+from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
 
 client = TestClient(app)
 
@@ -40,7 +42,8 @@ def test_db_session():
     app.dependency_overrides[get_db] = override_get_db
     session = TestingSessionLocal()
     try:
-        yield session
+        with patch.object(jwks_client, "get_signing_key_from_jwt", return_value=MockSigningKey(test_public_key)):
+            yield session
     finally:
         session.close()
         app.dependency_overrides.pop(get_db, None)
@@ -48,7 +51,7 @@ def test_db_session():
 
 def test_create_transaction_happy_path(test_db_session):
     user_id = str(uuid.uuid4())
-    token = create_test_jwt(user_id)
+    token = create_test_es256_jwt(user_id)
     food_cat = test_db_session.query(Category).filter_by(name="Food").first()
 
     response = client.post(
@@ -84,7 +87,7 @@ def test_create_transaction_without_auth_rejected(test_db_session):
 
 def test_create_transaction_invalid_category(test_db_session):
     user_id = str(uuid.uuid4())
-    token = create_test_jwt(user_id)
+    token = create_test_es256_jwt(user_id)
 
     response = client.post(
         "/transactions",
@@ -101,7 +104,7 @@ def test_create_transaction_invalid_category(test_db_session):
 
 def test_list_transactions_and_filter(test_db_session):
     user_id = str(uuid.uuid4())
-    token = create_test_jwt(user_id)
+    token = create_test_es256_jwt(user_id)
     food_cat = test_db_session.query(Category).filter_by(name="Food").first()
     salary_cat = test_db_session.query(Category).filter_by(name="Salary").first()
 
@@ -134,7 +137,7 @@ def test_list_transactions_and_filter(test_db_session):
 
 def test_update_transaction(test_db_session):
     user_id = str(uuid.uuid4())
-    token = create_test_jwt(user_id)
+    token = create_test_es256_jwt(user_id)
     food_cat = test_db_session.query(Category).filter_by(name="Food").first()
     transport_cat = test_db_session.query(Category).filter_by(name="Transport").first()
 
@@ -158,7 +161,7 @@ def test_update_transaction(test_db_session):
 
 def test_delete_transaction(test_db_session):
     user_id = str(uuid.uuid4())
-    token = create_test_jwt(user_id)
+    token = create_test_es256_jwt(user_id)
     food_cat = test_db_session.query(Category).filter_by(name="Food").first()
 
     create_res = client.post(

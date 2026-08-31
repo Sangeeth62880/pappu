@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -8,7 +9,8 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.database import Base, get_db, init_db
 from app.models import Category
-from tests.test_auth import create_test_jwt
+from app.auth import jwks_client
+from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
 
 client = TestClient(app)
 
@@ -39,7 +41,8 @@ def test_db_session():
     app.dependency_overrides[get_db] = override_get_db
     session = TestingSessionLocal()
     try:
-        yield session
+        with patch.object(jwks_client, "get_signing_key_from_jwt", return_value=MockSigningKey(test_public_key)):
+            yield session
     finally:
         session.close()
         app.dependency_overrides.pop(get_db, None)
@@ -51,8 +54,8 @@ def test_user_data_isolation_between_two_users(test_db_session):
     """
     user_a = str(uuid.uuid4())
     user_b = str(uuid.uuid4())
-    token_a = create_test_jwt(user_a)
-    token_b = create_test_jwt(user_b)
+    token_a = create_test_es256_jwt(user_a)
+    token_b = create_test_es256_jwt(user_b)
 
     food_cat = test_db_session.query(Category).filter_by(name="Food").first()
     salary_cat = test_db_session.query(Category).filter_by(name="Salary").first()

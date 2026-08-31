@@ -1,5 +1,6 @@
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
@@ -9,7 +10,8 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.database import Base, get_db, init_db
 from app.models import Category
-from tests.test_auth import create_test_jwt
+from app.auth import jwks_client
+from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
 
 client = TestClient(app)
 
@@ -40,7 +42,8 @@ def test_db_session():
     app.dependency_overrides[get_db] = override_get_db
     session = TestingSessionLocal()
     try:
-        yield session
+        with patch.object(jwks_client, "get_signing_key_from_jwt", return_value=MockSigningKey(test_public_key)):
+            yield session
     finally:
         session.close()
         app.dependency_overrides.pop(get_db, None)
@@ -48,7 +51,7 @@ def test_db_session():
 
 def test_summary_empty_state(test_db_session):
     user_id = str(uuid.uuid4())
-    token = create_test_jwt(user_id)
+    token = create_test_es256_jwt(user_id)
 
     response = client.get("/summary", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
@@ -61,7 +64,7 @@ def test_summary_empty_state(test_db_session):
 
 def test_summary_calculation_with_income_and_expenses(test_db_session):
     user_id = str(uuid.uuid4())
-    token = create_test_jwt(user_id)
+    token = create_test_es256_jwt(user_id)
 
     salary_cat = test_db_session.query(Category).filter_by(name="Salary").first()
     food_cat = test_db_session.query(Category).filter_by(name="Food").first()
