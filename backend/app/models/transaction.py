@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Numeric, Integer, Date, DateTime, ForeignKey, Text, text, Uuid
+from sqlalchemy import Column, String, Numeric, Integer, Date, DateTime, ForeignKey, Text, Uuid
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -7,7 +7,7 @@ from app.database import Base
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id = Column(Uuid, primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     type = Column(String, nullable=False)  # 'income' | 'expense'
     amount = Column(Numeric(12, 2), nullable=False)

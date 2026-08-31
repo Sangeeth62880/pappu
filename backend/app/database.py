@@ -12,10 +12,26 @@ Base = declarative_base()
 
 def check_db_connection() -> bool:
     try:
-        # Try to connect and execute a simple query to confirm DB is alive
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
             return True
     except Exception as e:
         print(f"Database connection failed: {e}")
         return False
+
+def init_db(bind_engine=None):
+    """
+    Initializes database schema and seeds required fixed seed data.
+    """
+    import app.models  # Ensure models are imported and registered with Base
+    from app.services.category_seed import seed_categories
+
+    target_engine = bind_engine or engine
+    Base.metadata.create_all(bind=target_engine)
+
+    Session = sessionmaker(autocommit=False, autoflush=False, bind=target_engine)
+    db = Session()
+    try:
+        seed_categories(db)
+    finally:
+        db.close()
