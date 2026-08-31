@@ -9,7 +9,8 @@ Read `PROJECT_SPEC.md` and `BUILD_PHASES.md` before starting any task. This file
 3. **Categories are a fixed, seeded list.** Never let the LLM or backend create a new category on the fly. Ambiguous category → "Other" or one clarifying question.
 4. **Every intent object must include `confidence`, `requires_confirmation`, and `missing_fields`.** If you're writing an LLM prompt or parser that omits any of these, it's incomplete — stop and fix it before moving on.
 5. **Don't skip ahead to voice.** Build and test the LLM intent layer and confirmation logic against plain text input first (Phase 2–3 in `BUILD_PHASES.md`). STT/TTS are wired in last (Phase 6–7).
-6. **Per-user data isolation is enforced at the backend, not trusted from the frontend.** Every query/mutation must be scoped to the authenticated `user_id`.
+6. **Auth is Supabase Auth — never build custom login/register/password logic.** The frontend gets sessions/JWTs from the Supabase client SDK directly. The backend only ever verifies the incoming JWT and extracts `user_id` from it — it never trusts a `user_id` passed in a request body.
+7. **Per-user data isolation is enforced at two levels, not one.** RLS policies at the database level (per `PROJECT_SPEC.md §4`) are the real guarantee; backend-level scoping by `user_id` is a second, defense-in-depth layer — not a substitute for RLS.
 
 ## Working conventions
 

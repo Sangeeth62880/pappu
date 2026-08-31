@@ -19,6 +19,7 @@ Scope: academic/mini project. Not a production financial product. Cost, latency 
 | Frontend | React Native, Tailwind CSS (via NativeWind or similar), Recharts/Chart.js-equivalent for charts |
 | Backend | FastAPI (Python) |
 | Database | PostgreSQL (Supabase) |
+| Auth | Supabase Auth (not custom-built) |
 | STT | Sarvam AI — Saaras v3 |
 | TTS | Sarvam AI — Bulbul v3 |
 | LLM | Sarvam-30B or Groq Llama 3.3 70B |
@@ -42,13 +43,13 @@ Flow: `speech → STT → LLM intent → confirmation/error-recovery routing →
 
 ## 4. Data Model
 
+Auth is handled entirely by Supabase Auth — credentials, password hashing, and session/JWT issuance are not built by hand. The `users` table below is a **profile table**, not the credentials store: it holds app-specific data and links to Supabase's own `auth.users` table via a shared `id`.
+
 ```sql
--- Users
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- User profiles (credentials live in Supabase's auth.users, not here)
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
     preferred_language TEXT NOT NULL DEFAULT 'en', -- 'en' | 'ml' | 'mixed'
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -64,7 +65,7 @@ CREATE TABLE categories (
 -- Transactions
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     type TEXT NOT NULL, -- 'income' | 'expense'
     amount NUMERIC(12,2) NOT NULL,
     category_id INTEGER NOT NULL REFERENCES categories(id),
@@ -73,6 +74,8 @@ CREATE TABLE transactions (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 ```
+
+**Row-Level Security (RLS):** enabled on `profiles` and `transactions`. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`. This enforces per-user data isolation at the database level, not just in application code — the isolation test in Phase 2 of `BUILD_PHASES.md` should confirm this holds even if application-layer checks were somehow bypassed.
 
 ---
 
@@ -129,12 +132,10 @@ This is implemented as a single routing function the backend calls before any wr
 
 ## 8. API Contracts (Backend)
 
-All endpoints require an authenticated session (login required before any voice command is accepted).
+Login/registration happen client-side via the Supabase client SDK (React Native) — there are no custom `/auth/*` endpoints. The frontend obtains a Supabase session/JWT directly from Supabase, then sends it as a bearer token on every request below. FastAPI verifies the JWT (via Supabase's JWT secret) on each request and extracts `user_id` from it — it never accepts a `user_id` from the request body.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| POST | `/auth/login` | Authenticate user |
-| POST | `/auth/register` | Create user |
 | POST | `/intent/route` | Accepts an LLM intent object, returns routing decision (§6) + any data needed for confirmation/disambiguation prompts |
 | POST | `/transactions` | Create transaction |
 | PUT | `/transactions/{id}` | Update transaction |

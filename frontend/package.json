@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "expo": "~57.0.18",
     "expo-status-bar": "~57.0.1",
     "nativewind": "^4.2.6",
@@ -21,7 +22,8 @@
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
-      "\\.css$": "<rootDir>/tests/mocks/cssMock.js"
+      "\\.css$": "<rootDir>/tests/mocks/cssMock.js",
+      "^tslib$": "<rootDir>/tests/mocks/tslibMock.js"
     }
   },
   "private": true,
@@ -31,8 +33,9 @@
     "jest": "^30.5.0",
     "jest-expo": "^57.0.5",
     "postcss": "^8.5.26",
-    "react-test-renderer": "^19.2.8",
+    "react-test-renderer": "^19.2.3",
     "tailwindcss": "^3.4.19",
-    "test-renderer": "^1.2.0"
+    "test-renderer": "^1.2.0",
+    "tslib": "2.8.1"
   }
 }

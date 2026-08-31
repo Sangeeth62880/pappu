@@ -37,16 +37,18 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 ## Phase 2 — Backend CRUD + Auth (no LLM yet)
 
 **Tasks**
-1. Implement `/auth/register` and `/auth/login`.
-2. Implement `/transactions` (POST/PUT/DELETE/GET) and `/summary`, all scoped to the authenticated user.
+1. Wire up Supabase Auth in the frontend (sign-up/sign-in via the Supabase client SDK) — no custom auth endpoints are built.
+2. Enable and write RLS policies on `profiles` and `transactions` per `PROJECT_SPEC.md §4`.
+3. Implement JWT verification middleware in FastAPI that extracts `user_id` from the Supabase-issued token on every request.
+4. Implement `/transactions` (POST/PUT/DELETE/GET) and `/summary`, all scoped to the authenticated user via the verified JWT.
 
 **Tests**
-- pytest: register + login flow returns a valid session/token.
-- pytest: each CRUD endpoint — happy path, plus rejection when accessed without auth.
-- pytest: user A cannot read/edit/delete user B's transactions (isolation test — this one matters, don't skip it).
+- pytest: a request with a valid Supabase JWT resolves to the correct `user_id`; a request with a missing/invalid JWT is rejected (401).
+- pytest: each CRUD endpoint — happy path, plus rejection when accessed without a valid token.
+- pytest: RLS isolation test — using two seeded users, confirm user A cannot read/edit/delete user B's transactions, both via the API and (if feasible) via a direct DB query as user A's role, to confirm RLS itself is doing the enforcing and not just app-layer code.
 - pytest: `/summary` returns correct totals/balance against a known seeded set of transactions.
 
-**Acceptance criteria**: Full transaction lifecycle works end-to-end via API calls (e.g. Postman/pytest client), with auth and isolation enforced.
+**Acceptance criteria**: Full transaction lifecycle works end-to-end via API calls, sign-up/sign-in works through Supabase Auth, and isolation is enforced at the database level (RLS), not just the application level.
 
 ---
 
