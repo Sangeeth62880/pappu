@@ -22,7 +22,7 @@ Scope: academic/mini project. Not a production financial product. Cost, latency 
 | Auth | Supabase Auth (not custom-built) |
 | STT | Sarvam AI — Saaras v3 |
 | TTS | Sarvam AI — Bulbul v3 |
-| LLM | Sarvam-30B or Groq Llama 3.3 70B |
+| LLM | Sarvam-105B (sarvam-30b is deprecated and no longer available via the Chat Completions API) |
 | Backend testing | pytest |
 | Frontend testing | Jest + React Native Testing Library |
 
