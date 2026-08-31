@@ -3,7 +3,7 @@
  * Provides authenticated helper methods using the user's Supabase JWT.
  */
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.29.164:8000';
 
 /**
  * Helper to execute HTTP requests with auth headers.

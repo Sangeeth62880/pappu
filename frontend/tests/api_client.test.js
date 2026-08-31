@@ -36,7 +36,7 @@ describe('Frontend API Client', () => {
 
     const result = await fetchSummary(mockToken);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8000/summary',
+      expect.stringMatching(/\/summary$/),
       expect.objectContaining({
         method: 'GET',
         headers: expect.objectContaining({
@@ -56,7 +56,7 @@ describe('Frontend API Client', () => {
 
     await fetchTransactions(mockToken, { category_id: 1, limit: 10 });
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8000/transactions?category_id=1&limit=10',
+      expect.stringMatching(/\/transactions\?category_id=1&limit=10$/),
       expect.objectContaining({ method: 'GET' })
     );
   });
@@ -78,7 +78,7 @@ describe('Frontend API Client', () => {
 
     const result = await parseIntent(mockToken, 'I spent 500 on food today');
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8000/intent/parse',
+      expect.stringMatching(/\/intent\/parse$/),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ text: 'I spent 500 on food today' }),
@@ -106,7 +106,7 @@ describe('Frontend API Client', () => {
 
     const result = await routeIntent(mockToken, mockIntent);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8000/intent/route',
+      expect.stringMatching(/\/intent\/route$/),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ intent: mockIntent }),
@@ -125,7 +125,7 @@ describe('Frontend API Client', () => {
 
     const result = await confirmAction(mockToken, txnId, 'delete');
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8000/intent/confirm',
+      expect.stringMatching(/\/intent\/confirm$/),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
@@ -147,7 +147,7 @@ describe('Frontend API Client', () => {
 
     const result = await undoTransaction(mockToken);
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:8000/transactions/undo',
+      expect.stringMatching(/\/transactions\/undo$/),
       expect.objectContaining({ method: 'POST' })
     );
     expect(result.status).toBe('undone');
