@@ -11,3 +11,11 @@ SUPABASE_JWKS_URL = os.getenv(
     "SUPABASE_JWKS_URL",
     f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json",
 )
+
+# Sarvam AI LLM config (PROJECT_SPEC.md §2)
+SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
+SARVAM_MODEL = os.getenv("SARVAM_MODEL", "sarvam-105b")
+SARVAM_API_URL = os.getenv(
+    "SARVAM_API_URL", "https://api.sarvam.ai/v1/chat/completions"
+)
+
