@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from app.database import check_db_connection
-from app.routers import transactions, summary
+from app.routers import transactions, summary, intent
 
 app = FastAPI(title="Pappu API")
 
 app.include_router(transactions.router)
 app.include_router(summary.router)
+app.include_router(intent.router)
 
 @app.get("/health")
 def health_check():
