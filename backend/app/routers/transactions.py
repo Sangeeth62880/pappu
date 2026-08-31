@@ -13,6 +13,8 @@ from app.schemas.transaction import (
     TransactionResponse,
 )
 
+from app.services.undo import undo_last_transaction
+
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 def _ensure_profile_exists(db: Session, user_id: uuid.UUID):
@@ -21,6 +23,23 @@ def _ensure_profile_exists(db: Session, user_id: uuid.UUID):
         profile = Profile(id=user_id, name="User", preferred_language="en")
         db.add(profile)
         db.commit()
+
+@router.post("/undo")
+def undo_transaction(
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """
+    Undo/revert the most recent transaction for the authenticated user.
+    """
+    deleted_txn = undo_last_transaction(db, current_user_id)
+    if not deleted_txn:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No recent transaction found to undo",
+        )
+    return {"status": "undone", "transaction": deleted_txn}
+
 
 @router.post("", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
 def create_transaction(
