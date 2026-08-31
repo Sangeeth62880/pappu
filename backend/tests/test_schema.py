@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 
 from app.database import Base, init_db
-from app.models import User, Category, Transaction
+from app.models import Profile, Category, Transaction
 from app.services.category_seed import SEED_CATEGORIES, seed_categories
 
 
@@ -40,9 +40,8 @@ def test_migration_runs_cleanly(test_db):
     """
     Test: migration runs cleanly on a fresh test DB.
     """
-    # Verify tables exist in metadata and can be queried
-    users = test_db.query(User).all()
-    assert users == []
+    profiles = test_db.query(Profile).all()
+    assert profiles == []
 
     transactions = test_db.query(Transaction).all()
     assert transactions == []
@@ -77,16 +76,15 @@ def test_transaction_foreign_key_invalid_category_fails(test_db):
     """
     Test: creating a transaction with an invalid category_id fails (FK constraint).
     """
-    user = User(
-        name="Valid User",
-        email="user_fk_test1@example.com",
-        password_hash="hashed_pw"
+    profile = Profile(
+        name="Valid Profile",
+        preferred_language="en"
     )
-    test_db.add(user)
+    test_db.add(profile)
     test_db.commit()
 
     invalid_txn = Transaction(
-        user_id=user.id,
+        user_id=profile.id,
         type="expense",
         amount=100.00,
         category_id=9999,  # Non-existent category
@@ -107,7 +105,7 @@ def test_transaction_foreign_key_invalid_user_fails(test_db):
     assert food_cat is not None
 
     invalid_txn = Transaction(
-        user_id=uuid.uuid4(),  # Non-existent user
+        user_id=uuid.uuid4(),  # Non-existent profile/user
         type="expense",
         amount=150.00,
         category_id=food_cat.id,
@@ -122,19 +120,18 @@ def test_transaction_foreign_key_invalid_user_fails(test_db):
 
 def test_valid_transaction_creation_and_cascade_delete(test_db):
     """
-    Test: creating a valid transaction succeeds and deleting the user cascades.
+    Test: creating a valid transaction succeeds and deleting the profile cascades.
     """
     food_cat = test_db.query(Category).filter_by(name="Food").first()
-    user = User(
-        name="Cascade User",
-        email="cascade_test@example.com",
-        password_hash="hashed_pw"
+    profile = Profile(
+        name="Cascade Profile",
+        preferred_language="en"
     )
-    test_db.add(user)
+    test_db.add(profile)
     test_db.commit()
 
     valid_txn = Transaction(
-        user_id=user.id,
+        user_id=profile.id,
         type="expense",
         amount=75.50,
         category_id=food_cat.id,
@@ -148,11 +145,11 @@ def test_valid_transaction_creation_and_cascade_delete(test_db):
     saved_txn = test_db.query(Transaction).filter_by(id=valid_txn.id).first()
     assert saved_txn is not None
     assert saved_txn.amount == 75.50
-    assert saved_txn.user.id == user.id
+    assert saved_txn.profile.id == profile.id
     assert saved_txn.category.name == "Food"
 
-    # Delete user and verify cascade delete of transaction
-    test_db.delete(user)
+    # Delete profile and verify cascade delete of transaction
+    test_db.delete(profile)
     test_db.commit()
 
     txns_after = test_db.query(Transaction).filter_by(id=valid_txn.id).all()

@@ -8,7 +8,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
-    user_id = Column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Uuid, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     type = Column(String, nullable=False)  # 'income' | 'expense'
     amount = Column(Numeric(12, 2), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
@@ -16,5 +16,5 @@ class Transaction(Base):
     txn_date = Column(Date, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    user = relationship("User", back_populates="transactions")
+    profile = relationship("Profile", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")

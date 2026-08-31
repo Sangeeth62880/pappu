@@ -21,13 +21,41 @@ def check_db_connection() -> bool:
 
 def init_db(bind_engine=None):
     """
-    Initializes database schema and seeds required fixed seed data.
+    Initializes database schema, applies PostgreSQL RLS policies where supported,
+    and seeds required fixed category seed data.
     """
     import app.models  # Ensure models are imported and registered with Base
     from app.services.category_seed import seed_categories
 
     target_engine = bind_engine or engine
     Base.metadata.create_all(bind=target_engine)
+
+    # Enable Row-Level Security (RLS) on PostgreSQL
+    if target_engine.dialect.name == "postgresql":
+        with target_engine.connect() as connection:
+            # Check if auth schema / auth.uid() function exists, if not create dummy auth.uid() for testing/standalone
+            connection.execute(text("""
+                CREATE SCHEMA IF NOT EXISTS auth;
+                CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid AS $$
+                    SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
+                $$ LANGUAGE sql STABLE;
+            """))
+            connection.execute(text("""
+                ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS "Users can manage their own profile" ON profiles;
+                CREATE POLICY "Users can manage their own profile" ON profiles
+                    FOR ALL
+                    USING (id = auth.uid())
+                    WITH CHECK (id = auth.uid());
+
+                ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+                DROP POLICY IF EXISTS "Users can manage their own transactions" ON transactions;
+                CREATE POLICY "Users can manage their own transactions" ON transactions
+                    FOR ALL
+                    USING (user_id = auth.uid())
+                    WITH CHECK (user_id = auth.uid());
+            """))
+            connection.commit()
 
     Session = sessionmaker(autocommit=False, autoflush=False, bind=target_engine)
     db = Session()
