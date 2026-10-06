@@ -13,6 +13,7 @@ from sqlalchemy import func
 
 from app.models.transaction import Transaction
 from app.models.category import Category
+from app.models.contact import Contact
 from app.schemas.intent import IntentFields
 
 
@@ -30,6 +31,11 @@ def match_transactions(
         .join(Category, Transaction.category_id == Category.id)
         .filter(Transaction.user_id == user_id)
     )
+
+    if fields.contact_name:
+        query = query.join(Contact, Transaction.contact_id == Contact.id).filter(
+            func.lower(Contact.name) == fields.contact_name.lower().strip()
+        )
 
     if fields.category:
         query = query.filter(func.lower(Category.name) == fields.category.lower().strip())

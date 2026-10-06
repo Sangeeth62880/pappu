@@ -8,6 +8,7 @@ SEED_CATEGORIES = [
     {"name": "Bills", "type": "expense"},
     {"name": "Entertainment", "type": "expense"},
     {"name": "Salary", "type": "income"},
+    {"name": "People", "type": "expense"},
     {"name": "Other", "type": "expense"},
 ]
 

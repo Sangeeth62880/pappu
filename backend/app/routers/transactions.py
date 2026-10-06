@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth import get_current_user_id
-from app.models import Transaction, Category, Profile
+from app.models import Transaction, Category, Profile, Contact
 from app.schemas.transaction import (
     TransactionCreate,
     TransactionUpdate,
@@ -56,11 +56,23 @@ def create_transaction(
             detail=f"Category with id {payload.category_id} does not exist",
         )
 
+    if payload.contact_id is not None:
+        contact = db.query(Contact).filter(
+            Contact.id == payload.contact_id,
+            Contact.user_id == current_user_id,
+        ).first()
+        if not contact:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Contact with id {payload.contact_id} does not exist",
+            )
+
     txn = Transaction(
         user_id=current_user_id,
         type=payload.type,
         amount=payload.amount,
         category_id=payload.category_id,
+        contact_id=payload.contact_id,
         description=payload.description,
         txn_date=payload.txn_date,
     )
@@ -75,6 +87,8 @@ def create_transaction(
         amount=txn.amount,
         category_id=txn.category_id,
         category_name=category.name,
+        contact_id=txn.contact_id,
+        contact_name=txn.contact.name if txn.contact else None,
         description=txn.description,
         txn_date=txn.txn_date,
         created_at=txn.created_at,
@@ -83,6 +97,7 @@ def create_transaction(
 @router.get("", response_model=List[TransactionResponse])
 def list_transactions(
     category_id: Optional[int] = Query(None, description="Filter by category ID"),
+    contact_id: Optional[uuid.UUID] = Query(None, description="Filter by contact ID"),
     type: Optional[Literal["income", "expense"]] = Query(None, description="Filter by transaction type"),
     start_date: Optional[date] = Query(None, description="Filter start date (inclusive)"),
     end_date: Optional[date] = Query(None, description="Filter end date (inclusive)"),
@@ -93,6 +108,8 @@ def list_transactions(
 
     if category_id is not None:
         query = query.filter(Transaction.category_id == category_id)
+    if contact_id is not None:
+        query = query.filter(Transaction.contact_id == contact_id)
     if type is not None:
         query = query.filter(Transaction.type == type)
     if start_date is not None:
@@ -110,6 +127,8 @@ def list_transactions(
             amount=txn.amount,
             category_id=txn.category_id,
             category_name=txn.category.name if txn.category else None,
+            contact_id=txn.contact_id,
+            contact_name=txn.contact.name if txn.contact else None,
             description=txn.description,
             txn_date=txn.txn_date,
             created_at=txn.created_at,
@@ -140,6 +159,18 @@ def update_transaction(
             )
         txn.category_id = payload.category_id
 
+    if payload.contact_id is not None:
+        contact = db.query(Contact).filter(
+            Contact.id == payload.contact_id,
+            Contact.user_id == current_user_id,
+        ).first()
+        if not contact:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Contact with id {payload.contact_id} does not exist",
+            )
+        txn.contact_id = payload.contact_id
+
     if payload.type is not None:
         txn.type = payload.type
     if payload.amount is not None:
@@ -159,10 +190,13 @@ def update_transaction(
         amount=txn.amount,
         category_id=txn.category_id,
         category_name=txn.category.name if txn.category else None,
+        contact_id=txn.contact_id,
+        contact_name=txn.contact.name if txn.contact else None,
         description=txn.description,
         txn_date=txn.txn_date,
         created_at=txn.created_at,
     )
+
 
 @router.delete("/{id}")
 def delete_transaction(
