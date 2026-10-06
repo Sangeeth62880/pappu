@@ -81,9 +81,10 @@ def route_intent(intent: IntentObject) -> RoutingResult:
         # Tier 2: Single match -> Confirmation
         if num_matches == 1:
             target_id = intent.matched_transactions[0]
-            confirm_msg = f"Are you sure you want to {intent.action} transaction {target_id}?"
+            prefix = f"{intent.reasoning}. " if intent.reasoning else ""
+            confirm_msg = f"{prefix}Are you sure you want to {intent.action} transaction {target_id}?"
             if intent.language == "ml":
-                confirm_msg = f"{target_id} എന്ന ഇടപാട് {intent.action} ചെയ്യാൻ തീർച്ചയാണോ?"
+                confirm_msg = f"{prefix}{target_id} എന്ന ഇടപാട് {intent.action} ചെയ്യാൻ തീർച്ചയാണോ?"
 
             return RoutingResult(
                 decision=RoutingDecision.ASK_CONFIRMATION,

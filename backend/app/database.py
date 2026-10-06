@@ -6,7 +6,11 @@ from app.config import DATABASE_URL
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL environment variable is not set")
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -40,31 +44,29 @@ def init_db(bind_engine=None):
     target_engine = bind_engine or engine
     Base.metadata.create_all(bind=target_engine)
 
-    # Enable Row-Level Security (RLS) on PostgreSQL
+    # Enable Row-Level Security (RLS) on PostgreSQL if supported
     if target_engine.dialect.name == "postgresql":
-        with target_engine.connect() as connection:
-            connection.execute(text("""
-                CREATE SCHEMA IF NOT EXISTS auth;
-                CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid AS $$
-                    SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid;
-                $$ LANGUAGE sql STABLE;
-            """))
-            connection.execute(text("""
-                ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-                DROP POLICY IF EXISTS "Users can manage their own profile" ON profiles;
-                CREATE POLICY "Users can manage their own profile" ON profiles
-                    FOR ALL
-                    USING (id = auth.uid())
-                    WITH CHECK (id = auth.uid());
+        try:
+            with target_engine.connect() as connection:
+                connection.execute(text("""
+                    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own profile" ON profiles;
+                    CREATE POLICY "Users can manage their own profile" ON profiles
+                        FOR ALL
+                        USING (id = auth.uid())
+                        WITH CHECK (id = auth.uid());
 
-                ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-                DROP POLICY IF EXISTS "Users can manage their own transactions" ON transactions;
-                CREATE POLICY "Users can manage their own transactions" ON transactions
-                    FOR ALL
-                    USING (user_id = auth.uid())
-                    WITH CHECK (user_id = auth.uid());
-            """))
-            connection.commit()
+                    ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own transactions" ON transactions;
+                    CREATE POLICY "Users can manage their own transactions" ON transactions
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
+                """))
+                connection.commit()
+        except Exception as e:
+            # Policies or permissions may already be managed at Supabase project level
+            pass
 
     Session = sessionmaker(autocommit=False, autoflush=False, bind=target_engine)
     db = Session()

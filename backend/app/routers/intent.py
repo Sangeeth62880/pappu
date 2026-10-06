@@ -8,6 +8,7 @@ Endpoints:
 """
 
 import uuid
+import logging
 from decimal import Decimal
 from datetime import datetime, date
 from typing import Optional, List, Literal, Any, Union
@@ -22,11 +23,14 @@ from app.llm.client import SarvamLLMClient
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.profile import Profile
+from app.models.contact import Contact
 from app.schemas.intent import IntentObject, IntentFields, IntentValidationError
 from app.services.routing import route_intent, RoutingDecision, RoutingResult
 from app.services.matcher import match_transactions
+from app.llm.response_generator import generate_spoken_response
 
 router = APIRouter(prefix="/intent", tags=["intent"])
+logger = logging.getLogger(__name__)
 
 
 class IntentParseRequest(BaseModel):
@@ -54,6 +58,7 @@ class IntentRouteResponse(BaseModel):
     clarification_prompt: Optional[str] = None
     confirmation_prompt: Optional[str] = None
     disambiguation_prompt: Optional[str] = None
+    spoken_response: Optional[str] = None
     target_transaction: Optional[dict] = None
     candidates: Optional[List[dict]] = None
     execution_result: Optional[dict] = None
@@ -94,6 +99,8 @@ def _format_transaction_dict(txn: Transaction) -> dict:
         "amount": float(txn.amount),
         "category_id": txn.category_id,
         "category_name": txn.category.name if txn.category else None,
+        "contact_id": str(txn.contact_id) if txn.contact_id else None,
+        "contact_name": txn.contact.name if txn.contact else None,
         "description": txn.description,
         "txn_date": str(txn.txn_date),
         "created_at": txn.created_at.isoformat() if txn.created_at else None,
@@ -120,11 +127,13 @@ def parse_intent(
         intent = client.parse_intent(payload.text.strip())
         return IntentParseResponse(intent=intent)
     except IntentValidationError as e:
+        logger.warning(f"Intent validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Failed to parse intent: {e}",
         )
     except Exception as e:
+        logger.error(f"LLM service error in /intent/parse: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"LLM service error: {e}",
@@ -170,6 +179,21 @@ def route_intent_endpoint(
     # Handle Tier 1: EXECUTE
     if routing_result.decision == RoutingDecision.EXECUTE:
         if intent.action == "add":
+            contact_id = None
+            if intent.fields.contact_name and intent.fields.contact_name.strip():
+                clean_name = intent.fields.contact_name.strip()
+                contact = db.query(Contact).filter(
+                    Contact.user_id == current_user_id,
+                    func.lower(Contact.name) == clean_name.lower(),
+                ).first()
+                if not contact:
+                    contact = Contact(user_id=current_user_id, name=clean_name)
+                    db.add(contact)
+                    db.commit()
+                    db.refresh(contact)
+                contact_id = contact.id
+                intent.fields.category = "People"
+
             # Resolve category
             category_name = intent.fields.category or "Other"
             category = db.query(Category).filter(func.lower(Category.name) == category_name.lower().strip()).first()
@@ -189,13 +213,27 @@ def route_intent_endpoint(
                     txn_date = date.today()
 
             txn_amount = Decimal(str(intent.fields.amount or 0))
-            txn_type = "income" if category.type == "income" else "expense"
+
+            # Determine transaction type (direction semantics)
+            if intent.fields.type:
+                txn_type = intent.fields.type
+            elif contact_id:
+                desc = (intent.fields.description or "").lower()
+                if any(w in desc for w in ["receive", "got back", "paid back", "returned", "thannu", "income"]):
+                    txn_type = "income"
+                else:
+                    txn_type = "expense"
+            elif category.type == "income":
+                txn_type = "income"
+            else:
+                txn_type = "expense"
 
             new_txn = Transaction(
                 user_id=current_user_id,
                 type=txn_type,
                 amount=txn_amount,
                 category_id=category.id,
+                contact_id=contact_id,
                 description=intent.fields.description,
                 txn_date=txn_date,
             )
@@ -209,12 +247,76 @@ def route_intent_endpoint(
             }
 
         elif intent.action == "query":
-            matched_txns = match_transactions(db, current_user_id, intent.fields)
-            response.execution_result = {
-                "status": "queried",
-                "count": len(matched_txns),
-                "transactions": [_format_transaction_dict(t) for t in matched_txns],
-            }
+            if intent.fields.contact_name and intent.fields.contact_name.strip():
+                clean_name = intent.fields.contact_name.strip()
+                contact = db.query(Contact).filter(
+                    Contact.user_id == current_user_id,
+                    func.lower(Contact.name) == clean_name.lower(),
+                ).first()
+
+                if contact:
+                    contact_txns = (
+                        db.query(Transaction)
+                        .filter(
+                            Transaction.user_id == current_user_id,
+                            Transaction.contact_id == contact.id,
+                        )
+                        .order_by(Transaction.txn_date.desc(), Transaction.created_at.desc())
+                        .all()
+                    )
+
+                    total_sent = Decimal("0.00")
+                    total_received = Decimal("0.00")
+                    for t in contact_txns:
+                        if t.type == "expense":
+                            total_sent += t.amount
+                        elif t.type == "income":
+                            total_received += t.amount
+
+                    net_balance = total_sent - total_received
+                    if net_balance > Decimal("0.00"):
+                        c_status = "owes_you"
+                        display_text = f"{contact.name} owes you ₹{net_balance:.2f}"
+                    elif net_balance < Decimal("0.00"):
+                        c_status = "you_owe"
+                        display_text = f"You owe {contact.name} ₹{abs(net_balance):.2f}"
+                    else:
+                        c_status = "settled"
+                        display_text = f"Settled up with {contact.name} (₹0.00)"
+
+                    response.execution_result = {
+                        "status": "queried_contact",
+                        "contact_id": str(contact.id),
+                        "contact_name": contact.name,
+                        "total_sent": float(total_sent),
+                        "total_received": float(total_received),
+                        "net_balance": float(net_balance),
+                        "contact_status": c_status,
+                        "display_text": display_text,
+                        "count": len(contact_txns),
+                        "transactions": [_format_transaction_dict(t) for t in contact_txns],
+                    }
+                else:
+                    response.execution_result = {
+                        "status": "queried_contact",
+                        "contact_id": None,
+                        "contact_name": clean_name,
+                        "total_sent": 0.0,
+                        "total_received": 0.0,
+                        "net_balance": 0.0,
+                        "contact_status": "not_found",
+                        "display_text": f"No transactions found with {clean_name}.",
+                        "count": 0,
+                        "transactions": [],
+                    }
+            else:
+                matched_txns = match_transactions(db, current_user_id, intent.fields)
+                response.execution_result = {
+                    "status": "queried",
+                    "count": len(matched_txns),
+                    "transactions": [_format_transaction_dict(t) for t in matched_txns],
+                }
+
 
     # Handle Tier 2: Confirmation data enrichment
     elif routing_result.decision == RoutingDecision.ASK_CONFIRMATION:
@@ -246,6 +348,18 @@ def route_intent_endpoint(
             except ValueError:
                 pass
         response.candidates = candidates
+
+    # Generate natural spoken response matching input language
+    response.spoken_response = generate_spoken_response(
+        decision=response.decision,
+        action=response.action,
+        language=intent.language,
+        fields=intent.fields.model_dump() if intent.fields else {},
+        execution_result=response.execution_result,
+        matched_count=len(response.matched_transactions),
+        target_transaction=response.target_transaction,
+        reasoning=intent.reasoning,
+    )
 
     return response
 

@@ -53,9 +53,9 @@ def test_seeded_categories_match_fixed_list_exactly(test_db):
     """
     categories = test_db.query(Category).all()
     assert len(categories) == len(SEED_CATEGORIES)
-    assert len(categories) == 7
+    assert len(categories) == 8
 
-    expected_names = {"Food", "Transport", "Shopping", "Bills", "Entertainment", "Salary", "Other"}
+    expected_names = {"Food", "Transport", "Shopping", "Bills", "Entertainment", "Salary", "People", "Other"}
     db_names = {cat.name for cat in categories}
     assert db_names == expected_names
 
@@ -69,7 +69,7 @@ def test_seeded_categories_match_fixed_list_exactly(test_db):
     # Running seed_categories again should be idempotent (no duplicates added)
     seed_categories(test_db)
     categories_after = test_db.query(Category).all()
-    assert len(categories_after) == 7
+    assert len(categories_after) == 8
 
 
 def test_transaction_foreign_key_invalid_category_fails(test_db):

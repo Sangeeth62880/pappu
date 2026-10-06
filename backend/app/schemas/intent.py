@@ -17,6 +17,8 @@ class IntentFields(BaseModel):
     category: Optional[str] = None
     date: Optional[str] = None  # ISO date string, e.g. "2026-08-30"
     description: Optional[str] = None
+    contact_name: Optional[str] = None
+    type: Optional[str] = None  # 'income' | 'expense'
 
     @field_validator("amount", mode="before")
     @classmethod
@@ -47,6 +49,7 @@ class IntentObject(BaseModel):
     The structured intent object produced by the LLM layer.
     This is the contract defined in PROJECT_SPEC.md §5.
     """
+    reasoning: Optional[str] = None
     action: Literal["add", "edit", "delete", "query"]
     language: Literal["en", "ml", "mixed"]
     fields: IntentFields = Field(default_factory=IntentFields)

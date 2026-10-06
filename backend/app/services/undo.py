@@ -21,7 +21,7 @@ def undo_last_transaction(db: Session, user_id: uuid.UUID) -> Optional[dict]:
     last_txn = (
         db.query(Transaction)
         .filter(Transaction.user_id == user_id)
-        .order_by(Transaction.created_at.desc())
+        .order_by(Transaction.created_at.desc(), Transaction.txn_date.desc())
         .first()
     )
 

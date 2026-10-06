@@ -602,3 +602,182 @@ class TestClientSchemaRejection:
         assert "amount" in intent.missing_fields
         assert intent.confidence == "low"
 
+    def test_malayalam_manglish_kurakku_parsed_as_edit(self):
+        """Input 'petrolil ninn 1000 kurakku' must be parsed as an 'edit' action, not 'add'."""
+        client = _make_client()
+        expected = {
+            "action": "edit",
+            "language": "mixed",
+            "fields": {
+                "amount": 1000,
+                "category": "Transport",
+                "date": None,
+                "description": "reduce petrol",
+            },
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": True,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("petrolil ninn 1000 kurakku")
+        assert intent.action == "edit"
+        assert intent.language == "mixed"
+        assert intent.fields.amount == Decimal("1000")
+        assert intent.fields.category == "Transport"
+        assert intent.requires_confirmation is True
+
+    def test_malayalam_script_kurakkuka_parsed_as_edit(self):
+        """Input with Malayalam script 'കുറയ്ക്കണം' must be parsed as 'edit'."""
+        client = _make_client()
+        expected = {
+            "action": "edit",
+            "language": "ml",
+            "fields": {
+                "amount": 200,
+                "category": "Food",
+                "date": None,
+                "description": "ഭക്ഷണ ചിലവ് കുറയ്ക്കുക",
+            },
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": True,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("ഭക്ഷണ ചിലവിൽ നിന്ന് 200 രൂപ കുറയ്ക്കണം")
+        assert intent.action == "edit"
+        assert intent.language == "ml"
+        assert intent.fields.amount == Decimal("200")
+        assert intent.fields.category == "Food"
+        assert intent.requires_confirmation is True
+
+    def test_english_subtract_parsed_as_edit(self):
+        """Input 'subtract 1000 from transport' must be parsed as 'edit'."""
+        client = _make_client()
+        expected = {
+            "action": "edit",
+            "language": "en",
+            "fields": {
+                "amount": 1000,
+                "category": "Transport",
+                "date": None,
+                "description": "subtract transport",
+            },
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": True,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("subtract 1000 from transport")
+        assert intent.action == "edit"
+        assert intent.language == "en"
+        assert intent.fields.amount == Decimal("1000")
+        assert intent.fields.category == "Transport"
+        assert intent.requires_confirmation is True
+
+    def test_empty_raw_llm_response_raises_validation_error(self):
+        """Empty completion from LLM is handled cleanly and raises IntentValidationError."""
+        client = _make_client()
+        with patch.object(client, "_make_request", return_value=""):
+            with pytest.raises(IntentValidationError, match="Failed to get valid intent"):
+                client.parse_intent("subtract 1000 from transport")
+
+    def test_malayalam_script_delete_intent(self):
+        """Delete intent in Malayalam script ('ഇന്നലത്തെ ചായ കുടിച്ച 50 രൂപ ഒഴിവാക്കൂ')."""
+        client = _make_client()
+        expected = {
+            "action": "delete",
+            "language": "ml",
+            "fields": {"amount": 50, "category": "Food", "date": "2026-08-30", "description": "ചായ"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": True,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("ഇന്നലത്തെ ചായ കുടിച്ച 50 രൂപ ഒഴിവാക്കൂ")
+        assert intent.action == "delete"
+        assert intent.language == "ml"
+        assert intent.fields.amount == Decimal("50")
+        assert intent.fields.category == "Food"
+        assert intent.requires_confirmation is True
+
+    def test_manglish_delete_intent(self):
+        """Delete intent in Manglish ('swiggy 350 delete chey')."""
+        client = _make_client()
+        expected = {
+            "action": "delete",
+            "language": "mixed",
+            "fields": {"amount": 350, "category": "Food", "date": None, "description": "swiggy"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": True,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("swiggy 350 delete chey")
+        assert intent.action == "delete"
+        assert intent.language == "mixed"
+        assert intent.fields.amount == Decimal("350")
+        assert intent.requires_confirmation is True
+
+    def test_malayalam_script_query_intent(self):
+        """Query intent in Malayalam script ('ഈ മാസം ഭക്ഷണത്തിന് ആകെ എത്ര ചിലവായി?')."""
+        client = _make_client()
+        expected = {
+            "action": "query",
+            "language": "ml",
+            "fields": {"amount": None, "category": "Food", "date": "2026-08-01", "description": "ഭക്ഷണ ചിലവ്"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": False,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("ഈ മാസം ഭക്ഷണത്തിന് ആകെ എത്ര ചിലവായി?")
+        assert intent.action == "query"
+        assert intent.language == "ml"
+        assert intent.fields.category == "Food"
+        assert intent.requires_confirmation is False
+
+    def test_manglish_query_intent(self):
+        """Query intent in Manglish ('yesterday total ethra aayi?')."""
+        client = _make_client()
+        expected = {
+            "action": "query",
+            "language": "mixed",
+            "fields": {"amount": None, "category": None, "date": "2026-08-30", "description": "yesterday total"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": False,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("yesterday total ethra aayi?")
+        assert intent.action == "query"
+        assert intent.language == "mixed"
+        assert intent.requires_confirmation is False
+
+    def test_manglish_edit_change_intent(self):
+        """Edit/change amount intent in Manglish ('food bill 450 aakku')."""
+        client = _make_client()
+        expected = {
+            "action": "edit",
+            "language": "mixed",
+            "fields": {"amount": 450, "category": "Food", "date": None, "description": "food bill change"},
+            "matched_transactions": [],
+            "confidence": "high",
+            "requires_confirmation": True,
+            "missing_fields": [],
+        }
+        with patch.object(client, "_make_request", return_value=json.dumps(expected)):
+            intent = client.parse_intent("food bill 450 aakku")
+        assert intent.action == "edit"
+        assert intent.language == "mixed"
+        assert intent.fields.amount == Decimal("450")
+        assert intent.requires_confirmation is True
+
+
+
