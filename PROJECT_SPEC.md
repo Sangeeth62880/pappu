@@ -54,13 +54,21 @@ CREATE TABLE profiles (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Contacts (person-to-person tracking, scoped to user)
+CREATE TABLE contacts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Categories (fixed seed list, not open vocabulary)
 CREATE TABLE categories (
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     type TEXT NOT NULL -- 'income' | 'expense'
 );
--- Seed: Food, Transport, Shopping, Bills, Entertainment, Salary, Other
+-- Seed: Food, Transport, Shopping, Bills, Entertainment, Salary, People, Other
 
 -- Transactions
 CREATE TABLE transactions (
@@ -69,13 +77,14 @@ CREATE TABLE transactions (
     type TEXT NOT NULL, -- 'income' | 'expense'
     amount NUMERIC(12,2) NOT NULL,
     category_id INTEGER NOT NULL REFERENCES categories(id),
+    contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL, -- nullable, set when category is 'People'
     description TEXT,
     txn_date DATE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
-**Row-Level Security (RLS):** enabled on `profiles` and `transactions` as a defense-in-depth safeguard. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`.
+**Row-Level Security (RLS):** enabled on `profiles`, `contacts`, and `transactions` as a defense-in-depth safeguard. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`.
 
 **Important — the actual enforcement mechanism is application-layer filtering, not RLS.** FastAPI connects to Postgres directly via the `postgres` role (the connection string from Supabase's dashboard), and that role bypasses RLS by default — RLS only applies automatically when a query goes through Supabase's own Data API (PostgREST) using the user's JWT, which this backend does not do. The real guarantee is: FastAPI verifies the JWT (§8), extracts `user_id` from the verified claims, and scopes every query with `WHERE user_id = :verified_user_id`. RLS stays enabled as a secondary safeguard in case anything ever queries the DB by another path (e.g. Supabase's Data API directly from the frontend for a future feature), but it is not what's protecting the backend's own queries today. The isolation test in Phase 2 of `BUILD_PHASES.md` should verify the *application-layer* filtering, not assume RLS is doing the work.
 
@@ -91,9 +100,10 @@ Every LLM output must conform to this JSON shape. This is the contract between t
   "language": "en | ml | mixed",
   "fields": {
     "amount": 500,
-    "category": "Food",
+    "category": "People",
+    "contact_name": "Rahul",
     "date": "2026-08-30",
-    "description": "lunch"
+    "description": "lent money"
   },
   "matched_transactions": ["txn_id_1"],
   "confidence": "high | low",
@@ -108,6 +118,7 @@ Rules:
 - If `matched_transactions` has more than one entry → do not set `requires_confirmation`; route to disambiguation instead (§6, Tier 3).
 - If any required field for the action is unresolved → list it in `missing_fields`; route to clarification (§6, Tier 4).
 - `confidence: low` on any field forces clarification regardless of action type.
+- `fields.contact_name` is nullable (string or null). When present, indicates a person-to-person transaction or query.
 
 ---
 
@@ -128,7 +139,22 @@ This is implemented as a single routing function the backend calls before any wr
 
 - **Dates**: "today" = server date, IST. "Yesterday" = today − 1. "This month" / "last month" = calendar month boundaries.
 - **Amounts**: supports plain numbers, "k" shorthand (5k = 5000), common spoken Malayalam number words for everyday amounts. Anything outside this is a known limitation, not silently guessed.
-- **Categories**: fixed list only (Food, Transport, Shopping, Bills, Entertainment, Salary, Other). Ambiguous cases default to "Other" or trigger one clarifying question — never silently misclassified.
+- **Categories**: fixed list only (Food, Transport, Shopping, Bills, Entertainment, Salary, People, Other). Ambiguous cases default to "Other" or trigger one clarifying question — never silently misclassified.
+
+### Person-to-Person Direction Semantics ("People" Category)
+- **Category Seed**: "People" is a standard seeded category, not an ad-hoc or on-the-fly created category.
+- **Direction Semantics**:
+  - Money sent TO a contact (e.g. "lent John 500", "sent 200 to Rahul", "paid Sarah 1000") = `type: "expense"`, `category: "People"`, `contact_id` set to contact.
+  - Money received FROM a contact (e.g. "John paid me back 500", "received 200 from Rahul", "Sarah returned 1000") = `type: "income"`, `category: "People"`, `contact_id` set to contact.
+- **Net Balance Convention ("How much is owed to me by X")**:
+  - Defined as: `net_balance = sum(money sent to X [expense]) - sum(money received from X [income])`.
+  - **Positive (`net_balance > 0`)**: Contact owes the user money. Displays as **"X owes you ₹{net_balance}"**.
+  - **Negative (`net_balance < 0`)**: User owes the contact money. Displays as **"You owe X ₹{|net_balance|}"**.
+  - **Zero (`net_balance == 0`)**: All settled up with contact. Displays as **"Settled up with X (₹0.00)"**.
+- **Query Action Routing**:
+  - If `fields.contact_name` is present on a `query` intent (e.g., "how much did I send John", "how much does John owe me"), routing directs to the people summary path for that contact rather than the generic category/date summary.
+- **Dashboard Category Breakdown**:
+  - "People" appears in the category breakdown on Dashboard like any other category (showing aggregate expense/income under People). Individual contact net balances and transaction histories are accessed via the dedicated People tab/screen.
 
 ---
 
@@ -152,6 +178,8 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 | DELETE | `/transactions/{id}` | Delete transaction |
 | GET | `/transactions` | List/filter transactions (by date range, category) |
 | GET | `/summary` | Balance, totals, category breakdown, trends |
+| GET | `/summary/people` | List of contacts with net balance (sum of money sent to them minus received from them), total sent, total received |
+| GET | `/summary/people/{contact_id}` | Full transaction history with that contact plus net balance and contact details |
 
 ---
 

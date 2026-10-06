@@ -11,6 +11,7 @@ Read `PROJECT_SPEC.md` and `BUILD_PHASES.md` before starting any task. This file
 5. **Don't skip ahead to voice.** Build and test the LLM intent layer and confirmation logic against plain text input first (Phase 2–3 in `BUILD_PHASES.md`). STT/TTS are wired in last (Phase 6–7).
 6. **Auth is Supabase Auth — never build custom login/register/password logic.** The frontend gets sessions/JWTs from the Supabase client SDK directly. The backend only ever verifies the incoming JWT and extracts `user_id` from it — it never trusts a `user_id` passed in a request body.
 7. **Per-user data isolation is enforced by application-layer filtering, not by RLS.** FastAPI connects via the `postgres` role, which bypasses RLS — so every query must explicitly scope with `WHERE user_id = :verified_user_id`, using the `user_id` extracted from the verified JWT (never from the request body). RLS is enabled on the tables as a secondary safeguard for any future path that queries via Supabase's Data API directly, but it is not what protects the backend's own queries — don't write isolation tests that assume otherwise.
+8. **Intent action classification must never depend on keyword/regex matching against user input text.** Classification is the LLM's responsibility, assisted only by prompt design (contrastive examples, forced reasoning) — never by post-hoc string matching that overrides or corrects the model's output.
 
 ## Working conventions
 

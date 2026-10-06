@@ -30,7 +30,7 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 - pytest: seeded categories match the fixed list exactly (no extras, no missing).
 - pytest: creating a transaction with an invalid `category_id` or invalid `user_id` fails as expected (FK constraints hold).
 
-**Acceptance criteria**: Schema is in place, seed data verified, constraint tests pass.
+**Acceptance criteria**: Schema is in place, seed data verified, constraint tests pass. Schema application must be verified against the actual target database (e.g. Supabase PostgreSQL via `information_schema.tables`), not just via passing unit tests against a test DB.
 
 ---
 
@@ -102,6 +102,30 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 - Manual QA checklist: full demo flow (from `PROJECT_SPEC.md`/original doc) run via typed input end-to-end, dashboard updates live at each step.
 
 **Acceptance criteria**: The entire demo flow works via typed text, including confirmation and disambiguation prompts rendering correctly and the dashboard staying in sync.
+
+---
+
+## Phase 5.5 — Person-to-Person Transaction Tracking ("People" Category)
+
+**Tasks**
+1. Add `contacts` table (scoped to `profiles.id`, ON DELETE CASCADE), add nullable `contact_id` FK to `transactions`, and seed `People` category per `PROJECT_SPEC.md §4`.
+2. Update LLM intent schema (`IntentFields.contact_name`) and intent prompt (`intent_prompt.md`) to extract `contact_name` and automatically categorize as `"People"`.
+3. Implement create-if-not-exists (case-insensitive) contact resolution on `add` intent and link via `contact_id`.
+4. Enforce direction semantics: money sent to contact = expense, money received from contact = income; compute `net_balance = sum(sent) - sum(received)`.
+5. Implement `GET /summary/people` (contacts list with net balances) and `GET /summary/people/{contact_id}` (contact history and net balance).
+6. Extend `query` intent routing to route queries with `contact_name` to people summary logic; extend matcher to filter by `contact_name` on edit/delete.
+7. Build `PeopleScreen` in React Native with aggregate balances, contact list, and drill-down transaction history; add "People" tab to `HomeScreen`.
+
+**Tests**
+- pytest: creating a transaction with `contact_name` creates a new Contact if none exists, reuses existing Contact on repeat mentions (case-insensitive).
+- pytest: two users with contacts of the same name ("John") remain isolated — user A's John balance never leaks into user B's query.
+- pytest: net balance calculation is correct for a seeded mix of sent/received transactions to one contact.
+- pytest: query intent "how much did I send John" / "how much does John owe me" routes to the people summary and returns correct figures.
+- pytest: edit/delete with `contact_name` correctly narrows matcher results to that contact's transactions only.
+- pytest: `GET /summary/people` and `GET /summary/people/{contact_id}` return expected balances, histories, and 404 for invalid contacts.
+- Jest/RNTL: `PeopleScreen` renders aggregate balances, contact list, handles drill-down navigation into per-contact history, and empty state.
+
+**Acceptance criteria**: Person-to-person transactions can be created, queried, and summarized end-to-end; contact records are case-insensitively deduplicated per user; data isolation holds across users; net balance convention accurately reflects who owes whom; and the dedicated People UI seamlessly integrates into navigation.
 
 ---
 
