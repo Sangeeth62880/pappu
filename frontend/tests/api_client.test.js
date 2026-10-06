@@ -5,6 +5,7 @@ import {
   routeIntent,
   confirmAction,
   undoTransaction,
+  transcribeAudio,
 } from '../src/api/client';
 
 describe('Frontend API Client', () => {
@@ -161,5 +162,32 @@ describe('Frontend API Client', () => {
     });
 
     await expect(fetchSummary(mockToken)).rejects.toThrow('Resource not found');
+  });
+
+  test('transcribeAudio sends audio payload to /stt/transcribe', async () => {
+    const mockSTTResponse = {
+      transcript: 'I spent 500 on groceries',
+      language_code: 'en-IN',
+    };
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue(mockSTTResponse),
+    });
+
+    const mockBlob = new Blob(['mock audio content'], { type: 'audio/wav' });
+    const result = await transcribeAudio(mockToken, mockBlob, 'en-IN');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/stt\/transcribe$/),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${mockToken}`,
+        }),
+      })
+    );
+    expect(result).toEqual(mockSTTResponse);
   });
 });

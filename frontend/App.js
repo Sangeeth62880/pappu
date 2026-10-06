@@ -6,7 +6,7 @@ import './global.css';
 
 export default function App() {
   return (
-    <View className="flex-1 bg-slate-950">
+    <View className="flex-1 bg-ink-navy">
       <HomeScreen />
       <StatusBar style="light" />
     </View>

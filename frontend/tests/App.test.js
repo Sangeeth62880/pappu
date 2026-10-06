@@ -1,26 +1,25 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import App from '../App';
-import * as client from '../src/api/client';
+import * as supabaseApi from '../src/api/supabase';
 
-jest.mock('../src/api/client');
+jest.mock('../src/api/supabase');
 
 describe('App root screen rendering', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    client.fetchSummary.mockResolvedValue({
-      balance: 0,
-      total_income: 0,
-      total_expense: 0,
-      category_breakdown: [],
-      transaction_count: 0,
-    });
-    client.fetchTransactions.mockResolvedValue([]);
+    supabaseApi.getSession.mockResolvedValue(null);
+    supabaseApi.supabase = {
+      auth: {
+        onAuthStateChange: jest.fn().mockReturnValue({ data: { subscription: { unsubscribe: jest.fn() } } }),
+      },
+    };
   });
 
-  it('renders without throwing error and displays app name and subtitle', async () => {
+  it('renders without throwing error and displays app name and auth screen', async () => {
     const { findByText } = await render(<App />);
     expect(await findByText('Pappu')).toBeTruthy();
-    expect(await findByText('Financial Voice Assistant')).toBeTruthy();
+    expect(await findByText('Bilingual Voice-First Financial Assistant')).toBeTruthy();
+    expect(await findByText('Sign In to Pappu')).toBeTruthy();
   });
 });

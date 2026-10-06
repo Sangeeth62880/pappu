@@ -1,33 +1,75 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Dashboard from '../components/Dashboard';
 import ConversationLog from '../components/ConversationLog';
-import { getSession } from '../api/supabase';
+import HistoryScreen from '../components/HistoryScreen';
+import PeopleScreen from '../components/PeopleScreen';
+import AuthScreen from './AuthScreen';
+import { getSession, signOut, supabase } from '../api/supabase';
 import { undoTransaction } from '../api/client';
 
-export default function HomeScreen({ initialToken = null }) {
-  const [token, setToken] = useState(initialToken);
+const TABS = [
+  { key: 'dashboard', label: 'Dashboard', icon: '₹' },
+  { key: 'assistant', label: 'Assistant', icon: '💬' },
+  { key: 'history',   label: 'History',   icon: '📋' },
+  { key: 'people',    label: 'People',    icon: '👥' },
+];
+
+export default function HomeScreen({ initialToken = null, initialSession = null }) {
+  const [session, setSession] = useState(initialSession);
+  const [token, setToken] = useState(initialToken || initialSession?.access_token || null);
+  const [authChecking, setAuthChecking] = useState(!initialToken && !initialSession);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [language, setLanguage] = useState('en'); // 'en' | 'ml' | 'mixed'
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'split'
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
-    if (!token) {
+    // Check existing active session on mount
+    if (!initialToken && !initialSession) {
       getSession()
-        .then((session) => {
-          if (session?.access_token) {
-            setToken(session.access_token);
+        .then((sess) => {
+          if (sess?.access_token) {
+            setSession(sess);
+            setToken(sess.access_token);
           }
         })
         .catch(() => {
-          // In test/demo environments without an active Supabase session
+          // No session found
+        })
+        .finally(() => {
+          setAuthChecking(false);
         });
+    } else {
+      setAuthChecking(false);
     }
-  }, [token]);
+
+    // Listen to Supabase auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+      setToken(currentSession?.access_token || null);
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [initialToken, initialSession]);
+
+  const handleAuthenticated = (newSession) => {
+    setSession(newSession);
+    setToken(newSession.access_token);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setSession(null);
+      setToken(null);
+    } catch (err) {
+      // Sign out error handling
+    }
+  };
 
   const handleTransactionMutated = () => {
-    // Live update trigger! Increments refreshTrigger so Dashboard re-fetches immediately
     setRefreshTrigger((prev) => prev + 1);
   };
 
@@ -37,60 +79,122 @@ export default function HomeScreen({ initialToken = null }) {
       await undoTransaction(token);
       handleTransactionMutated();
     } catch (err) {
-      // Alert user on failure or 404
+      // Undo error
     }
   };
 
-  return (
-    <SafeAreaView testID="home-screen" className="flex-1 bg-slate-950">
-      {/* Header */}
-      <View className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex-row justify-between items-center">
-        <View>
-          <Text className="text-xl font-bold text-white tracking-tight">Pappu</Text>
-          <Text className="text-slate-400 text-xs">Financial Voice Assistant</Text>
-        </View>
+  // ── Auth checking state ──
+  if (authChecking) {
+    return (
+      <SafeAreaView testID="auth-loading-screen" className="flex-1 bg-ink-navy items-center justify-center">
+        <ActivityIndicator size="large" color="#C9A227" />
+        <Text className="text-bone-darker font-sans mt-3 text-sm">Checking session…</Text>
+      </SafeAreaView>
+    );
+  }
 
-        {/* Language selector toggle */}
-        <View className="flex-row bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-          {['en', 'ml', 'mixed'].map((lang) => (
-            <TouchableOpacity
-              key={lang}
-              testID={`lang-toggle-${lang}`}
-              onPress={() => setLanguage(lang)}
-              className={`px-2.5 py-1 rounded-md ${
-                language === lang ? 'bg-blue-600' : 'bg-transparent'
-              }`}
-            >
-              <Text
-                className={`text-xs font-semibold ${
-                  language === lang ? 'text-white' : 'text-slate-400'
-                }`}
-              >
-                {lang.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+  // ── Auth gate ──
+  if (!token) {
+    return <AuthScreen onAuthenticated={handleAuthenticated} />;
+  }
 
-      {/* Main Content Area */}
-      <View className="flex-1 flex-col">
-        {/* Top: Financial Dashboard (55% flex) */}
-        <View className="flex-[5.5]">
+  const userEmail = session?.user?.email || 'Logged In';
+
+  // ── Render active tab content ──
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
           <Dashboard
             token={token}
             refreshTrigger={refreshTrigger}
             onUndo={handleUndo}
           />
-        </View>
-
-        {/* Bottom: Interactive Conversation Log (4.5% flex) */}
-        <View className="flex-[4.5]">
+        );
+      case 'assistant':
+        return (
           <ConversationLog
             token={token}
             onTransactionMutated={handleTransactionMutated}
           />
+        );
+      case 'history':
+        return (
+          <HistoryScreen
+            token={token}
+            refreshTrigger={refreshTrigger}
+          />
+        );
+      case 'people':
+        return (
+          <PeopleScreen
+            token={token}
+            refreshTrigger={refreshTrigger}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <SafeAreaView testID="home-screen" className="flex-1 bg-ink-navy">
+      {/* ── Header ── */}
+      <View className="px-5 py-3 flex-row justify-between items-center border-b border-ink-navy-lighter">
+        <Text
+          className="text-warm-brass text-xl font-bold tracking-tight"
+          style={{ fontFamily: 'Libre Baskerville, Georgia, serif' }}
+        >
+          Pappu
+        </Text>
+
+        <View className="flex-row items-center">
+          <Text testID="user-email-header" className="text-bone-darker font-sans text-xs mr-3" numberOfLines={1}>
+            {userEmail}
+          </Text>
+          <TouchableOpacity
+            testID="auth-signout-button"
+            onPress={handleSignOut}
+            className="py-1.5 px-3 rounded-lg border border-ink-navy-lighter active:bg-ink-navy-lighter"
+          >
+            <Text className="text-bone-darker font-sans text-xs font-medium">Sign Out</Text>
+          </TouchableOpacity>
         </View>
+      </View>
+
+      {/* ── Tab Content ── */}
+      <View className="flex-1">
+        {renderTabContent()}
+      </View>
+
+      {/* ── Bottom Tab Bar ── */}
+      <View className="flex-row bg-ink-navy-light border-t border-ink-navy-lighter">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              testID={`tab-${tab.key}`}
+              onPress={() => setActiveTab(tab.key)}
+              className="flex-1 items-center py-3"
+            >
+              <Text className={`text-lg mb-0.5 ${isActive ? '' : 'opacity-40'}`}>
+                {tab.icon}
+              </Text>
+              <Text
+                className={`font-sans text-[10px] font-medium uppercase tracking-wider ${
+                  isActive ? 'text-warm-brass' : 'text-bone-darker'
+                }`}
+              >
+                {tab.label}
+              </Text>
+              {/* Active indicator bar */}
+              {isActive && (
+                <View className="absolute top-0 left-4 right-4 h-[2px] bg-warm-brass rounded-full" />
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </SafeAreaView>
   );

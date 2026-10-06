@@ -3,7 +3,7 @@
  * Provides authenticated helper methods using the user's Supabase JWT.
  */
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.29.164:8000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.29.82:8000';
 
 /**
  * Helper to execute HTTP requests with auth headers.
@@ -63,6 +63,21 @@ export async function fetchSummary(token) {
 }
 
 /**
+ * GET /summary/people - Fetches contacts list with net balances.
+ */
+export async function fetchPeopleSummary(token) {
+  return request('/summary/people', { method: 'GET', token });
+}
+
+/**
+ * GET /summary/people/{contact_id} - Fetches contact transaction history and net balance.
+ */
+export async function fetchContactDetail(token, contactId) {
+  return request(`/summary/people/${contactId}`, { method: 'GET', token });
+}
+
+
+/**
  * GET /transactions - Fetches transaction history with optional filters.
  */
 export async function fetchTransactions(token, filters = {}) {
@@ -115,3 +130,115 @@ export async function undoTransaction(token) {
     token,
   });
 }
+
+/**
+ * POST /stt/transcribe - Transcribes speech audio using Sarvam Saaras v3.
+ * Accepts binary Blob/File or { uri, name, type } object or raw URI string.
+ */
+export async function transcribeAudio(token, audioData, languageCode = null) {
+  let url = `${API_BASE_URL.replace(/\/$/, '')}/stt/transcribe`;
+
+  const formData = new FormData();
+  if (audioData instanceof Blob || (typeof File !== 'undefined' && audioData instanceof File)) {
+    formData.append('file', audioData, audioData.name || 'recording.wav');
+  } else if (audioData && typeof audioData === 'object' && audioData.uri) {
+    formData.append('file', {
+      uri: audioData.uri,
+      name: audioData.name || 'recording.m4a',
+      type: audioData.type || 'audio/m4a',
+    });
+  } else if (typeof audioData === 'string') {
+    formData.append('file', {
+      uri: audioData,
+      name: 'recording.m4a',
+      type: 'audio/m4a',
+    });
+  } else {
+    formData.append('file', audioData);
+  }
+
+  if (languageCode) {
+    formData.append('language_code', languageCode);
+  }
+
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // In React Native with Expo SDK 57, Expo's Winter fetch polyfill throws
+  // "Unsupported FormDataPart implementation" when FormData contains { uri, name, type } parts.
+  // Using XMLHttpRequest directly for native URI uploads bypasses Expo's Winter fetch
+  // while streaming the file via React Native's RCTNetworking.
+  const isJestMock = typeof jest !== 'undefined' || (global.fetch && global.fetch._isMockFunction);
+  const isFileUri = audioData && (audioData.uri || typeof audioData === 'string');
+
+  if (!isJestMock && isFileUri && typeof XMLHttpRequest !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      for (const [headerKey, headerValue] of Object.entries(headers)) {
+        xhr.setRequestHeader(headerKey, headerValue);
+      }
+      xhr.onload = () => {
+        let data = null;
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch (_) {
+          data = null;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          const errorMessage = data?.detail || `Speech transcription failed with status ${xhr.status}`;
+          const error = new Error(errorMessage);
+          error.status = xhr.status;
+          error.data = data;
+          reject(error);
+        }
+      };
+      xhr.onerror = () => {
+        reject(new Error('Network request failed'));
+      };
+      xhr.ontimeout = () => {
+        reject(new Error('Request timed out'));
+      };
+      xhr.send(formData);
+    });
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const errorMessage = data?.detail || `Speech transcription failed with status ${response.status}`;
+    const error = new Error(errorMessage);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
+/**
+ * POST /tts/synthesize - Synthesizes text into speech audio using Sarvam Bulbul v3.
+ * Returns base64 encoded audio and metadata.
+ */
+export async function synthesizeSpeech(token, text, languageCode = 'en-IN', speaker = 'kavitha', pace = 1.0) {
+  return request('/tts/synthesize', {
+    method: 'POST',
+    token,
+    body: {
+      text,
+      target_language_code: languageCode,
+      speaker,
+      pace,
+    },
+  });
+}
+
