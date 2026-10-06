@@ -19,3 +19,17 @@ SARVAM_API_URL = os.getenv(
     "SARVAM_API_URL", "https://api.sarvam.ai/v1/chat/completions"
 )
 
+# Sarvam AI STT config (PROJECT_SPEC.md §2, Saaras v3)
+SARVAM_STT_MODEL = os.getenv("SARVAM_STT_MODEL", "saaras:v3")
+SARVAM_STT_API_URL = os.getenv(
+    "SARVAM_STT_API_URL", "https://api.sarvam.ai/speech-to-text"
+)
+
+# Sarvam AI TTS config (PROJECT_SPEC.md §2, Bulbul v3)
+SARVAM_TTS_MODEL = os.getenv("SARVAM_TTS_MODEL", "bulbul:v3")
+SARVAM_TTS_API_URL = os.getenv(
+    "SARVAM_TTS_API_URL", "https://api.sarvam.ai/text-to-speech"
+)
+SARVAM_TTS_DEFAULT_SPEAKER = os.getenv("SARVAM_TTS_DEFAULT_SPEAKER", "kavitha")
+
+
