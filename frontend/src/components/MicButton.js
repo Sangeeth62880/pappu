@@ -24,11 +24,7 @@ export default function MicButton({
   const streamRef = useRef(null);
   const isMountedRef = useRef(true);
 
-  // --- FIX: Use the useAudioRecorder hook instead of raw constructor ---
-  // This creates the AudioRecorder via useReleasingSharedObject, which properly
-  // registers the JS↔native SharedObject binding. The old code used
-  // `new AudioModule.AudioRecorder(preset)` in an event handler, which skipped
-  // this binding and caused the DynamicSharedObjectType NotFoundException crash.
+  // Use the useAudioRecorder hook to ensure proper JS↔native SharedObject binding in SDK 57
   const nativeRecorder = Platform.OS !== 'web'
     ? useAudioRecorder(RecordingPresets.HIGH_QUALITY)
     : null;
@@ -44,7 +40,6 @@ export default function MicButton({
     // Cleanup native recording if active
     if (nativeRecorder && isRecordingRef.current) {
       try {
-        console.log('[MicButton] cleanup: stopping native recorder');
         await nativeRecorder.stop();
       } catch (err) {
         console.warn('[MicButton] Error during native recorder cleanup:', err);
@@ -65,7 +60,6 @@ export default function MicButton({
   const startRecording = async () => {
     if (disabled || isTranscribing || isRecordingRef.current) return;
     setErrorMessage(null);
-    console.log('[MicButton] startRecording: begin');
 
     try {
       if (Platform.OS === 'web') {
@@ -117,35 +111,25 @@ export default function MicButton({
         mediaRecorderRef.current = mediaRecorder;
         mediaRecorder.start(100);
       } else {
-        // Native audio recording via expo-audio (SDK 57) — using hook-created recorder
-        console.log('[MicButton] startRecording: requesting permission');
+        // Native audio recording via expo-audio (SDK 57)
         const permission = await requestRecordingPermissionsAsync();
-        console.log('[MicButton] startRecording: permission status =', permission.status);
         if (permission.status !== 'granted') {
           throw new Error('Microphone permission is required to record voice commands.');
         }
 
-        console.log('[MicButton] startRecording: setting audio mode');
         await setAudioModeAsync({
           allowsRecording: true,
           playsInSilentMode: true,
         });
-        console.log('[MicButton] startRecording: audio mode set');
 
-        console.log('[MicButton] startRecording: calling prepareToRecordAsync');
         await nativeRecorder.prepareToRecordAsync();
-        console.log('[MicButton] startRecording: prepareToRecordAsync complete');
-
-        console.log('[MicButton] startRecording: calling record()');
         nativeRecorder.record();
-        console.log('[MicButton] startRecording: record() called successfully');
       }
 
       isRecordingRef.current = true;
       if (isMountedRef.current) {
         setIsRecording(true);
       }
-      console.log('[MicButton] startRecording: recording started');
     } catch (err) {
       console.warn('[MicButton] startRecording failed:', err);
       isRecordingRef.current = false;
@@ -162,7 +146,6 @@ export default function MicButton({
     if (isMountedRef.current) {
       setIsRecording(false);
     }
-    console.log('[MicButton] stopRecording: begin');
 
     try {
       if (Platform.OS === 'web' && mediaRecorderRef.current) {
@@ -170,13 +153,8 @@ export default function MicButton({
           mediaRecorderRef.current.stop();
         }
       } else if (nativeRecorder) {
-        console.log('[MicButton] stopRecording: calling recorder.stop()');
         await nativeRecorder.stop();
-        console.log('[MicButton] stopRecording: recorder stopped');
-
         const uri = nativeRecorder.uri;
-        console.log('[MicButton] stopRecording: uri =', uri);
-
         if (!uri) {
           throw new Error('Recording stopped but no audio file URI was returned.');
         }
@@ -247,8 +225,8 @@ export default function MicButton({
   return (
     <View className="items-center">
       {errorMessage ? (
-        <View testID="mic-error-banner" className="mb-2 px-3 py-1 bg-clay-rust/15 border border-clay-rust/30 rounded-lg">
-          <Text className="text-clay-rust-light font-sans text-xs">{errorMessage}</Text>
+        <View testID="mic-error-banner" className="mb-2 px-3 py-1 bg-accent-expense-subtle border border-accent-expense/30 rounded-lg">
+          <Text className="text-accent-expense font-sans text-xs">{errorMessage}</Text>
         </View>
       ) : null}
 
@@ -256,20 +234,20 @@ export default function MicButton({
         testID="mic-button"
         onPress={handlePress}
         disabled={disabled || isTranscribing}
-        className={`w-11 h-11 rounded-full items-center justify-center border-2 ${
+        className={`w-11 h-11 rounded-full items-center justify-center border ${
           isRecording
-            ? 'bg-clay-rust border-clay-rust-light'
+            ? 'bg-accent-expense border-accent-expense shadow-sm'
             : isTranscribing
-            ? 'bg-ink-navy-lighter border-warm-brass'
-            : 'bg-ink-navy-lighter border-warm-brass/40 active:border-warm-brass'
+            ? 'bg-brand-blue-subtle border-brand-blue'
+            : 'bg-surface-card border-border-default active:bg-brand-blue-subtle shadow-xs'
         }`}
       >
         {isTranscribing ? (
-          <ActivityIndicator testID="mic-loading-spinner" size="small" color="#C9A227" />
+          <ActivityIndicator testID="mic-loading-spinner" size="small" color="#2563EB" />
         ) : (
           <Text
             testID="mic-icon"
-            className={`text-base ${isRecording ? 'text-bone' : 'text-warm-brass'}`}
+            className={`text-base ${isRecording ? 'text-white' : 'text-brand-blue'}`}
           >
             {isRecording ? '⏹' : '🎤'}
           </Text>
@@ -277,12 +255,12 @@ export default function MicButton({
       </Pressable>
 
       {isRecording ? (
-        <Text testID="mic-recording-label" className="text-clay-rust font-sans text-[10px] font-medium mt-1">
+        <Text testID="mic-recording-label" className="text-accent-expense font-sans text-[10px] font-semibold mt-1">
           Listening...
         </Text>
       ) : null}
       {isTranscribing ? (
-        <Text testID="mic-transcribing-label" className="text-warm-brass font-sans text-[10px] font-medium mt-1">
+        <Text testID="mic-transcribing-label" className="text-brand-blue font-sans text-[10px] font-semibold mt-1">
           Transcribing...
         </Text>
       ) : null}

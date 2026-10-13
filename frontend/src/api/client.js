@@ -56,10 +56,11 @@ async function request(endpoint, { method = 'GET', token, body, params } = {}) {
 }
 
 /**
- * GET /summary - Fetches balance, totals, and category breakdown.
+ * GET /summary - Fetches period analytics (week | month | year) or all-time summary.
  */
-export async function fetchSummary(token) {
-  return request('/summary', { method: 'GET', token });
+export async function fetchSummary(token, period = null) {
+  const params = period ? { period } : {};
+  return request('/summary', { method: 'GET', token, params });
 }
 
 /**

@@ -1,6 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+} from 'react-native';
 import { signIn, signUp } from '../api/supabase';
+import { colors, radius, shadows, spacing } from '../theme/tokens';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
 
 export default function AuthScreen({ onAuthenticated }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -9,6 +21,7 @@ export default function AuthScreen({ onAuthenticated }) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [focusedField, setFocusedField] = useState(null);
 
   const emailRef = useRef('');
   const passwordRef = useRef('');
@@ -65,133 +78,226 @@ export default function AuthScreen({ onAuthenticated }) {
   };
 
   return (
-    <View
-      testID="auth-screen"
-      className="flex-1 bg-ink-navy justify-center px-8"
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.keyboardContainer}
     >
-      {/* Wordmark */}
-      <View className="items-center mb-12">
-        <Text
-          testID="auth-app-title"
-          className="text-warm-brass text-4xl font-bold tracking-tight"
-          style={{ fontFamily: 'Libre Baskerville, Georgia, serif' }}
-        >
-          Pappu
-        </Text>
-        <Text className="text-bone-darker font-sans text-sm mt-2 tracking-wide">
-          Bilingual Voice-First Financial Assistant
-        </Text>
-      </View>
+      <View testID="auth-screen" style={styles.container}>
+        {/* Brand Wordmark & Tagline */}
+        <View style={styles.brandContainer}>
+          <Text testID="auth-app-title" style={styles.appTitle}>
+            Pappu
+          </Text>
+          <Text style={styles.appTagline}>
+            Bilingual Voice-First Financial Assistant
+          </Text>
+        </View>
 
-      {/* Form */}
-      <View className="bg-ink-navy-light rounded-2xl p-6 border border-ink-navy-lighter">
-        <Text testID="auth-mode-heading" className="text-bone font-sans text-lg font-semibold mb-5">
-          {isSignUp ? 'Create an Account' : 'Sign In to Pappu'}
-        </Text>
+        {/* Elevated White Form Card */}
+        <Card style={styles.formCard} padding="xl" elevation="md">
+          <Text testID="auth-mode-heading" style={styles.modeHeading}>
+            {isSignUp ? 'Create an Account' : 'Sign In to Pappu'}
+          </Text>
 
-        {/* Error banner */}
-        {error && (
-          <View testID="auth-error" className="bg-clay-rust/15 border border-clay-rust/30 p-3 rounded-lg mb-4">
-            <Text className="text-clay-rust-light font-sans text-xs font-medium">{error}</Text>
-          </View>
-        )}
+          {/* Error Banner */}
+          {error && (
+            <View testID="auth-error" style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
-        {/* Name field (sign up only) */}
-        {isSignUp && (
-          <View className="mb-4">
-            <Text className="text-bone-darker font-sans text-xs font-medium mb-1.5 uppercase tracking-wider">
-              Full Name
-            </Text>
+          {/* Name input (Sign up only) */}
+          {isSignUp && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Name</Text>
+              <TextInput
+                testID="auth-name-input"
+                defaultValue={name}
+                onChangeText={(text) => {
+                  nameRef.current = text;
+                  setName(text);
+                }}
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+                placeholder="Rahul Nair"
+                placeholderTextColor={colors.text.muted}
+                style={[
+                  styles.input,
+                  focusedField === 'name' && styles.inputFocused,
+                ]}
+                autoCapitalize="words"
+              />
+            </View>
+          )}
+
+          {/* Email input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address</Text>
             <TextInput
-              testID="auth-name-input"
-              value={name}
-              onChangeText={(val) => {
-                setName(val);
-                nameRef.current = val;
+              testID="auth-email-input"
+              defaultValue={email}
+              onChangeText={(text) => {
+                emailRef.current = text;
+                setEmail(text);
               }}
-              placeholder="e.g. Sangeeth"
-              placeholderTextColor="#8A8A9A"
-              className="bg-ink-navy text-bone font-sans px-4 py-3 rounded-xl border border-ink-navy-lighter text-sm"
-              autoCapitalize="words"
+              onFocus={() => setFocusedField('email')}
+              onBlur={() => setFocusedField(null)}
+              placeholder="you@example.com"
+              placeholderTextColor={colors.text.muted}
+              style={[
+                styles.input,
+                focusedField === 'email' && styles.inputFocused,
+              ]}
+              autoCapitalize="none"
+              keyboardType="email-address"
             />
           </View>
-        )}
 
-        {/* Email */}
-        <View className="mb-4">
-          <Text className="text-bone-darker font-sans text-xs font-medium mb-1.5 uppercase tracking-wider">
-            Email
-          </Text>
-          <TextInput
-            testID="auth-email-input"
-            value={email}
-            onChangeText={(val) => {
-              setEmail(val);
-              emailRef.current = val;
-            }}
-            placeholder="you@example.com"
-            placeholderTextColor="#8A8A9A"
-            className="bg-ink-navy text-bone font-sans px-4 py-3 rounded-xl border border-ink-navy-lighter text-sm"
-            keyboardType="email-address"
-            autoCapitalize="none"
+          {/* Password input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              testID="auth-password-input"
+              defaultValue={password}
+              onChangeText={(text) => {
+                passwordRef.current = text;
+                setPassword(text);
+              }}
+              onFocus={() => setFocusedField('password')}
+              onBlur={() => setFocusedField(null)}
+              placeholder="••••••••"
+              placeholderTextColor={colors.text.muted}
+              style={[
+                styles.input,
+                focusedField === 'password' && styles.inputFocused,
+              ]}
+              secureTextEntry
+            />
+          </View>
+
+          {/* Submit Action */}
+          <Button
+            testID="auth-submit-button"
+            onPress={handleSubmit}
+            title={isSignUp ? 'Sign Up' : 'Sign In'}
+            loading={loading}
+            style={styles.submitBtn}
           />
-        </View>
 
-        {/* Password */}
-        <View className="mb-6">
-          <Text className="text-bone-darker font-sans text-xs font-medium mb-1.5 uppercase tracking-wider">
-            Password
-          </Text>
-          <TextInput
-            testID="auth-password-input"
-            value={password}
-            onChangeText={(val) => {
-              setPassword(val);
-              passwordRef.current = val;
+          {/* Mode Toggle Link */}
+          <TouchableOpacity
+            testID="auth-toggle-mode"
+            onPress={() => {
+              setIsSignUp(!isSignUp);
+              setError(null);
             }}
-            placeholder="••••••••"
-            placeholderTextColor="#8A8A9A"
-            className="bg-ink-navy text-bone font-sans px-4 py-3 rounded-xl border border-ink-navy-lighter text-sm"
-            secureTextEntry
-            onSubmitEditing={handleSubmit}
-          />
-        </View>
-
-        {/* Submit */}
-        <TouchableOpacity
-          testID="auth-submit-button"
-          onPress={handleSubmit}
-          disabled={loading}
-          className="bg-warm-brass py-3.5 rounded-xl items-center justify-center active:bg-warm-brass-dark"
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#161B2E" />
-          ) : (
-            <Text className="text-ink-navy font-sans font-semibold text-sm tracking-wide">
-              {isSignUp ? 'Create Account' : 'Sign In'}
+            style={styles.toggleRow}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.toggleText}>
+              {isSignUp
+                ? 'Already have an account? '
+                : "Don't have an account? "}
+              <Text style={styles.toggleTextLink}>
+                {isSignUp ? 'Sign In' : 'Sign Up'}
+              </Text>
             </Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Toggle */}
-        <TouchableOpacity
-          testID="auth-toggle-mode"
-          onPress={() => {
-            setIsSignUp((prev) => !prev);
-            setError(null);
-          }}
-          className="mt-5 items-center py-1"
-        >
-          <Text className="text-bone-darker font-sans text-xs">
-            {isSignUp
-              ? 'Already have an account? '
-              : "Don't have an account? "}
-            <Text className="text-warm-brass font-medium">
-              {isSignUp ? 'Sign In' : 'Sign Up'}
-            </Text>
-          </Text>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </Card>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  brandContainer: {
+    alignItems: 'center',
+    marginBottom: spacing['2xl'],
+  },
+  appTitle: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: colors.brand.default,
+    letterSpacing: -1,
+  },
+  appTagline: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  formCard: {
+    borderRadius: radius['3xl'],
+  },
+  modeHeading: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: spacing.lg,
+  },
+  errorBanner: {
+    backgroundColor: colors.semantic.expenseBg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.semantic.expenseBorder,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  errorText: {
+    color: colors.semantic.expense,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  inputGroup: {
+    marginBottom: spacing.md,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  input: {
+    backgroundColor: colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    fontSize: 15,
+    color: colors.text.primary,
+    minHeight: 48,
+  },
+  inputFocused: {
+    borderColor: colors.brand.default,
+    backgroundColor: colors.surface,
+  },
+  submitBtn: {
+    marginTop: spacing.md,
+  },
+  toggleRow: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  toggleText: {
+    fontSize: 13,
+    color: colors.text.secondary,
+  },
+  toggleTextLink: {
+    color: colors.brand.default,
+    fontWeight: '700',
+  },
+});

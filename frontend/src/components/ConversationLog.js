@@ -465,23 +465,23 @@ export default function ConversationLog({
   };
 
   return (
-    <View testID="conversation-container" className="flex-1 bg-ink-navy">
+    <View testID="conversation-container" className="flex-1 bg-surface-canvas">
       {/* Header */}
-      <View className="px-5 py-2.5 flex-row justify-between items-center border-b border-ink-navy-lighter">
-        <Text className="text-bone-darker font-sans text-[10px] font-medium uppercase tracking-widest">
+      <View className="px-5 py-2.5 flex-row justify-between items-center border-b border-border-subtle bg-surface-card">
+        <Text className="text-text-tertiary font-sans text-[11px] font-semibold uppercase tracking-wider">
           Assistant
         </Text>
         <View className="flex-row items-center">
           {loading && (
-            <ActivityIndicator testID="conversation-loading" size="small" color="#C9A227" className="mr-3" />
+            <ActivityIndicator testID="conversation-loading" size="small" color="#2563EB" className="mr-3" />
           )}
           {messages.length > 0 && (
             <Pressable
               testID="clear-chat-button"
               onPress={handleClearChat}
-              className="py-1 px-2.5 rounded-lg border border-ink-navy-lighter active:bg-ink-navy-lighter"
+              className="py-1 px-2.5 rounded-lg border border-border-default bg-surface-card active:bg-surface-canvas"
             >
-              <Text className="text-bone-darker font-sans text-[11px] font-medium">
+              <Text className="text-text-secondary font-sans text-[11px] font-medium">
                 Clear Chat
               </Text>
             </Pressable>
@@ -499,8 +499,7 @@ export default function ConversationLog({
         {messages.length === 0 ? (
           <Text
             testID="empty-conversation-text"
-            className="text-bone-darker font-sans text-xs text-center py-8"
-            style={{ fontFamily: 'Libre Baskerville, Georgia, serif', fontStyle: 'italic' }}
+            className="text-text-tertiary font-sans text-xs text-center py-8 italic"
           >
             Type an expense, income, edit, or question to begin...
           </Text>
@@ -510,7 +509,7 @@ export default function ConversationLog({
       </ScrollView>
 
       {/* Input Bar */}
-      <View className="flex-row items-center px-4 py-3 bg-ink-navy-light border-t border-ink-navy-lighter">
+      <View className="flex-row items-center px-4 py-3 bg-surface-card border-t border-border-subtle shadow-sm">
         <View className="mr-2">
           <MicButton
             token={token}
@@ -526,8 +525,8 @@ export default function ConversationLog({
             textRef.current = val;
           }}
           placeholder="Type or tap mic…"
-          placeholderTextColor="#8A8A9A"
-          className="flex-1 bg-ink-navy text-bone font-sans px-4 py-2.5 rounded-xl border border-ink-navy-lighter text-sm"
+          placeholderTextColor="#94A3B8"
+          className="flex-1 bg-surface-canvas text-text-primary font-sans px-4 py-2.5 rounded-xl border border-border-default text-sm"
           onSubmitEditing={() => handleSendMessage(textRef.current)}
         />
         <Pressable
@@ -535,11 +534,11 @@ export default function ConversationLog({
           onPress={() => handleSendMessage(textRef.current)}
           disabled={loading}
           className={`ml-2 px-4 py-2.5 rounded-xl ${
-            inputText.trim() && !loading ? 'bg-warm-brass active:bg-warm-brass-dark' : 'bg-ink-navy-lighter opacity-50'
+            inputText.trim() && !loading ? 'bg-brand-blue active:bg-brand-blue-dark' : 'bg-surface-canvas border border-border-subtle opacity-50'
           }`}
         >
           <Text className={`font-sans font-semibold text-xs ${
-            inputText.trim() && !loading ? 'text-ink-navy' : 'text-bone-darker'
+            inputText.trim() && !loading ? 'text-white' : 'text-text-tertiary'
           }`}>
             Send
           </Text>
