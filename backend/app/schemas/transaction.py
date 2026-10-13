@@ -19,6 +19,7 @@ class TransactionUpdate(BaseModel):
     type: Optional[Literal["income", "expense"]] = None
     amount: Optional[Decimal] = Field(None, gt=0, decimal_places=2)
     category_id: Optional[int] = None
+    category_name: Optional[str] = None
     contact_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
     txn_date: Optional[date] = None

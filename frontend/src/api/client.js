@@ -127,6 +127,27 @@ export async function confirmAction(token, transactionId, action, fields = null,
 }
 
 /**
+ * PATCH /transactions/{id} - Updates an existing transaction.
+ */
+export async function updateTransaction(token, id, payload) {
+  return request(`/transactions/${id}`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+/**
+ * DELETE /transactions/{id} - Deletes an existing transaction.
+ */
+export async function deleteTransaction(token, id) {
+  return request(`/transactions/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+/**
  * POST /transactions/undo - Reverses the most recent transaction for the authenticated user.
  */
 export async function undoTransaction(token) {

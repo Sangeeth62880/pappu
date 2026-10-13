@@ -16,6 +16,7 @@ import SegmentedControl from './ui/SegmentedControl';
 import Avatar from './ui/Avatar';
 import AmountText from './ui/AmountText';
 import Button from './ui/Button';
+import TransactionEditSheet from './ui/TransactionEditSheet';
 
 const PERIOD_SEGMENTS = [
   { key: 'week', label: 'Week' },
@@ -41,6 +42,8 @@ export default function Dashboard({
   initialTransactions = null,
   onNavigateToHistory = null,
   onNavigateToPeople = null,
+  onShowToast = null,
+  onTransactionMutated = null,
 }) {
   const [period, setPeriod] = useState('week');
   const [summary, setSummary] = useState(initialSummary);
@@ -48,6 +51,8 @@ export default function Dashboard({
   const [loading, setLoading] = useState(Boolean(token && !initialSummary));
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [editSheetVisible, setEditSheetVisible] = useState(false);
 
   const loadDashboardData = useCallback(async (selectedPeriod = period) => {
     if (!token) {
@@ -436,9 +441,14 @@ export default function Dashboard({
                 : (CATEGORY_ICONS[txn.category_name] || 'account-balance-wallet');
 
               return (
-                <View
+                <TouchableOpacity
                   key={txn.id}
                   testID={`txn-item-${txn.id}`}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setSelectedTxn(txn);
+                    setEditSheetVisible(true);
+                  }}
                   style={[
                     styles.txnRow,
                     index === recentTxns.length - 1 && styles.txnRowLast,
@@ -474,12 +484,30 @@ export default function Dashboard({
                     showSign={true}
                     size="md"
                   />
-                </View>
+                </TouchableOpacity>
               );
             })}
           </Card>
         )}
       </View>
+
+      {/* Edit / Delete Transaction BottomSheet */}
+      <TransactionEditSheet
+        visible={editSheetVisible}
+        onClose={() => setEditSheetVisible(false)}
+        transaction={selectedTxn}
+        token={token}
+        onSaved={() => {
+          loadDashboardData();
+          if (onTransactionMutated) onTransactionMutated();
+          if (onShowToast) onShowToast('Transaction updated');
+        }}
+        onDeleted={() => {
+          loadDashboardData();
+          if (onTransactionMutated) onTransactionMutated();
+          if (onShowToast) onShowToast('Transaction deleted');
+        }}
+      />
     </ScrollView>
   );
 }

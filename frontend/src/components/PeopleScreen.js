@@ -12,12 +12,15 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fetchPeopleSummary, fetchContactDetail } from '../api/client';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import Card from './ui/Card';
+import TransactionEditSheet from './ui/TransactionEditSheet';
 
 export default function PeopleScreen({
   token,
   refreshTrigger = 0,
   initialContactId = null,
   onBack = null,
+  onShowToast = null,
+  onTransactionMutated = null,
 }) {
   const [peopleData, setPeopleData] = useState(null);
   const [selectedContactId, setSelectedContactId] = useState(initialContactId);
@@ -27,6 +30,8 @@ export default function PeopleScreen({
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'owed' | 'owe' | 'settled'
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [editSheetVisible, setEditSheetVisible] = useState(false);
 
   // Load people list
   const loadPeople = async () => {
@@ -181,9 +186,14 @@ export default function PeopleScreen({
             {txns.map((txn) => {
               const txnIsIncome = txn.type === 'income';
               return (
-                <View
+                <TouchableOpacity
                   key={txn.id}
                   testID={`contact-txn-${txn.id}`}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setSelectedTxn(txn);
+                    setEditSheetVisible(true);
+                  }}
                   style={[
                     styles.timelineBubble,
                     txnIsIncome ? styles.timelineBubbleLeft : styles.timelineBubbleRight,
@@ -225,7 +235,7 @@ export default function PeopleScreen({
                       </Text>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -251,6 +261,24 @@ export default function PeopleScreen({
             <Text style={styles.settleBtnText}>Settle up</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Transaction Edit/Delete Bottom Sheet in detail view */}
+        <TransactionEditSheet
+          visible={editSheetVisible}
+          onClose={() => setEditSheetVisible(false)}
+          transaction={selectedTxn}
+          token={token}
+          onSaved={() => {
+            loadPeople();
+            if (onTransactionMutated) onTransactionMutated();
+            if (onShowToast) onShowToast('Transaction updated');
+          }}
+          onDeleted={() => {
+            loadPeople();
+            if (onTransactionMutated) onTransactionMutated();
+            if (onShowToast) onShowToast('Transaction deleted');
+          }}
+        />
       </ScrollView>
     );
   }
@@ -505,6 +533,24 @@ export default function PeopleScreen({
           })}
         </View>
       )}
+
+      {/* Transaction Edit/Delete Bottom Sheet in people list view */}
+      <TransactionEditSheet
+        visible={editSheetVisible}
+        onClose={() => setEditSheetVisible(false)}
+        transaction={selectedTxn}
+        token={token}
+        onSaved={() => {
+          loadPeople();
+          if (onTransactionMutated) onTransactionMutated();
+          if (onShowToast) onShowToast('Transaction updated');
+        }}
+        onDeleted={() => {
+          loadPeople();
+          if (onTransactionMutated) onTransactionMutated();
+          if (onShowToast) onShowToast('Transaction deleted');
+        }}
+      />
     </ScrollView>
   );
 }

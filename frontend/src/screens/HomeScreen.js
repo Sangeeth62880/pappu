@@ -17,6 +17,7 @@ import HistoryScreen from '../components/HistoryScreen';
 import PeopleScreen from '../components/PeopleScreen';
 import AuthScreen from './AuthScreen';
 import BottomSheet from '../components/ui/BottomSheet';
+import Toast from '../components/ui/Toast';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import GlassCard from '../components/ui/GlassCard';
@@ -41,6 +42,13 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
   const [profileSheetVisible, setProfileSheetVisible] = useState(false);
   const [historyFilter, setHistoryFilter] = useState(null);
   const [selectedPersonId, setSelectedPersonId] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [toastVisible, setToastVisible] = useState(false);
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  };
 
   const [conversationMessages, setConversationMessages] = useState(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -180,7 +188,10 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     try {
       await undoTransaction(token);
       handleTransactionMutated();
-    } catch (err) {}
+      showToast('Action undone successfully');
+    } catch (err) {
+      showToast(err.message || 'Failed to undo');
+    }
   };
 
   const handleNavigateToHistory = (filter = null) => {
@@ -217,6 +228,8 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             token={token}
             refreshTrigger={refreshTrigger}
             onUndo={handleUndo}
+            onShowToast={showToast}
+            onTransactionMutated={handleTransactionMutated}
             onNavigateToHistory={handleNavigateToHistory}
             onNavigateToPeople={handleNavigateToPeople}
           />
@@ -238,6 +251,8 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             token={token}
             refreshTrigger={refreshTrigger}
             initialFilter={historyFilter}
+            onShowToast={showToast}
+            onTransactionMutated={handleTransactionMutated}
             onBack={() => {
               setHistoryFilter(null);
               setActiveTab('dashboard');
@@ -250,6 +265,8 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             token={token}
             refreshTrigger={refreshTrigger}
             initialContactId={selectedPersonId}
+            onShowToast={showToast}
+            onTransactionMutated={handleTransactionMutated}
             onBack={() => {
               setSelectedPersonId(null);
               setActiveTab('dashboard');
@@ -404,6 +421,16 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
           />
         </View>
       </BottomSheet>
+
+      {/* ── 5. Notification Toast with Undo Action ── */}
+      <Toast
+        testID="home-toast"
+        visible={toastVisible}
+        message={toastMessage}
+        actionText="Undo"
+        onAction={handleUndo}
+        onDismiss={() => setToastVisible(false)}
+      />
     </SafeAreaView>
   );
 }

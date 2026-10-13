@@ -12,6 +12,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fetchTransactions } from '../api/client';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import Card from './ui/Card';
+import TransactionEditSheet from './ui/TransactionEditSheet';
 
 const TYPE_FILTERS = [
   { key: 'all', label: 'All' },
@@ -36,6 +37,8 @@ export default function HistoryScreen({
   refreshTrigger = 0,
   initialFilter = null,
   onBack = null,
+  onShowToast = null,
+  onTransactionMutated = null,
 }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,8 @@ export default function HistoryScreen({
   const [activeCategory, setActiveCategory] = useState(initialFilter?.category || null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [selectedTxn, setSelectedTxn] = useState(null);
+  const [editSheetVisible, setEditSheetVisible] = useState(false);
 
   useEffect(() => {
     if (initialFilter?.category) {
@@ -303,8 +308,14 @@ export default function HistoryScreen({
                     : (CATEGORY_ICONS[txn.category_name] || 'account-balance-wallet');
 
                   return (
-                    <View
+                    <TouchableOpacity
                       key={txn.id}
+                      testID={`history-txn-${txn.id}`}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setSelectedTxn(txn);
+                        setEditSheetVisible(true);
+                      }}
                       style={[
                         styles.rowWrapper,
                         idx === txns.length - 1 && styles.rowWrapperLast,
@@ -349,7 +360,7 @@ export default function HistoryScreen({
                           style={{ marginLeft: 3 }}
                         />
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </Card>
@@ -357,6 +368,26 @@ export default function HistoryScreen({
           );
         })
       )}
+
+      {/* ── 5. Edit / Delete Transaction BottomSheet ── */}
+      <TransactionEditSheet
+        visible={editSheetVisible}
+        onClose={() => setEditSheetVisible(false)}
+        transaction={selectedTxn}
+        token={token}
+        onSaved={() => {
+          if (!token) return;
+          fetchTransactions(token, { limit: 100 }).then((data) => setTransactions(data || []));
+          if (onTransactionMutated) onTransactionMutated();
+          if (onShowToast) onShowToast('Transaction updated');
+        }}
+        onDeleted={() => {
+          if (!token) return;
+          fetchTransactions(token, { limit: 100 }).then((data) => setTransactions(data || []));
+          if (onTransactionMutated) onTransactionMutated();
+          if (onShowToast) onShowToast('Transaction deleted');
+        }}
+      />
     </ScrollView>
   );
 }
