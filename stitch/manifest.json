@@ -1,0 +1,37 @@
+{
+  "projectId": "17116795057174061039",
+  "title": "Pappu Voice Finance App",
+  "deviceType": "MOBILE",
+  "screens": [
+    {
+      "id": "0e4addfc8b7d4f818b937dd89acbe169",
+      "title": "Home",
+      "file": "home.html"
+    },
+    {
+      "id": "038dd8668006443980ef639d0841dea6",
+      "title": "Sign In",
+      "file": "sign_in.html"
+    },
+    {
+      "id": "0c164717764c45bea7da06aac16fad1c",
+      "title": "People",
+      "file": "people.html"
+    },
+    {
+      "id": "612a0f59f17949aebd54bc363aa42c8e",
+      "title": "History",
+      "file": "history.html"
+    },
+    {
+      "id": "a9ec43276fc340a6b27a21f2bbcc6aaa",
+      "title": "Contact Detail - Pooja",
+      "file": "contact_detail_pooja.html"
+    },
+    {
+      "id": "4fd9d7f86b31456f8a1bbee943aedfe0",
+      "title": "Assistant",
+      "file": "assistant.html"
+    }
+  ]
+}
