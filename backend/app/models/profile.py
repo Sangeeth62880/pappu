@@ -13,3 +13,4 @@ class Profile(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     transactions = relationship("Transaction", back_populates="profile", cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="profile", cascade="all, delete-orphan")

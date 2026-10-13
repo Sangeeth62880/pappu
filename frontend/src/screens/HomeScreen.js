@@ -24,7 +24,7 @@ import GlassCard from '../components/ui/GlassCard';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
-import { undoTransaction } from '../api/client';
+import { undoTransaction, clearChatHistory } from '../api/client';
 
 const TABS = [
   { key: 'dashboard', label: 'Home', icon: 'account-balance-wallet' },
@@ -72,13 +72,25 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     });
   };
 
-  const handleClearMessages = () => {
+  const handleClearMessages = async () => {
     setConversationMessages([]);
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         window.localStorage.removeItem('pappu_chat_messages');
       } catch (e) {}
     }
+    if (token && typeof clearChatHistory === 'function') {
+      try {
+        const p = clearChatHistory(token);
+        if (p && typeof p.then === 'function') await p;
+      } catch (e) {}
+    }
+  };
+
+  const handleClearChatHistory = async () => {
+    await handleClearMessages();
+    setProfileSheetVisible(false);
+    showToast('Chat history cleared');
   };
 
   useEffect(() => {
@@ -411,6 +423,14 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
           </View>
 
           <View style={styles.profileDivider} />
+
+          <Button
+            testID="profile-clear-chat-button"
+            onPress={handleClearChatHistory}
+            title="Clear Chat History"
+            variant="outline"
+            style={{ marginBottom: spacing.md }}
+          />
 
           <Button
             testID="auth-signout-button"

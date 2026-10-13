@@ -2,7 +2,7 @@ import anyio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from app.database import check_db_connection, init_db
-from app.routers import transactions, summary, intent, stt, tts
+from app.routers import transactions, summary, intent, stt, tts, chat
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +20,7 @@ app.include_router(summary.router)
 app.include_router(intent.router)
 app.include_router(stt.router)
 app.include_router(tts.router)
+app.include_router(chat.router)
 
 @app.get("/health")
 def health_check():

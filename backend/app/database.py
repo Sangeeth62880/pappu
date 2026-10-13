@@ -62,6 +62,13 @@ def init_db(bind_engine=None):
                         FOR ALL
                         USING (user_id = auth.uid())
                         WITH CHECK (user_id = auth.uid());
+
+                    ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own chat messages" ON chat_messages;
+                    CREATE POLICY "Users can manage their own chat messages" ON chat_messages
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
                 """))
                 connection.commit()
         except Exception as e:

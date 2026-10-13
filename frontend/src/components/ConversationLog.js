@@ -16,6 +16,9 @@ import {
   confirmAction,
   synthesizeSpeech,
   undoTransaction,
+  fetchChatHistory,
+  saveChatMessage,
+  clearChatHistory,
 } from '../api/client';
 import { playAudioBase64 } from '../utils/audioPlayer';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
@@ -23,6 +26,7 @@ import MicButton from './MicButton';
 import MessageBubble from './ui/MessageBubble';
 import ConfirmationCard from './ui/ConfirmationCard';
 import QueryDataCard from './ui/QueryDataCard';
+import Skeleton from './ui/Skeleton';
 
 const DIALECTS = ['Manglish', 'Malayalam', 'English'];
 
@@ -71,14 +75,72 @@ export default function ConversationLog({
   const setMessages = externalSetMessages !== null ? externalSetMessages : setLocalMessages;
 
   const [loading, setLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(
+    Boolean(token) && (!messages || messages.length === 0)
+  );
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
   const [undoneIds, setUndoneIds] = useState({});
+
+  useEffect(() => {
+    let isMounted = true;
+    if (token && typeof fetchChatHistory === 'function') {
+      try {
+        const promise = fetchChatHistory(token, { limit: 50, offset: 0 });
+        if (promise && typeof promise.then === 'function') {
+          promise
+            .then((res) => {
+              if (!isMounted || !res?.messages) return;
+              if (res.messages.length > 0) {
+                const mapped = res.messages.map((m) => {
+                  const isUser = m.role === 'user';
+                  const payload = typeof m.payload === 'object' && m.payload !== null ? m.payload : {};
+                  return {
+                    id: String(m.id),
+                    sender: isUser ? 'user' : 'pappu',
+                    text: m.text,
+                    timestamp: m.created_at ? formatTime(new Date(m.created_at)) : 'Just now',
+                    ...payload,
+                    isHistorical: true,
+                  };
+                });
+                setMessages(mapped);
+              }
+            })
+            .catch((err) => {
+              console.warn('Failed to load chat history:', err);
+            })
+            .finally(() => {
+              if (isMounted) setHistoryLoading(false);
+            });
+        } else {
+          setHistoryLoading(false);
+        }
+      } catch (err) {
+        setHistoryLoading(false);
+      }
+    } else {
+      setHistoryLoading(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
   }, [messages, loading]);
+
+  const persistMessage = (role, text, payload = null) => {
+    if (!token || typeof saveChatMessage !== 'function') return;
+    try {
+      const p = saveChatMessage(token, { role, text, payload });
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {});
+      }
+    } catch (e) {}
+  };
 
   const speakResponse = async (text, language = 'en') => {
     if (!token || !text) return null;
@@ -115,6 +177,7 @@ export default function ConversationLog({
       timestamp: nowTime,
     };
     setMessages((prev) => [...prev, userMsg]);
+    persistMessage('user', text);
 
     // If there is a pending confirmation and user types "yes" / "confirm"
     if (pendingConfirmation && ['yes', 'confirm', 'sure', 'ok', 'aam'].includes(text.toLowerCase())) {
@@ -175,6 +238,12 @@ export default function ConversationLog({
           },
         ]);
 
+        persistMessage('assistant', replyText, {
+          queryResult: intent.action === 'query' ? routeRes.execution_result : null,
+          isAddSuccess: isAddAction,
+          language: lang,
+        });
+
         // Speak response aloud via TTS
         speakResponse(replyText, lang).then((audioBase64) => {
           if (audioBase64) {
@@ -223,6 +292,13 @@ export default function ConversationLog({
             },
           ]);
 
+          persistMessage('assistant', prompt, {
+            type: 'contact_confirmation',
+            confirmData,
+            candidates: routeRes.candidates,
+            language: lang,
+          });
+
           speakResponse(routeRes.spoken_response || prompt, lang);
         } else {
           // Standard transaction edit/delete confirmation
@@ -257,6 +333,13 @@ export default function ConversationLog({
             },
           ]);
 
+          persistMessage('assistant', prompt, {
+            type: 'confirmation',
+            confirmData,
+            target_transaction: routeRes.target_transaction,
+            language: lang,
+          });
+
           speakResponse(prompt, lang);
         }
       } else if (decision === 'ASK_DISAMBIGUATION') {
@@ -282,6 +365,14 @@ export default function ConversationLog({
           },
         ]);
 
+        persistMessage('assistant', prompt, {
+          type: 'disambiguation',
+          action: intent.action,
+          fields: intent.fields,
+          candidates,
+          language: lang,
+        });
+
         speakResponse(prompt, lang);
       } else if (decision === 'ASK_CLARIFICATION') {
         const prompt =
@@ -301,6 +392,11 @@ export default function ConversationLog({
             timestamp: formatTime(),
           },
         ]);
+
+        persistMessage('assistant', prompt, {
+          type: 'clarification',
+          language: lang,
+        });
 
         speakResponse(prompt, lang);
       }
@@ -370,6 +466,8 @@ export default function ConversationLog({
           timestamp: formatTime(),
         },
       ]);
+
+      persistMessage('assistant', replyText);
 
       speakResponse(replyText, confirmData.language || 'en');
 
@@ -447,7 +545,17 @@ export default function ConversationLog({
     }
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
+    if (token && typeof clearChatHistory === 'function') {
+      try {
+        const p = clearChatHistory(token);
+        if (p && typeof p.then === 'function') {
+          await p;
+        }
+      } catch (e) {
+        console.warn('Failed to clear backend chat history:', e);
+      }
+    }
     if (onClearMessages) {
       onClearMessages();
     } else {
@@ -490,14 +598,18 @@ export default function ConversationLog({
             <ConfirmationCard
               prompt={msg.text}
               type="confirmation"
-              actionLabel={`Yes, ${msg.confirmData.suggested_contact?.name || 'confirm'}`}
-              onConfirm={() =>
-                handleConfirmAction(msg.confirmData, {
-                  id: msg.confirmData.suggested_contact?.id,
-                  name: msg.confirmData.suggested_contact?.name,
-                })
+              isHistorical={Boolean(msg.isHistorical)}
+              actionLabel={msg.isHistorical ? 'Resolved' : `Yes, ${msg.confirmData.suggested_contact?.name || 'confirm'}`}
+              onConfirm={
+                msg.isHistorical
+                  ? null
+                  : () =>
+                      handleConfirmAction(msg.confirmData, {
+                        id: msg.confirmData.suggested_contact?.id,
+                        name: msg.confirmData.suggested_contact?.name,
+                      })
               }
-              secondaryAction={true}
+              secondaryAction={!msg.isHistorical}
               secondaryLabel={`+ Add new "${msg.confirmData.suggested_contact?.original || 'person'}"`}
               onSecondaryAction={() =>
                 handleConfirmAction(msg.confirmData, {
@@ -510,10 +622,11 @@ export default function ConversationLog({
             <ConfirmationCard
               prompt={msg.text}
               type="confirmation"
+              isHistorical={Boolean(msg.isHistorical)}
               targetTransaction={msg.target_transaction || msg.confirmData.target_transaction}
-              onConfirm={() => handleConfirmAction(msg.confirmData)}
-              actionLabel={msg.confirmData.action}
-              secondaryAction={true}
+              onConfirm={msg.isHistorical ? null : () => handleConfirmAction(msg.confirmData)}
+              actionLabel={msg.isHistorical ? 'Resolved' : msg.confirmData.action}
+              secondaryAction={!msg.isHistorical}
               secondaryLabel="Cancel"
               onSecondaryAction={() => setPendingConfirmation(null)}
             />
@@ -641,7 +754,20 @@ export default function ConversationLog({
           </View>
         </View>
 
-        {messages.length === 0 ? (
+        {historyLoading && messages.length === 0 ? (
+          <View testID="chat-skeleton-container" style={styles.skeletonContainer}>
+            <View style={styles.skeletonBubbleRight}>
+              <Skeleton width={180} height={42} borderRadius={radius.lg} />
+            </View>
+            <View style={styles.skeletonBubbleLeft}>
+              <Skeleton width={32} height={32} borderRadius={16} style={{ marginRight: 8 }} />
+              <Skeleton width={220} height={56} borderRadius={radius.lg} />
+            </View>
+            <View style={styles.skeletonBubbleRight}>
+              <Skeleton width={140} height={42} borderRadius={radius.lg} />
+            </View>
+          </View>
+        ) : messages.length === 0 ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyBotBadge}>
               <MaterialIcons name="smart-toy" size={28} color={colors.brand.default} />
@@ -1082,5 +1208,18 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: colors.brand.tint,
     opacity: 0.6,
+  },
+  skeletonContainer: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  skeletonBubbleRight: {
+    alignItems: 'flex-end',
+    marginBottom: spacing.md,
+  },
+  skeletonBubbleLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
 });

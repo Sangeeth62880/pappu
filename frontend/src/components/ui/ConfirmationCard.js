@@ -32,6 +32,7 @@ export default function ConfirmationCard({
   onSecondaryAction,
   secondaryLabel = 'Cancel',
   targetTransaction = null,
+  isHistorical = false,
 }) {
   const isDestructive = actionLabel.toLowerCase().includes('delete');
   const catIcon = targetTransaction?.category_name
@@ -90,40 +91,49 @@ export default function ConfirmationCard({
       {/* Confirmation buttons */}
       {type === 'confirmation' && (
         <View style={styles.buttonRow}>
-          {onConfirm && (
-            <Button
-              testID="confirm-action-button"
-              onPress={onConfirm}
-              title={
-                `✓ ${
-                  actionLabel.toLowerCase().startsWith('confirm') ||
-                  actionLabel.toLowerCase().startsWith('yes')
-                    ? actionLabel
-                    : `Confirm ${actionLabel}`
-                }`
-              }
-              variant={isDestructive ? 'destructive' : 'primary'}
-              size="sm"
-              icon={
-                <MaterialIcons
-                  name={isDestructive ? 'delete' : 'check'}
-                  size={16}
-                  color="#FFFFFF"
+          {isHistorical ? (
+            <View testID="resolved-badge" style={styles.resolvedBadge}>
+              <MaterialIcons name="done" size={14} color={colors.text.tertiary} style={{ marginRight: 4 }} />
+              <Text style={styles.resolvedText}>Resolved</Text>
+            </View>
+          ) : (
+            <>
+              {onConfirm && (
+                <Button
+                  testID="confirm-action-button"
+                  onPress={onConfirm}
+                  title={
+                    `✓ ${
+                      actionLabel.toLowerCase().startsWith('confirm') ||
+                      actionLabel.toLowerCase().startsWith('yes')
+                        ? actionLabel
+                        : `Confirm ${actionLabel}`
+                    }`
+                  }
+                  variant={isDestructive ? 'destructive' : 'primary'}
+                  size="sm"
+                  icon={
+                    <MaterialIcons
+                      name={isDestructive ? 'delete' : 'check'}
+                      size={16}
+                      color="#FFFFFF"
+                    />
+                  }
+                  style={{ flex: 1 }}
                 />
-              }
-              style={{ flex: 1 }}
-            />
-          )}
+              )}
 
-          {secondaryAction && onSecondaryAction && (
-            <Button
-              testID="secondary-action-button"
-              onPress={onSecondaryAction}
-              title={secondaryLabel}
-              variant="secondary"
-              size="sm"
-              style={{ flex: 1 }}
-            />
+              {secondaryAction && onSecondaryAction && (
+                <Button
+                  testID="secondary-action-button"
+                  onPress={onSecondaryAction}
+                  title={secondaryLabel}
+                  variant="secondary"
+                  size="sm"
+                  style={{ flex: 1 }}
+                />
+              )}
+            </>
           )}
         </View>
       )}
@@ -321,5 +331,22 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     fontSize: 11,
     marginTop: 2,
+  },
+  resolvedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignSelf: 'flex-start',
+  },
+  resolvedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.tertiary,
   },
 });

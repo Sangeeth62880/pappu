@@ -268,3 +268,35 @@ export async function synthesizeSpeech(token, text, languageCode = 'en-IN', spea
   });
 }
 
+/**
+ * GET /chat/history - Fetches paginated chat messages for the current user.
+ */
+export async function fetchChatHistory(token, { limit = 50, offset = 0 } = {}) {
+  return request('/chat/history', {
+    method: 'GET',
+    token,
+    params: { limit, offset },
+  });
+}
+
+/**
+ * POST /chat/message - Saves a new chat message to persistent backend storage.
+ */
+export async function saveChatMessage(token, { role, text, payload = null }) {
+  return request('/chat/message', {
+    method: 'POST',
+    token,
+    body: { role, text, payload },
+  });
+}
+
+/**
+ * DELETE /chat/history - Deletes all chat messages for the authenticated user.
+ */
+export async function clearChatHistory(token) {
+  return request('/chat/history', {
+    method: 'DELETE',
+    token,
+  });
+}
+
