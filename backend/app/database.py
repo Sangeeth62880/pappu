@@ -69,6 +69,13 @@ def init_db(bind_engine=None):
                         FOR ALL
                         USING (user_id = auth.uid())
                         WITH CHECK (user_id = auth.uid());
+
+                    ALTER TABLE undo_actions ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own undo actions" ON undo_actions;
+                    CREATE POLICY "Users can manage their own undo actions" ON undo_actions
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
                 """))
                 connection.commit()
         except Exception as e:
