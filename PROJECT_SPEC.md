@@ -176,10 +176,70 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 | POST | `/transactions` | Create transaction |
 | PUT | `/transactions/{id}` | Update transaction |
 | DELETE | `/transactions/{id}` | Delete transaction |
-| GET | `/transactions` | List/filter transactions (by date range, category) |
-| GET | `/summary` | Balance, totals, category breakdown, trends |
-| GET | `/summary/people` | List of contacts with net balance (sum of money sent to them minus received from them), total sent, total received |
+| GET | `/transactions` | List/filter transactions (by date range, category, search) |
+| GET | `/summary` | Period-scoped analytics: spent, income, net, previous period delta, daily chart buckets, expense category breakdown, people totals & top contacts, top expenses |
+| GET | `/summary/people` | List of contacts with net balance, total sent, total received |
 | GET | `/summary/people/{contact_id}` | Full transaction history with that contact plus net balance and contact details |
+
+### GET `/summary` Query & Response Contract
+
+- **Query Parameters**:
+  - `period`: `week` | `month` | `year` (optional, default: `week`)
+- **Period Boundaries (strictly in IST via `get_current_ist_datetime()`)**:
+  - `week`: Monday 00:00:00 IST to Sunday 23:59:59 IST.
+  - `month`: 1st day 00:00:00 IST to last day of current calendar month 23:59:59 IST.
+  - `year`: Jan 1 00:00:00 IST to Dec 31 23:59:59 IST.
+- **Data Semantics**:
+  - `total_spent`: Sum of `type == 'expense'` transactions in the period **excluding** category `'People'` (peer loans/debts are not consumer expenses).
+  - `total_income`: Sum of `type == 'income'` transactions in the period **excluding** category `'People'` (debt collections are not income).
+  - `net`: `total_income - total_spent`.
+  - `previous_period_spent`: Same expense sum over the immediately preceding period window (e.g. prior 7 days / prior month / prior year).
+  - `spent_delta_percentage`: `((total_spent - previous_period_spent) / previous_period_spent) * 100` (or `null` if previous is 0).
+  - `daily_buckets`: Array of daily data points zero-filled for all days in the period (7 days for week, each day of month for month, each month for year): `[{ date: "YYYY-MM-DD", label: "Mon", amount: float }]`.
+  - `categories`: Expense-only category breakdown (`type == 'expense'`), aggregated, top 5 plus "Other", each with `{ category: str, amount: float, percentage: float }`.
+  - `people`: `{ total_owed_to_user: float, total_user_owes: float, top_contacts: [{ id: uuid, name: str, net_balance: float }] }` (top 3 contacts by absolute net balance).
+  - `top_expenses`: Top 3 single largest expense transactions in the period: `[{ id: uuid, description: str, amount: float, date: str, category: str }]`.
+  - `recent_transactions`: At most 5 most recent transactions overall.
+
+---
+
+## 8.5. Design System & Frontend Architecture (Light Theme)
+
+### Theme Policy
+- **Light-only**: Modern, clean consumer fintech experience (white surfaces, brand blue accents). Dark theme is deferred.
+- **Tokens**: All styles MUST use semantic design tokens and `components/ui/` primitives. Never hardcode colors, fonts, or ad-hoc spacing in screen components.
+
+### Color Tokens & WCAG AA Contrast Ratios
+- **Canvas**: `#F8FAFC` (soft cool off-white)
+- **Surfaces**: `#FFFFFF` (pure white card)
+- **Borders / Dividers**: `#E2E8F0` (faint cool border)
+- **Text Primary**: `#0F172A` (deep slate navy, **16.5:1** contrast on white — AAA)
+- **Text Secondary**: `#475569` (slate gray, **5.9:1** contrast on white — AA)
+- **Text Tertiary**: `#64748B` (muted slate, **4.6:1** contrast on white — AA)
+- **Brand Blue Accent**:
+  - Fill / Button / Active: `#2563EB` (Blue 600)
+  - Dark Accent Text on White: `#1D4ED8` (Blue 700, **4.8:1** contrast on white — AA)
+  - Tint Background / Chip: `#EFF6FF` (Blue 50)
+- **Semantic Status**:
+  - Positive / Income / Owed to user: `#15803D` text on white (**4.8:1** contrast — AA), `#DCFCE7` chip background
+  - Negative / Expense / User owes: `#DC2626` text on white (**4.6:1** contrast — AA), `#FEE2E2` chip background
+- **Amounts**: Never rely on color alone. Always prefix with explicit `+` or `−` sign and standard ₹ currency symbol.
+
+### Glassmorphism & Android Fallback Policy
+- **Glass surfaces**: Limited strictly to the floating bottom navigation bar and modal sheets.
+- **Implementation**: Uses `expo-blur` (`BlurView intensity={60} tint="light"`) with a 1px border (`#E2E8F0`) and soft elevation.
+- **Android / Fallback**: When blur is unavailable or on Android devices where native blur creates visual artifacts, smoothly falls back to an opaque `#FFFFFF` surface with `elevation: 4` and border `#E2E8F0`.
+
+### Typography
+- Geometric sans for Latin paired with `Noto Sans Malayalam` for Malayalam script.
+- Line heights tailored to Malayalam typography (1.4–1.5x) to eliminate vertical clipping.
+- Monospace/tabular figure variants (`fontVariant: ['tabular-nums']`) for all financial amounts so digits align vertically.
+
+### Screen Responsibilities
+- **Home (Dashboard)**: Glanceable overview, period selector, hero spend card, daily spend chart, people summary, expense category proportion bars, max 5 recent transactions.
+- **History**: Comprehensive filterable ledger, date-grouped sections with sticky headers, filter chips (All, Expense, Income, People), category filters.
+- **People**: Person-to-person tracker, contact avatars, net balance badges (owed vs owes), and thread-style sent/received transaction detail view.
+- **Assistant**: Voice and text conversational interface, user and assistant chat bubbles, animated recording mic button, structured confirmation/disambiguation cards.
 
 ---
 

@@ -182,3 +182,24 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 - Regression pass: re-run Phase 8's end-to-end test to confirm polish didn't break the core flow.
 
 **Acceptance criteria**: Analytics features are correct against known test data, and the core voice flow still passes its end-to-end test after all polish work.
+
+---
+
+## Phase 10 — Light Design System & Analytics Redesign
+
+*Note: This phase satisfies the previously unfinished Phase 5 "trends" requirement and implements key parts of Phase 9 analytics (spending patterns, highest category, period comparison, daily buckets, delta vs previous period). Phase 9 itself remains in progress for remaining predictive budgeting/alerts.*
+
+**Tasks**
+1. Document data semantics, light-only design system tokens, glass policy, and new `/summary?period=` contract in `PROJECT_SPEC.md`.
+2. Build design system tokens and reusable UI primitives (`Screen`, `Card`, `GlassCard`, `Button`, `IconButton`, `Chip/SegmentedControl`, `Avatar`, `AmountText`, `ListRow`, `SectionHeader`, `EmptyState`, `Skeleton`, `Toast`, `BottomSheet`) in `frontend/src/components/ui/` with unit tests.
+3. Extend backend `GET /summary` with `period=week|month|year` parameter, returning period-scoped totals (spent, income, net), previous period delta, zero-filled daily buckets, expense-only category percentages, top 3 contacts, and top 3 expenses.
+4. Restructure `Dashboard` into an analytics-first overview: slim header + profile sheet, segmented period selector, blue gradient hero card, 7-day spending chart, people card, expense proportion bars, and capped recent activity (max 5) with "See all" navigation.
+5. Rebuild bottom navigation bar with floating frosted-card styling and outline icons.
+6. Restyle remaining screens (`Assistant`, `History`, `People`, `Auth`) using design tokens and primitives, ensuring zero old dark-navy/gold colors remain.
+7. Add pull-to-refresh, skeleton loading states, and comprehensive test coverage.
+
+**Tests**
+- pytest: backend `/summary?period=` covers multi-week dataset totals, zero-filled buckets, IST calendar boundaries (Sunday/Monday and month rollover), previous-period delta, two-user isolation, and empty-data user handling.
+- Jest/RNTL: UI primitive token tests (contrast validation, AmountText formatting variants, Button states), Dashboard period toggle re-rendering, Recent rows cap at 5, People empty states, and filter passing to History.
+
+**Acceptance criteria**: Modern light-only design system fully replaces dark passbook theme across all screens, zero hardcoded legacy navy/gold colors, all frontend and backend tests pass, and complete data isolation and auth behaviors remain intact.
