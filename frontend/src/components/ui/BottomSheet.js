@@ -37,8 +37,6 @@ export default function BottomSheet({
     }
   }, [visible]);
 
-  if (!visible) return null;
-
   return (
     <Modal
       transparent

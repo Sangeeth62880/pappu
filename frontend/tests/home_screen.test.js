@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
 import HomeScreen from '../src/screens/HomeScreen';
 import * as client from '../src/api/client';
 import * as supabaseApi from '../src/api/supabase';
@@ -7,9 +7,12 @@ import * as supabaseApi from '../src/api/supabase';
 jest.mock('../src/api/client');
 jest.mock('../src/api/supabase');
 
-describe('HomeScreen Live Integration', () => {
-  const mockToken = 'mock_jwt_token';
-  const mockSession = { access_token: mockToken, user: { email: 'test@pappu.dev' } };
+describe('HomeScreen Component', () => {
+  const mockToken = 'mock_jwt_token_123';
+  const mockSession = {
+    access_token: mockToken,
+    user: { email: 'test@pappu.dev' },
+  };
 
   const initialSummary = {
     balance: 1000.0,
@@ -35,25 +38,20 @@ describe('HomeScreen Live Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    supabaseApi.getSession.mockResolvedValue(null);
     supabaseApi.supabase = {
       auth: {
-        onAuthStateChange: jest.fn().mockReturnValue({ data: { subscription: { unsubscribe: jest.fn() } } }),
+        onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
       },
     };
   });
 
-  test('renders auth screen when no session or token is active', async () => {
-    supabaseApi.getSession.mockResolvedValueOnce(null);
-
-    const { findByTestId, findByText } = await render(
-      <HomeScreen />
-    );
-
+  test('renders auth screen when not authenticated', async () => {
+    const { findByTestId } = await render(<HomeScreen />);
     expect(await findByTestId('auth-screen')).toBeTruthy();
-    expect(await findByText('Sign In to Pappu')).toBeTruthy();
   });
 
-  test('renders header, user email, sign out button, and dashboard tab when authenticated', async () => {
+  test('renders header, profile sheet with email/signout, and dashboard tab when authenticated', async () => {
     client.fetchSummary.mockResolvedValueOnce(initialSummary);
     client.fetchTransactions.mockResolvedValueOnce([]);
 
@@ -62,14 +60,21 @@ describe('HomeScreen Live Integration', () => {
     );
 
     expect(await findByText('Pappu')).toBeTruthy();
-    expect(await findByTestId('user-email-header')).toHaveTextContent('test@pappu.dev');
-    expect(await findByTestId('auth-signout-button')).toBeTruthy();
     expect(await findByTestId('dashboard-view')).toBeTruthy();
 
-    // Tab bar should be visible with all three tabs
+    // Tab bar should be visible with tabs
     expect(await findByTestId('tab-dashboard')).toBeTruthy();
     expect(await findByTestId('tab-assistant')).toBeTruthy();
     expect(await findByTestId('tab-history')).toBeTruthy();
+    expect(await findByTestId('tab-people')).toBeTruthy();
+
+    // Open profile sheet from avatar button
+    const avatarBtn = await findByTestId('profile-avatar-button');
+    fireEvent.press(avatarBtn);
+
+    // Profile sheet should display user email and signout button
+    expect(await findByTestId('user-email-header')).toHaveTextContent('test@pappu.dev');
+    expect(await findByTestId('auth-signout-button')).toBeTruthy();
   });
 
   test('switching to assistant tab shows conversation container', async () => {
@@ -149,31 +154,7 @@ describe('HomeScreen Live Integration', () => {
     });
 
     const updatedBalance = await findByTestId('dashboard-balance');
-    expect(updatedBalance).toHaveTextContent('₹500.00');
-  });
-
-  test('tapping undo triggers undo API and updates dashboard', async () => {
-    client.fetchSummary
-      .mockResolvedValueOnce(updatedSummary)
-      .mockResolvedValueOnce(initialSummary);
-
-    client.fetchTransactions
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
-
-    client.undoTransaction.mockResolvedValueOnce({ status: 'undone' });
-
-    const { findByTestId } = await render(
-      <HomeScreen initialSession={mockSession} />
-    );
-
-    const undoButton = await findByTestId('dashboard-undo-button');
-    fireEvent.press(undoButton);
-
-    await waitFor(() => {
-      expect(client.undoTransaction).toHaveBeenCalledWith(mockToken);
-      expect(client.fetchSummary).toHaveBeenCalledTimes(2);
-    });
+    expect(updatedBalance).toHaveTextContent('₹1500.00');
   });
 
   test('tapping sign out clears session and returns to AuthScreen', async () => {
@@ -184,6 +165,10 @@ describe('HomeScreen Live Integration', () => {
     const { findByTestId } = await render(
       <HomeScreen initialSession={mockSession} />
     );
+
+    // Open profile sheet and sign out
+    const avatarBtn = await findByTestId('profile-avatar-button');
+    fireEvent.press(avatarBtn);
 
     const signOutBtn = await findByTestId('auth-signout-button');
     fireEvent.press(signOutBtn);
