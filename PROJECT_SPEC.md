@@ -82,9 +82,29 @@ CREATE TABLE transactions (
     txn_date DATE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Undo Action Log (sequential ledger for non-destructive reversions)
+CREATE TABLE undo_actions (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    action_type TEXT NOT NULL, -- 'add' | 'edit' | 'delete'
+    target_id UUID NOT NULL,
+    prior_state TEXT,          -- JSON serialized prior snapshot
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Chat Messages (persistent conversation history)
+CREATE TABLE chat_messages (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,        -- 'user' | 'assistant'
+    text TEXT NOT NULL,
+    payload TEXT,              -- JSON serialized metadata, cards, speech
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 ```
 
-**Row-Level Security (RLS):** enabled on `profiles`, `contacts`, and `transactions` as a defense-in-depth safeguard. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`.
+**Row-Level Security (RLS):** enabled on `profiles`, `contacts`, `transactions`, and `chat_messages` as a defense-in-depth safeguard. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`.
 
 **Important — the actual enforcement mechanism is application-layer filtering, not RLS.** FastAPI connects to Postgres directly via the `postgres` role (the connection string from Supabase's dashboard), and that role bypasses RLS by default — RLS only applies automatically when a query goes through Supabase's own Data API (PostgREST) using the user's JWT, which this backend does not do. The real guarantee is: FastAPI verifies the JWT (§8), extracts `user_id` from the verified claims, and scopes every query with `WHERE user_id = :verified_user_id`. RLS stays enabled as a secondary safeguard in case anything ever queries the DB by another path (e.g. Supabase's Data API directly from the frontend for a future feature), but it is not what's protecting the backend's own queries today. The isolation test in Phase 2 of `BUILD_PHASES.md` should verify the *application-layer* filtering, not assume RLS is doing the work.
 
@@ -235,11 +255,33 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 - Line heights tailored to Malayalam typography (1.4–1.5x) to eliminate vertical clipping.
 - Monospace/tabular figure variants (`fontVariant: ['tabular-nums']`) for all financial amounts so digits align vertically.
 
-### Screen Responsibilities
-- **Home (Dashboard)**: Glanceable overview, period selector, hero spend card, daily spend chart, people summary, expense category proportion bars, max 5 recent transactions.
-- **History**: Comprehensive filterable ledger, date-grouped sections with sticky headers, filter chips (All, Expense, Income, People), category filters.
-- **People**: Person-to-person tracker, contact avatars, net balance badges (owed vs owes), and thread-style sent/received transaction detail view.
-- **Assistant**: Voice and text conversational interface, user and assistant chat bubbles, animated recording mic button, structured confirmation/disambiguation cards.
+### Screen Responsibilities & Interaction Architecture
+- **Home (Dashboard)**: Glanceable overview, period selector, hero spend card, daily spend chart, people summary, expense category proportion bars, max 5 recent transactions with tap-to-edit triggers (`TransactionEditSheet`), and quick header voice action.
+- **History**: Comprehensive filterable ledger, date-grouped sections with sticky headers, filter chips (All, Expense, Income, People), category filters, tap-to-edit triggers, and quick header voice action.
+- **People**: Person-to-person tracker, contact avatars, net balance badges (owed vs owes), thread-style sent/received transaction detail view with manual edit/delete triggers, and quick header voice action.
+- **Assistant**: Dedicated full-screen conversational interface with single conversation composer mic, persistent backend chat history, skeleton loaders, and inline action confirmation/undo cards.
+- **Universal Voice Entry (`VoiceListeningSheet`)**: Quick header microphone button on Home, History, and People tabs that opens an overlay listening sheet to capture speech, route intents, and trigger immediate screen refresh without navigating away.
+- **Android Back Handling & Toast Layering**: Android hardware `BackHandler` closes active bottom sheets and resets tab-specific filters before exiting to system; `Toast` unmounts completely when dismissed to ensure touch targets above the floating navbar remain 100% accessible.
+- **Keyboard Avoidance**: Floating frosted navbar dynamically hides while software keyboard is visible (`keyboardWillShow`/`keyboardDidShow`).
+
+### API Endpoints Summary
+- **Transactions**:
+  - `GET /transactions`: List transactions with filters (`type`, `category_id`, `contact_id`, `limit`, `offset`).
+  - `POST /transactions`: Create new transaction.
+  - `PATCH /transactions/{id}`: Manually edit transaction fields (`amount`, `category_id`, `category_name`, `contact_name`, `description`, `txn_date`). Returns 404 on foreign records.
+  - `DELETE /transactions/{id}`: Manually delete transaction. Returns 404 on foreign records.
+  - `POST /transactions/undo`: Reverts most recent mutation (restores prior state for edit, restores deleted record for delete, removes added record for add).
+- **Analytics**:
+  - `GET /summary?period=week|month|year`: Period-scoped analytics, zero-filled daily buckets, and category breakdowns.
+  - `GET /people/summary` & `GET /people/{contact_id}`: Contact debt tracking and conversation ledgers.
+- **Chat History**:
+  - `GET /chat/history?limit=50&offset=0`: Paginated conversation messages in chronological order.
+  - `POST /chat/message`: Persists message entry (`role`, `text`, `payload`).
+  - `DELETE /chat/history`: Purges conversation messages for authenticated user.
+- **Voice & AI**:
+  - `POST /stt/transcribe`: Audio to text transcription via Sarvam Saaras v3.
+  - `POST /tts/synthesize`: Text to speech synthesis via Sarvam Bulbul v3.
+  - `POST /intent/parse`, `/intent/route`, `/intent/confirm`: Intent extraction and routing.
 
 ---
 

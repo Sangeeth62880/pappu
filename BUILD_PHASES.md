@@ -203,3 +203,36 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 - Jest/RNTL: UI primitive token tests (contrast validation, AmountText formatting variants, Button states), Dashboard period toggle re-rendering, Recent rows cap at 5, People empty states, and filter passing to History.
 
 **Acceptance criteria**: Modern light-only design system fully replaces dark passbook theme across all screens, zero hardcoded legacy navy/gold colors, all frontend and backend tests pass, and complete data isolation and auth behaviors remain intact.
+
+---
+
+## Phase 11 — Post-Stitch Migration Polish, Manual CRUD, Persistent Chat & Universal Voice Access
+
+**Tasks**
+1. **Touch Targets & Exit Paths (Fix 2 & 3)**:
+   - Fixed `Toast.js` unmount bug that permanently blocked touch targets above the floating nav bar.
+   - Enhanced `BottomSheet.js` with swipe-down dismissal and accessible close button.
+   - Added Android hardware `BackHandler` on `HomeScreen`, `AuthScreen`, `HistoryScreen`, and `PeopleScreen` to close active sheets or return to root dashboard before exiting.
+   - Floating navbar dynamically hides during typing (`keyboardWillShow` / `keyboardDidShow`) and provides 48px touch targets at `zIndex: 100`.
+2. **Accessible Microphone & Vector Iconography (Fix 4)**:
+   - Replaced all raw unicode emojis ('🎤', '⏹', food emojis) with `MaterialIcons` (`mic`, `stop`, `restaurant`, etc.).
+   - Added animated pulsing ring, clear error banner, and `Linking.openSettings()` on microphone permission denial.
+3. **Manual Transaction Editing, Deletion & Non-Destructive Undo (Fix 1)**:
+   - Implemented `PATCH /transactions/{id}` and `DELETE /transactions/{id}` in FastAPI with strict 404 user scoping (never 403 to prevent enumeration).
+   - Added integer-ordered `undo_actions` model for deterministic sequential undo resolution across both SQLite and PostgreSQL.
+   - Built frontend `TransactionEditSheet` accessible across Dashboard, History, and People screens.
+4. **Persistent Chat History (Fix 5)**:
+   - Added `chat_messages` model (`id`, `user_id`, `role`, `text`, `payload`, `created_at`) with PostgreSQL RLS.
+   - Added `GET /chat/history?limit=50&offset=0`, `POST /chat/message`, and `DELETE /chat/history`.
+   - Updated `ConversationLog.js` with skeleton loader on mount, automatic history sync, safe error fallbacks, and marked historical confirmation cards as resolved.
+   - Added "Clear Chat History" action in Profile settings bottom sheet and ConversationLog header.
+5. **Universal Voice Entry Points (Fix 6)**:
+   - Added header microphone action on Home, History, and People screens that opens a unified `VoiceListeningSheet`.
+   - Allows hands-free recording, transcription, intent routing, and real-time dashboard updates without leaving the current screen.
+   - Kept Assistant tab dedicated to single conversation composer mic to prevent duplicate triggers.
+
+**Tests**
+- pytest: 171 backend tests passing (including `test_chat.py` pagination, user isolation, and `test_transactions.py` patch/delete/undo).
+- Jest: 81 frontend tests passing (including `transaction_edit.test.js`, `chat_history.test.js`, `voice_listening_sheet.test.js`).
+
+**Acceptance criteria**: All six UI/UX/logic issues resolved with root-cause fixes, zero regressions, full test coverage across frontend and backend.
