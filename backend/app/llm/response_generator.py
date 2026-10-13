@@ -56,13 +56,12 @@ def generate_spoken_response(
             else:
                 return f"Added {category} transaction for {formatted_amount}."
         elif action == "query":
-            count = execution_result.get("count", 0) if execution_result else matched_count
             if lang == "ml":
-                return f"{count} ഇടപാടുകൾ കണ്ടെത്തി."
+                return "വിവരങ്ങൾ ശേഖരിക്കുന്നു. വിശദാംശങ്ങൾ ചാറ്റിൽ കാണാം."
             elif lang == "mixed":
-                return f"{count} matching transactions കണ്ടെത്തിയിട്ടുണ്ട്."
+                return "Data fetch ചെയ്യുന്നുണ്ട്. Details chat-il kaanam."
             else:
-                return f"Found {count} matching transactions."
+                return "Fetching your data. Details are displayed below."
         elif action in ("edit", "delete"):
             if lang == "ml":
                 return f"ഇടപാട് വിജയകരമായി { 'തിരുത്തി' if action == 'edit' else 'ഡിലീറ്റ് ചെയ്തു'}."

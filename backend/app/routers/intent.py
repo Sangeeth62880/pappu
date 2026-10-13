@@ -27,6 +27,7 @@ from app.models.contact import Contact
 from app.schemas.intent import IntentObject, IntentFields, IntentValidationError
 from app.services.routing import route_intent, RoutingDecision, RoutingResult
 from app.services.matcher import match_transactions
+from app.services.contact_matcher import find_similar_contacts
 from app.llm.response_generator import generate_spoken_response
 
 router = APIRouter(prefix="/intent", tags=["intent"])
@@ -61,14 +62,17 @@ class IntentRouteResponse(BaseModel):
     spoken_response: Optional[str] = None
     target_transaction: Optional[dict] = None
     candidates: Optional[List[dict]] = None
+    contact_match: Optional[dict] = None
     execution_result: Optional[dict] = None
 
 
 class IntentConfirmRequest(BaseModel):
     """Request body for /intent/confirm."""
-    transaction_id: uuid.UUID
-    action: Literal["edit", "delete"]
+    transaction_id: Optional[uuid.UUID] = None
+    action: Literal["edit", "delete", "add"]
     fields: Optional[IntentFields] = None
+    contact_id: Optional[uuid.UUID] = None
+    contact_name: Optional[str] = None
 
 
 # Lazily initialized client (avoids requiring SARVAM_API_KEY at import time)
@@ -182,17 +186,59 @@ def route_intent_endpoint(
             contact_id = None
             if intent.fields.contact_name and intent.fields.contact_name.strip():
                 clean_name = intent.fields.contact_name.strip()
-                contact = db.query(Contact).filter(
-                    Contact.user_id == current_user_id,
-                    func.lower(Contact.name) == clean_name.lower(),
-                ).first()
-                if not contact:
+                exact_match, similar_contacts = find_similar_contacts(db, current_user_id, clean_name)
+
+                # If there is no exact match, but similar existing contacts exist -> Ask confirmation/disambiguation
+                if not exact_match and similar_contacts:
+                    intent.fields.category = "People"
+                    if len(similar_contacts) == 1:
+                        c = similar_contacts[0]
+                        response.decision = RoutingDecision.ASK_CONFIRMATION
+                        if intent.language == "ml":
+                            prompt = f"'{c.name}' ആണോ ഉദ്ദേശിച്ചത്? അതോ പുതിയ ആളായി '{clean_name}' എന്ന് ചേർക്കണോ?"
+                            spoken = f"{c.name} ആണോ ഉദ്ദേശിച്ചത്?"
+                        elif intent.language == "mixed":
+                            prompt = f"'{c.name}' ആണോ ഉദ്ദേശിച്ചത്? Or add as new person '{clean_name}'?"
+                            spoken = f"{c.name} ആണോ ഉദ്ദേശിച്ചത്?"
+                        else:
+                            prompt = f"Did you mean '{c.name}'? Or add as new person '{clean_name}'?"
+                            spoken = f"Did you mean {c.name}?"
+
+                        response.confirmation_prompt = prompt
+                        response.spoken_response = spoken
+                        response.candidates = [
+                            {"id": str(c.id), "name": c.name, "type": "existing"},
+                            {"id": "new", "name": clean_name, "type": "new"},
+                        ]
+                        response.contact_match = {"id": str(c.id), "name": c.name, "original": clean_name}
+                        return response
+                    else:
+                        response.decision = RoutingDecision.ASK_DISAMBIGUATION
+                        names_str = ", ".join(c.name for c in similar_contacts)
+                        if intent.language == "ml":
+                            prompt = f"സമാനമായ ആളുകൾ കണ്ടെത്തി: {names_str}. ഏതാണ് ഉദ്ദേശിച്ചത്?"
+                            spoken = "സമാനമായ ആളുകൾ കണ്ടെത്തി. തിരഞ്ഞെടുക്കുക."
+                        else:
+                            prompt = f"Multiple similar contacts found ({names_str}). Which one did you mean?"
+                            spoken = "Multiple similar contacts found. Please choose one."
+
+                        response.disambiguation_prompt = prompt
+                        response.spoken_response = spoken
+                        response.candidates = [
+                            {"id": str(c.id), "name": c.name, "type": "existing"} for c in similar_contacts
+                        ] + [{"id": "new", "name": clean_name, "type": "new"}]
+                        return response
+
+                elif exact_match:
+                    contact_id = exact_match.id
+                    intent.fields.category = "People"
+                else:
                     contact = Contact(user_id=current_user_id, name=clean_name)
                     db.add(contact)
                     db.commit()
                     db.refresh(contact)
-                contact_id = contact.id
-                intent.fields.category = "People"
+                    contact_id = contact.id
+                    intent.fields.category = "People"
 
             # Resolve category
             category_name = intent.fields.category or "Other"
@@ -249,10 +295,8 @@ def route_intent_endpoint(
         elif intent.action == "query":
             if intent.fields.contact_name and intent.fields.contact_name.strip():
                 clean_name = intent.fields.contact_name.strip()
-                contact = db.query(Contact).filter(
-                    Contact.user_id == current_user_id,
-                    func.lower(Contact.name) == clean_name.lower(),
-                ).first()
+                exact_match, similar_contacts = find_similar_contacts(db, current_user_id, clean_name)
+                contact = exact_match or (similar_contacts[0] if similar_contacts else None)
 
                 if contact:
                     contact_txns = (
@@ -265,14 +309,8 @@ def route_intent_endpoint(
                         .all()
                     )
 
-                    total_sent = Decimal("0.00")
-                    total_received = Decimal("0.00")
-                    for t in contact_txns:
-                        if t.type == "expense":
-                            total_sent += t.amount
-                        elif t.type == "income":
-                            total_received += t.amount
-
+                    total_sent = sum((t.amount for t in contact_txns if t.type == "expense"), Decimal("0.00"))
+                    total_received = sum((t.amount for t in contact_txns if t.type == "income"), Decimal("0.00"))
                     net_balance = total_sent - total_received
                     if net_balance > Decimal("0.00"):
                         c_status = "owes_you"
@@ -288,8 +326,10 @@ def route_intent_endpoint(
                         "status": "queried_contact",
                         "contact_id": str(contact.id),
                         "contact_name": contact.name,
+                        "category": "People",
                         "total_sent": float(total_sent),
                         "total_received": float(total_received),
+                        "total_amount": float(total_sent if total_sent > 0 else total_received),
                         "net_balance": float(net_balance),
                         "contact_status": c_status,
                         "display_text": display_text,
@@ -301,8 +341,10 @@ def route_intent_endpoint(
                         "status": "queried_contact",
                         "contact_id": None,
                         "contact_name": clean_name,
+                        "category": "People",
                         "total_sent": 0.0,
                         "total_received": 0.0,
+                        "total_amount": 0.0,
                         "net_balance": 0.0,
                         "contact_status": "not_found",
                         "display_text": f"No transactions found with {clean_name}.",
@@ -310,9 +352,19 @@ def route_intent_endpoint(
                         "transactions": [],
                     }
             else:
-                matched_txns = match_transactions(db, current_user_id, intent.fields)
+                matched_txns = match_transactions(db, current_user_id, intent.fields, limit=50, reasoning=intent.reasoning)
+                total_expense = sum((t.amount for t in matched_txns if t.type == "expense"), Decimal("0.00"))
+                total_income = sum((t.amount for t in matched_txns if t.type == "income"), Decimal("0.00"))
+                cat_name = intent.fields.category or "All"
+                period_name = "This month" if any(w in (intent.reasoning or "").lower() for w in ["month", "മാസം"]) else "Recent"
+
                 response.execution_result = {
                     "status": "queried",
+                    "category": cat_name,
+                    "period": period_name,
+                    "total_expense": float(total_expense),
+                    "total_income": float(total_income),
+                    "total_amount": float(total_expense if total_expense > 0 else total_income),
                     "count": len(matched_txns),
                     "transactions": [_format_transaction_dict(t) for t in matched_txns],
                 }
@@ -371,9 +423,76 @@ def confirm_intent_action(
     current_user_id: uuid.UUID = Depends(get_current_user_id),
 ):
     """
-    Executes a confirmed edit or delete action after Tier 2 confirmation.
+    Executes a confirmed add, edit, or delete action after Tier 2 confirmation.
     Scoped strictly via WHERE user_id = :verified_user_id.
     """
+    if payload.action == "add":
+        contact_id = None
+        if payload.contact_id:
+            contact = db.query(Contact).filter(
+                Contact.id == payload.contact_id,
+                Contact.user_id == current_user_id,
+            ).first()
+            if contact:
+                contact_id = contact.id
+        elif payload.contact_name:
+            clean_name = payload.contact_name.strip()
+            contact = db.query(Contact).filter(
+                Contact.user_id == current_user_id,
+                func.lower(Contact.name) == clean_name.lower(),
+            ).first()
+            if not contact:
+                contact = Contact(user_id=current_user_id, name=clean_name)
+                db.add(contact)
+                db.commit()
+                db.refresh(contact)
+            contact_id = contact.id
+
+        category = db.query(Category).filter(Category.name == "People").first()
+        if not category:
+            category = db.query(Category).filter(Category.name == "Other").first()
+
+        txn_date = date.today()
+        if payload.fields and payload.fields.date:
+            try:
+                txn_date = datetime.strptime(payload.fields.date[:10], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                pass
+
+        txn_amount = Decimal(str(payload.fields.amount if payload.fields and payload.fields.amount else 0))
+        txn_type = "expense"
+        if payload.fields:
+            if payload.fields.type:
+                txn_type = payload.fields.type
+            elif payload.fields.description:
+                desc = payload.fields.description.lower()
+                if any(w in desc for w in ["receive", "got back", "paid back", "returned", "thannu", "income"]):
+                    txn_type = "income"
+
+        new_txn = Transaction(
+            user_id=current_user_id,
+            type=txn_type,
+            amount=txn_amount,
+            category_id=category.id,
+            contact_id=contact_id,
+            description=payload.fields.description if payload.fields else None,
+            txn_date=txn_date,
+        )
+        db.add(new_txn)
+        db.commit()
+        db.refresh(new_txn)
+        return {
+            "status": "executed",
+            "action": "add",
+            "transaction": _format_transaction_dict(new_txn),
+        }
+
+    if not payload.transaction_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="transaction_id is required for edit and delete actions",
+        )
+
     txn = db.query(Transaction).filter(
         Transaction.id == payload.transaction_id,
         Transaction.user_id == current_user_id,

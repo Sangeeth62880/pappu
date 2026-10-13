@@ -22,6 +22,36 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
   const [authChecking, setAuthChecking] = useState(!initialToken && !initialSession);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [conversationMessages, setConversationMessages] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const cached = window.localStorage.getItem('pappu_chat_messages');
+        if (cached) return JSON.parse(cached);
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const handleUpdateMessages = (updater) => {
+    setConversationMessages((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem('pappu_chat_messages', JSON.stringify(next));
+        } catch (e) {}
+      }
+      return next;
+    });
+  };
+
+  const handleClearMessages = () => {
+    setConversationMessages([]);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('pappu_chat_messages');
+      } catch (e) {}
+    }
+  };
 
   useEffect(() => {
     // Check existing active session on mount
@@ -116,6 +146,9 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
           <ConversationLog
             token={token}
             onTransactionMutated={handleTransactionMutated}
+            messages={conversationMessages}
+            setMessages={handleUpdateMessages}
+            onClearMessages={handleClearMessages}
           />
         );
       case 'history':

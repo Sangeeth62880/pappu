@@ -12,18 +12,26 @@ import { playAudioBase64 } from '../utils/audioPlayer';
 import MicButton from './MicButton';
 import MessageBubble from './ui/MessageBubble';
 import ConfirmationCard from './ui/ConfirmationCard';
+import QueryDataCard from './ui/QueryDataCard';
 
 export default function ConversationLog({
   token,
   onTransactionMutated,
   initialMessages = [],
+  messages: externalMessages = null,
+  setMessages: externalSetMessages = null,
+  onClearMessages = null,
 }) {
   const [inputText, setInputText] = useState('');
   const textRef = useRef(inputText);
   textRef.current = inputText;
   const scrollViewRef = useRef(null);
 
-  const [messages, setMessages] = useState(initialMessages);
+  // If parent controls state (for persistent history across tabs), use it; else fallback to local state
+  const [localMessages, setLocalMessages] = useState(initialMessages);
+  const messages = externalMessages !== null ? externalMessages : localMessages;
+  const setMessages = externalSetMessages !== null ? externalSetMessages : setLocalMessages;
+
   const [loading, setLoading] = useState(false);
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
 
@@ -102,8 +110,7 @@ export default function ConversationLog({
             const cat = intent.fields.category || 'expense';
             replyText = `Added ${cat} transaction for ₹${amt}.`;
           } else if (intent.action === 'query') {
-            const count = routeRes.execution_result?.count ?? 0;
-            replyText = `Found ${count} matching transactions.`;
+            replyText = 'Fetching your data. Details are displayed below.';
           }
         }
 
@@ -115,6 +122,7 @@ export default function ConversationLog({
             sender: 'pappu',
             text: replyText,
             language: lang,
+            queryResult: intent.action === 'query' ? routeRes.execution_result : null,
           },
         ]);
 
@@ -132,42 +140,78 @@ export default function ConversationLog({
           onTransactionMutated();
         }
       } else if (decision === 'ASK_CONFIRMATION') {
-        const targetId = routeRes.matched_transactions?.[0];
-        const prompt =
-          routeRes.spoken_response ||
-          routeRes.confirmation_prompt ||
-          `Are you sure you want to ${intent.action} transaction ${targetId}?`;
+        // Check if this is a contact confirmation (e.g. "Did you mean Arjun Nair?")
+        if (routeRes.contact_match) {
+          const suggested = routeRes.contact_match;
+          const prompt =
+            routeRes.confirmation_prompt ||
+            `Did you mean ${suggested.name}? Or add as new person "${suggested.original}"?`;
 
-        const confirmData = {
-          transaction_id: targetId,
-          action: intent.action,
-          fields: intent.fields,
-          target_transaction: routeRes.target_transaction,
-          language: lang,
-        };
-
-        setPendingConfirmation(confirmData);
-
-        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: msgId,
-            sender: 'pappu',
-            text: prompt,
-            type: 'confirmation',
-            confirmData,
+          const confirmData = {
+            type: 'contact_confirmation',
+            action: 'add',
+            fields: intent.fields,
+            contact_id: suggested.id,
+            contact_name: suggested.name,
+            suggested_contact: suggested,
             language: lang,
-          },
-        ]);
+          };
 
-        // Speak confirmation question aloud
-        speakResponse(prompt, lang);
+          setPendingConfirmation(confirmData);
+
+          const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: msgId,
+              sender: 'pappu',
+              text: prompt,
+              type: 'contact_confirmation',
+              confirmData,
+              candidates: routeRes.candidates,
+              language: lang,
+            },
+          ]);
+
+          speakResponse(routeRes.spoken_response || prompt, lang);
+        } else {
+          // Standard transaction edit/delete confirmation
+          const targetId = routeRes.matched_transactions?.[0];
+          const prompt =
+            routeRes.spoken_response ||
+            routeRes.confirmation_prompt ||
+            `Are you sure you want to ${intent.action} transaction ${targetId}?`;
+
+          const confirmData = {
+            transaction_id: targetId,
+            action: intent.action,
+            fields: intent.fields,
+            target_transaction: routeRes.target_transaction,
+            language: lang,
+          };
+
+          setPendingConfirmation(confirmData);
+
+          const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: msgId,
+              sender: 'pappu',
+              text: prompt,
+              type: 'confirmation',
+              confirmData,
+              language: lang,
+            },
+          ]);
+
+          speakResponse(prompt, lang);
+        }
       } else if (decision === 'ASK_DISAMBIGUATION') {
         const prompt =
           routeRes.spoken_response ||
           routeRes.disambiguation_prompt ||
-          'Multiple transactions match. Please select which one:';
+          'Multiple options match. Please select:';
         const candidates = routeRes.candidates || [];
 
         const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
@@ -185,7 +229,6 @@ export default function ConversationLog({
           },
         ]);
 
-        // Speak disambiguation prompt aloud
         speakResponse(prompt, lang);
       } else if (decision === 'ASK_CLARIFICATION') {
         const prompt =
@@ -205,7 +248,6 @@ export default function ConversationLog({
           },
         ]);
 
-        // Speak clarification prompt aloud
         speakResponse(prompt, lang);
       }
     } catch (err) {
@@ -223,18 +265,46 @@ export default function ConversationLog({
     }
   };
 
-  const handleConfirmAction = async (confirmData) => {
+  const handleConfirmAction = async (confirmData, customContact = null) => {
     try {
       setLoading(true);
-      await confirmAction(
-        token,
-        confirmData.transaction_id,
-        confirmData.action,
-        confirmData.fields
-      );
+
+      const action = confirmData.action || 'add';
+      const extra = {};
+      if (customContact) {
+        if (customContact.id && customContact.id !== 'new') {
+          extra.contact_id = customContact.id;
+        }
+        if (customContact.name) {
+          extra.contact_name = customContact.name;
+        }
+      } else if (confirmData.contact_id) {
+        extra.contact_id = confirmData.contact_id;
+        extra.contact_name = confirmData.contact_name;
+      }
+
+      if (Object.keys(extra).length > 0) {
+        await confirmAction(
+          token,
+          confirmData.transaction_id || null,
+          action,
+          confirmData.fields,
+          extra
+        );
+      } else {
+        await confirmAction(
+          token,
+          confirmData.transaction_id || null,
+          action,
+          confirmData.fields
+        );
+      }
 
       setPendingConfirmation(null);
-      const replyText = `Successfully executed ${confirmData.action}.`;
+      const replyText = action === 'add'
+        ? `Added transaction for ${extra.contact_name || 'contact'}.`
+        : `Successfully executed ${action}.`;
+
       const msgId = `pappu-${Date.now()}`;
       setMessages((prev) => [
         ...prev,
@@ -247,7 +317,7 @@ export default function ConversationLog({
 
       speakResponse(replyText, confirmData.language || 'en');
 
-      // NOW trigger dashboard update!
+      // Trigger dashboard update
       if (onTransactionMutated) {
         onTransactionMutated();
       }
@@ -267,6 +337,20 @@ export default function ConversationLog({
   };
 
   const handleSelectDisambiguationCandidate = (candidate, action, fields, lang = 'en') => {
+    // If it's a contact candidate
+    if (candidate.type === 'existing' || candidate.type === 'new' || (candidate.name && !candidate.amount)) {
+      const confirmData = {
+        action: action || 'add',
+        fields,
+        contact_id: candidate.id !== 'new' ? candidate.id : null,
+        contact_name: candidate.name,
+        language: lang,
+      };
+      handleConfirmAction(confirmData, candidate);
+      return;
+    }
+
+    // Transaction candidate
     const confirmData = {
       transaction_id: candidate.id,
       action,
@@ -291,8 +375,39 @@ export default function ConversationLog({
     speakResponse(prompt, lang);
   };
 
+  const handleClearChat = () => {
+    if (onClearMessages) {
+      onClearMessages();
+    } else {
+      setMessages([]);
+    }
+    setPendingConfirmation(null);
+  };
+
   const renderMessage = (msg) => {
-    // Confirmation prompt — use ConfirmationCard
+    // Contact confirmation prompt
+    if (msg.type === 'contact_confirmation' && msg.confirmData) {
+      const suggested = msg.confirmData.suggested_contact;
+      return (
+        <View key={msg.id} testID={`message-${msg.id}`}>
+          <ConfirmationCard
+            prompt={msg.text}
+            type="confirmation"
+            actionLabel={`Yes, ${suggested?.name || 'confirm'}`}
+            onConfirm={() =>
+              handleConfirmAction(msg.confirmData, { id: suggested?.id, name: suggested?.name })
+            }
+            secondaryAction={true}
+            secondaryLabel={`+ Add new "${suggested?.original || 'person'}"`}
+            onSecondaryAction={() =>
+              handleConfirmAction(msg.confirmData, { id: 'new', name: suggested?.original })
+            }
+          />
+        </View>
+      );
+    }
+
+    // Standard confirmation prompt — use ConfirmationCard
     if (msg.type === 'confirmation' && msg.confirmData) {
       return (
         <View key={msg.id} testID={`message-${msg.id}`}>
@@ -306,7 +421,7 @@ export default function ConversationLog({
       );
     }
 
-    // Disambiguation prompt — use ConfirmationCard in disambiguation mode
+    // Disambiguation prompt
     if (msg.type === 'disambiguation' && msg.candidates) {
       return (
         <View key={msg.id} testID={`message-${msg.id}`}>
@@ -323,27 +438,29 @@ export default function ConversationLog({
       );
     }
 
-    // Normal message — use MessageBubble
+    // Normal message or Query Result
     return (
-      <MessageBubble
-        key={msg.id}
-        testID={`message-${msg.id}`}
-        text={msg.text}
-        sender={msg.sender}
-        isError={msg.isError}
-        hasAudio={Boolean(msg.audioBase64)}
-        onPlayAudio={
-          msg.sender !== 'user' && !msg.isError
-            ? () => {
-                if (msg.audioBase64) {
-                  playAudioBase64(msg.audioBase64);
-                } else {
-                  speakResponse(msg.text, msg.language || 'en');
+      <View key={msg.id} testID={`message-${msg.id}`}>
+        <MessageBubble
+          text={msg.text}
+          sender={msg.sender}
+          isError={msg.isError}
+          hasAudio={Boolean(msg.audioBase64)}
+          onPlayAudio={
+            msg.sender !== 'user' && !msg.isError
+              ? () => {
+                  if (msg.audioBase64) {
+                    playAudioBase64(msg.audioBase64);
+                  } else {
+                    speakResponse(msg.text, msg.language || 'en');
+                  }
                 }
-              }
-            : null
-        }
-      />
+              : null
+          }
+        />
+        {/* Render Rich Query Data Card when present */}
+        {msg.queryResult && <QueryDataCard result={msg.queryResult} />}
+      </View>
     );
   };
 
@@ -354,7 +471,22 @@ export default function ConversationLog({
         <Text className="text-bone-darker font-sans text-[10px] font-medium uppercase tracking-widest">
           Assistant
         </Text>
-        {loading && <ActivityIndicator testID="conversation-loading" size="small" color="#C9A227" />}
+        <View className="flex-row items-center">
+          {loading && (
+            <ActivityIndicator testID="conversation-loading" size="small" color="#C9A227" className="mr-3" />
+          )}
+          {messages.length > 0 && (
+            <Pressable
+              testID="clear-chat-button"
+              onPress={handleClearChat}
+              className="py-1 px-2.5 rounded-lg border border-ink-navy-lighter active:bg-ink-navy-lighter"
+            >
+              <Text className="text-bone-darker font-sans text-[11px] font-medium">
+                Clear Chat
+              </Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* Message Stream */}

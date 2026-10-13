@@ -107,17 +107,21 @@ export async function routeIntent(token, intent) {
 }
 
 /**
- * POST /intent/confirm - Confirms and executes an edit or delete action.
+ * POST /intent/confirm - Confirms and executes an add, edit or delete action.
  */
-export async function confirmAction(token, transactionId, action, fields = null) {
+export async function confirmAction(token, transactionId, action, fields = null, extra = {}) {
+  const body = {
+    transaction_id: transactionId,
+    action,
+    fields,
+  };
+  if (extra && extra.contact_id) body.contact_id = extra.contact_id;
+  if (extra && extra.contact_name) body.contact_name = extra.contact_name;
+
   return request('/intent/confirm', {
     method: 'POST',
     token,
-    body: {
-      transaction_id: transactionId,
-      action,
-      fields,
-    },
+    body,
   });
 }
 

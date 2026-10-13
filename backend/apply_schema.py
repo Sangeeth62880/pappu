@@ -177,7 +177,7 @@ def apply_schema():
         for pol in policies:
             print(f"  Table: {pol[0]}, Policy: {pol[1]}, Cmd: {pol[2]}")
 
-    print("\n✅ Supabase database setup and verification complete!")
+    print("\n[SUCCESS] Supabase database setup and verification complete!")
 
 if __name__ == "__main__":
     apply_schema()
