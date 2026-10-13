@@ -45,12 +45,62 @@ class CategoryBreakdownItem(BaseModel):
     total_amount: Decimal
     count: int
 
+# ─── New Period Analytics Schemas ───
+
+class DailyBucket(BaseModel):
+    date: str
+    label: str
+    amount: Decimal
+
+class ExpenseCategoryItem(BaseModel):
+    category: str
+    amount: Decimal
+    percentage: float
+
+class TopContactItem(BaseModel):
+    id: uuid.UUID
+    name: str
+    net_balance: Decimal
+
+class PeoplePeriodBlock(BaseModel):
+    total_owed_to_user: Decimal
+    total_user_owes: Decimal
+    top_contacts: List[TopContactItem]
+
+class TopExpenseItem(BaseModel):
+    id: uuid.UUID
+    description: Optional[str]
+    amount: Decimal
+    date: date
+    category: str
+
 class SummaryResponse(BaseModel):
-    balance: Decimal
-    total_income: Decimal
-    total_expense: Decimal
-    category_breakdown: List[CategoryBreakdownItem]
-    transaction_count: int
+    # Period Scoped Fields
+    period: str = "week"
+    period_start: str = ""
+    period_end: str = ""
+    total_spent: Decimal = Decimal("0.00")
+    total_income: Decimal = Decimal("0.00")
+    net: Decimal = Decimal("0.00")
+    previous_period_spent: Decimal = Decimal("0.00")
+    spent_delta_percentage: Optional[float] = None
+    daily_buckets: List[DailyBucket] = Field(default_factory=list)
+    categories: List[ExpenseCategoryItem] = Field(default_factory=list)
+    people: PeoplePeriodBlock = Field(
+        default_factory=lambda: PeoplePeriodBlock(
+            total_owed_to_user=Decimal("0.00"),
+            total_user_owes=Decimal("0.00"),
+            top_contacts=[],
+        )
+    )
+    top_expenses: List[TopExpenseItem] = Field(default_factory=list)
+    recent_transactions: List[TransactionResponse] = Field(default_factory=list)
+
+    # Legacy Backward Compatibility Fields
+    balance: Decimal = Decimal("0.00")
+    total_expense: Decimal = Decimal("0.00")
+    category_breakdown: List[CategoryBreakdownItem] = Field(default_factory=list)
+    transaction_count: int = 0
 
 class ContactSummaryItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -78,4 +128,3 @@ class ContactDetailResponse(BaseModel):
     status: str
     display_text: str
     transactions: List[TransactionResponse]
-
