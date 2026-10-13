@@ -21,6 +21,7 @@ import Toast from '../components/ui/Toast';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import GlassCard from '../components/ui/GlassCard';
+import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
@@ -40,6 +41,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [profileSheetVisible, setProfileSheetVisible] = useState(false);
+  const [voiceSheetVisible, setVoiceSheetVisible] = useState(false);
   const [historyFilter, setHistoryFilter] = useState(null);
   const [selectedPersonId, setSelectedPersonId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -141,34 +143,39 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
   // ── Android Hardware Back Button Navigation Handler ──
   useEffect(() => {
     const onBackPress = () => {
-      // 1. Close profile sheet if open
+      // 1. Close voice sheet if open
+      if (voiceSheetVisible) {
+        setVoiceSheetVisible(false);
+        return true;
+      }
+      // 2. Close profile sheet if open
       if (profileSheetVisible) {
         setProfileSheetVisible(false);
         return true;
       }
-      // 2. Return from Contact Detail to People list
+      // 3. Return from Contact Detail to People list
       if (activeTab === 'people' && selectedPersonId) {
         setSelectedPersonId(null);
         return true;
       }
-      // 3. Return from filtered History to Dashboard
+      // 4. Return from filtered History to Dashboard
       if (activeTab === 'history' && historyFilter) {
         setHistoryFilter(null);
         setActiveTab('dashboard');
         return true;
       }
-      // 4. Return from any non-root tab to Dashboard
+      // 5. Return from any non-root tab to Dashboard
       if (activeTab !== 'dashboard') {
         setActiveTab('dashboard');
         return true;
       }
-      // 5. At root dashboard: allow system default (exit app)
+      // 6. At root dashboard: allow system default (exit app)
       return false;
     };
 
     const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => backSubscription.remove();
-  }, [profileSheetVisible, activeTab, selectedPersonId, historyFilter]);
+  }, [voiceSheetVisible, profileSheetVisible, activeTab, selectedPersonId, historyFilter]);
 
   const handleAuthenticated = (newSession) => {
     setSession(newSession);
@@ -332,6 +339,19 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             <Text style={styles.langPillText}>EN / മലയാളം</Text>
           </View>
 
+          {activeTab !== 'assistant' && (
+            <TouchableOpacity
+              testID="header-mic-button"
+              onPress={() => setVoiceSheetVisible(true)}
+              style={styles.headerMicBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Quick voice input"
+            >
+              <MaterialIcons name="mic" size={20} color={colors.brand.default} />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             testID="profile-avatar-button"
             onPress={() => setProfileSheetVisible(true)}
@@ -451,6 +471,14 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
         onAction={handleUndo}
         onDismiss={() => setToastVisible(false)}
       />
+
+      {/* ── 6. Voice Listening Sheet from Header Mic (Accessible from Home, History, People) ── */}
+      <VoiceListeningSheet
+        visible={voiceSheetVisible}
+        onClose={() => setVoiceSheetVisible(false)}
+        token={token}
+        onTransactionMutated={handleTransactionMutated}
+      />
     </SafeAreaView>
   );
 }
@@ -531,6 +559,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.text.secondary,
+  },
+  headerMicBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.brand.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.xs,
   },
   avatarButton: {
     padding: 2,
