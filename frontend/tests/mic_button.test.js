@@ -15,7 +15,7 @@ describe('MicButton & Voice Input Integration', () => {
     requestRecordingPermissionsAsync.mockResolvedValue({ status: 'granted', granted: true });
   });
 
-  test('renders in idle state with mic icon', async () => {
+  test('renders in idle state with mic icon and accessibility label', async () => {
     const { findByTestId } = await render(
       <MicButton token={mockToken} onTranscribed={jest.fn()} />
     );
@@ -23,10 +23,11 @@ describe('MicButton & Voice Input Integration', () => {
     const micBtn = await findByTestId('mic-button');
     const micIcon = await findByTestId('mic-icon');
     expect(micBtn).toBeTruthy();
-    expect(micIcon).toHaveTextContent('🎤');
+    expect(micIcon).toBeTruthy();
+    expect(micBtn.props.accessibilityLabel).toBe('Start voice recording');
   });
 
-  test('pressing mic button toggles to recording state', async () => {
+  test('pressing mic button toggles to recording state with pulse ring and stop icon', async () => {
     const { findByTestId, findByText } = await render(
       <MicButton token={mockToken} onTranscribed={jest.fn()} />
     );
@@ -35,8 +36,10 @@ describe('MicButton & Voice Input Integration', () => {
     fireEvent.press(micBtn);
 
     expect(await findByText('Listening...')).toBeTruthy();
+    expect(await findByTestId('mic-pulse-ring')).toBeTruthy();
     const stopIcon = await findByTestId('mic-icon');
-    expect(stopIcon).toHaveTextContent('⏹');
+    expect(stopIcon).toBeTruthy();
+    expect(micBtn.props.accessibilityLabel).toBe('Stop recording');
   });
 
   test('stopping recording triggers transcribeAudio with real file URI object and onTranscribed callback', async () => {

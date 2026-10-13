@@ -1,5 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  Platform,
+  Animated,
+  Linking,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -7,22 +18,53 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import { transcribeAudio } from '../api/client';
+import { colors, radius, shadows, spacing } from '../theme/tokens';
 
 export default function MicButton({
   token,
   onTranscribed,
   languageCode = null,
   disabled = false,
+  size = 48,
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const isRecordingRef = useRef(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const isMountedRef = useRef(true);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Pulse animation while recording
+  useEffect(() => {
+    let animation;
+    if (isRecording) {
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: 750,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 750,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+    return () => {
+      if (animation) animation.stop();
+    };
+  }, [isRecording]);
 
   // Use the useAudioRecorder hook to ensure proper JS↔native SharedObject binding in SDK 57
   const nativeRecorder = Platform.OS !== 'web'
@@ -60,12 +102,13 @@ export default function MicButton({
   const startRecording = async () => {
     if (disabled || isTranscribing || isRecordingRef.current) return;
     setErrorMessage(null);
+    setPermissionDenied(false);
 
     try {
       if (Platform.OS === 'web') {
         // Web audio recording via MediaRecorder
         if (typeof navigator === 'undefined' || !navigator?.mediaDevices?.getUserMedia) {
-          throw new Error('Audio recording is not supported in this browser environment.');
+          throw new Error('Audio recording requires HTTPS or localhost in browser.');
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -114,6 +157,7 @@ export default function MicButton({
         // Native audio recording via expo-audio (SDK 57)
         const permission = await requestRecordingPermissionsAsync();
         if (permission.status !== 'granted') {
+          setPermissionDenied(true);
           throw new Error('Microphone permission is required to record voice commands.');
         }
 
@@ -223,47 +267,178 @@ export default function MicButton({
   };
 
   return (
-    <View className="items-center">
+    <View style={styles.container}>
       {errorMessage ? (
-        <View testID="mic-error-banner" className="mb-2 px-3 py-1 bg-accent-expense-subtle border border-accent-expense/30 rounded-lg">
-          <Text className="text-accent-expense font-sans text-xs">{errorMessage}</Text>
+        <View testID="mic-error-banner" style={styles.errorBanner}>
+          <MaterialIcons name="error-outline" size={13} color={colors.semantic.expense} style={{ marginRight: 4 }} />
+          <Text style={styles.errorText} numberOfLines={2}>{errorMessage}</Text>
+          {permissionDenied && Platform.OS !== 'web' && Linking?.openSettings && (
+            <TouchableOpacity
+              testID="mic-open-settings"
+              onPress={() => Linking.openSettings()}
+              style={styles.settingsLink}
+            >
+              <Text style={styles.settingsLinkText}>Settings</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
 
-      <Pressable
-        testID="mic-button"
-        onPress={handlePress}
-        disabled={disabled || isTranscribing}
-        className={`w-11 h-11 rounded-full items-center justify-center border ${
-          isRecording
-            ? 'bg-accent-expense border-accent-expense shadow-sm'
-            : isTranscribing
-            ? 'bg-brand-blue-subtle border-brand-blue'
-            : 'bg-surface-card border-border-default active:bg-brand-blue-subtle shadow-xs'
-        }`}
-      >
-        {isTranscribing ? (
-          <ActivityIndicator testID="mic-loading-spinner" size="small" color="#2563EB" />
-        ) : (
-          <Text
-            testID="mic-icon"
-            className={`text-base ${isRecording ? 'text-white' : 'text-brand-blue'}`}
-          >
-            {isRecording ? '⏹' : '🎤'}
-          </Text>
+      <View style={styles.buttonWrapper}>
+        {isRecording && (
+          <Animated.View
+            testID="mic-pulse-ring"
+            pointerEvents="none"
+            style={[
+              styles.pulseRing,
+              {
+                width: size + 16,
+                height: size + 16,
+                borderRadius: (size + 16) / 2,
+                transform: [{ scale: pulseAnim }],
+                opacity: pulseAnim.interpolate({
+                  inputRange: [1, 1.3],
+                  outputRange: [0.5, 0],
+                }),
+              },
+            ]}
+          />
         )}
-      </Pressable>
+
+        <Pressable
+          testID="mic-button"
+          onPress={handlePress}
+          disabled={disabled || isTranscribing}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isRecording
+              ? 'Stop recording'
+              : isTranscribing
+              ? 'Transcribing audio'
+              : 'Start voice recording'
+          }
+          style={[
+            styles.button,
+            { width: size, height: size, borderRadius: size / 2 },
+            isRecording
+              ? styles.buttonRecording
+              : isTranscribing
+              ? styles.buttonTranscribing
+              : styles.buttonIdle,
+            disabled && styles.buttonDisabled,
+          ]}
+        >
+          {isTranscribing ? (
+            <ActivityIndicator testID="mic-loading-spinner" size="small" color={colors.brand.default} />
+          ) : (
+            <View testID="mic-icon" style={styles.iconContainer}>
+              <MaterialIcons
+                name={isRecording ? 'stop' : 'mic'}
+                size={size >= 48 ? 24 : 20}
+                color={isRecording ? '#FFFFFF' : colors.brand.default}
+              />
+            </View>
+          )}
+        </Pressable>
+      </View>
 
       {isRecording ? (
-        <Text testID="mic-recording-label" className="text-accent-expense font-sans text-[10px] font-semibold mt-1">
+        <Text testID="mic-recording-label" style={styles.recordingLabel}>
           Listening...
         </Text>
       ) : null}
       {isTranscribing ? (
-        <Text testID="mic-transcribing-label" className="text-brand-blue font-sans text-[10px] font-semibold mt-1">
+        <Text testID="mic-transcribing-label" style={styles.transcribingLabel}>
           Transcribing...
         </Text>
       ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  pulseRing: {
+    position: 'absolute',
+    backgroundColor: colors.semantic.expense,
+  },
+  button: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    minWidth: 44,
+    minHeight: 44,
+  },
+  buttonIdle: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSubtle,
+    ...shadows.sm,
+  },
+  buttonRecording: {
+    backgroundColor: colors.semantic.expense,
+    borderColor: colors.semantic.expense,
+    ...shadows.md,
+  },
+  buttonTranscribing: {
+    backgroundColor: colors.brand.tint,
+    borderColor: colors.brand.default,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordingLabel: {
+    color: colors.semantic.expense,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 3,
+  },
+  transcribingLabel: {
+    color: colors.brand.default,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 3,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.semantic.expenseBg,
+    borderColor: colors.semantic.expenseBorder,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    marginBottom: 6,
+    maxWidth: 240,
+  },
+  errorText: {
+    color: colors.semantic.expense,
+    fontSize: 11,
+    fontWeight: '500',
+    flex: 1,
+  },
+  settingsLink: {
+    marginLeft: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    backgroundColor: colors.semantic.expense,
+    borderRadius: 4,
+  },
+  settingsLinkText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+});
+

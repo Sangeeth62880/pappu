@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../../theme/tokens';
 import AmountText from './AmountText';
 
 const CATEGORY_ICONS = {
-  Food: '🍔',
-  Transport: '🚗',
-  Shopping: '🛍️',
-  Bills: '📄',
-  Entertainment: '🎬',
-  Salary: '💼',
-  People: '👥',
-  Other: '🏷️',
+  Food: 'restaurant',
+  Transport: 'directions-car',
+  Shopping: 'shopping-bag',
+  Bills: 'receipt-long',
+  Entertainment: 'movie',
+  Salary: 'work',
+  People: 'groups',
+  Other: 'label',
 };
 
 export default function QueryDataCard({ result }) {
@@ -19,7 +20,7 @@ export default function QueryDataCard({ result }) {
   if (!result) return null;
 
   const category = result.category || 'All';
-  const icon = CATEGORY_ICONS[category] || '📊';
+  const iconName = CATEGORY_ICONS[category] || 'insights';
   const totalAmount = Number(result.total_amount || result.total_expense || result.total_sent || 0);
   const count = result.count ?? (result.transactions?.length || 0);
   const period = result.period || (result.contact_name ? `With ${result.contact_name}` : 'Overview');
@@ -31,7 +32,12 @@ export default function QueryDataCard({ result }) {
       {/* Header Badge & Period */}
       <View style={styles.headerRow}>
         <View style={styles.badge}>
-          <Text style={styles.badgeIcon}>{icon}</Text>
+          <MaterialIcons
+            name={iconName}
+            size={13}
+            color={colors.brand.dark}
+            style={{ marginRight: 4 }}
+          />
           <Text style={styles.badgeText}>
             {result.contact_name ? result.contact_name : category}
           </Text>
