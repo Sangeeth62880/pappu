@@ -14,3 +14,4 @@ class Profile(Base):
 
     transactions = relationship("Transaction", back_populates="profile", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="profile", cascade="all, delete-orphan")
+    assistant_traces = relationship("AssistantTrace", back_populates="profile", cascade="all, delete-orphan")

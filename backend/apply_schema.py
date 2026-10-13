@@ -83,7 +83,23 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 7. Seed Categories (Fixed list per PROJECT_SPEC.md §4 & §7)
+-- 7. Assistant Traces Table (observability & evaluation tracing)
+CREATE TABLE IF NOT EXISTS public.assistant_traces (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    message_text TEXT NOT NULL,
+    input_type TEXT NOT NULL DEFAULT 'text',
+    context_json JSONB,
+    raw_llm_output TEXT,
+    plan_json JSONB,
+    resolver_filters_json JSONB,
+    result_json JSONB,
+    latency_ms_per_stage JSONB,
+    schema_valid BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 8. Seed Categories (Fixed list per PROJECT_SPEC.md §4 & §7)
 INSERT INTO public.categories (name, type) VALUES
     ('Food', 'expense'),
     ('Transport', 'expense'),
@@ -95,7 +111,7 @@ INSERT INTO public.categories (name, type) VALUES
     ('Other', 'expense')
 ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type;
 
--- 8. Row-Level Security (RLS)
+-- 9. Row-Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage their own profile" ON public.profiles;
 CREATE POLICY "Users can manage their own profile" ON public.profiles
@@ -127,6 +143,13 @@ CREATE POLICY "Users can manage their own undo actions" ON public.undo_actions
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage their own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can manage their own chat messages" ON public.chat_messages
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+ALTER TABLE public.assistant_traces ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own traces" ON public.assistant_traces;
+CREATE POLICY "Users can manage their own traces" ON public.assistant_traces
     FOR ALL
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
@@ -173,12 +196,12 @@ def apply_schema():
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 
-              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages')
+              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces')
             ORDER BY table_name;
         """))
         tables = [row[0] for row in result.fetchall()]
         print(f"Found public tables: {tables}")
-        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages. Got {tables}"
+        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces. Got {tables}"
 
         # Verify seed categories
         print("\n--- Verifying Seed Categories ---")
