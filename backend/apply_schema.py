@@ -29,8 +29,20 @@ CREATE TABLE IF NOT EXISTS public.contacts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    aliases TEXT[] DEFAULT '{}'::text[],
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Ensure aliases column exists if table was created previously without it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'contacts' AND column_name = 'aliases'
+    ) THEN
+        ALTER TABLE public.contacts ADD COLUMN aliases TEXT[] DEFAULT '{}'::text[];
+    END IF;
+END $$;
 
 -- 3. Categories Table
 CREATE TABLE IF NOT EXISTS public.categories (
@@ -69,9 +81,21 @@ CREATE TABLE IF NOT EXISTS public.undo_actions (
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     action_type TEXT NOT NULL,
     transaction_id UUID NOT NULL,
+    batch_id UUID,
     previous_state TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Ensure batch_id column exists if table was created previously without it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'undo_actions' AND column_name = 'batch_id'
+    ) THEN
+        ALTER TABLE public.undo_actions ADD COLUMN batch_id UUID;
+    END IF;
+END $$;
 
 -- 6. Chat Messages Table (persistent conversation history)
 CREATE TABLE IF NOT EXISTS public.chat_messages (
@@ -96,6 +120,18 @@ CREATE TABLE IF NOT EXISTS public.assistant_traces (
     result_json JSONB,
     latency_ms_per_stage JSONB,
     schema_valid BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 8. Pending Actions Table (conversational confirmations and disambiguations)
+CREATE TABLE IF NOT EXISTS public.pending_actions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('confirm', 'disambiguate', 'contact_confirm', 'future_date')),
+    plan_json JSONB NOT NULL,
+    candidates_json JSONB,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'expired', 'superseded')),
+    expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -154,6 +190,13 @@ CREATE POLICY "Users can manage their own traces" ON public.assistant_traces
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
+ALTER TABLE public.pending_actions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own pending actions" ON public.pending_actions;
+CREATE POLICY "Users can manage their own pending actions" ON public.pending_actions
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
 -- 7. Trigger to automatically provision profiles on Supabase Auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -196,12 +239,12 @@ def apply_schema():
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 
-              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces')
+              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions')
             ORDER BY table_name;
         """))
         tables = [row[0] for row in result.fetchall()]
         print(f"Found public tables: {tables}")
-        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces. Got {tables}"
+        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces, pending_actions. Got {tables}"
 
         # Verify seed categories
         print("\n--- Verifying Seed Categories ---")

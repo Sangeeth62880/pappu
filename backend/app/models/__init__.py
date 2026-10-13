@@ -5,6 +5,7 @@ from app.models.transaction import Transaction
 from app.models.undo_action import UndoAction
 from app.models.chat_message import ChatMessage
 from app.models.assistant_trace import AssistantTrace
+from app.models.pending_action import PendingAction
 
-__all__ = ["Profile", "Category", "Contact", "Transaction", "UndoAction", "ChatMessage", "AssistantTrace"]
+__all__ = ["Profile", "Category", "Contact", "Transaction", "UndoAction", "ChatMessage", "AssistantTrace", "PendingAction"]
 

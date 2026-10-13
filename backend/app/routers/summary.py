@@ -14,6 +14,7 @@ from app.services.date_utils import (
     get_current_ist_datetime,
     IST,
 )
+from app.services.balances import _compute_contact_balance
 from app.schemas.transaction import (
     SummaryResponse,
     DailyBucket,
@@ -287,40 +288,6 @@ def get_summary(
         total_expense=total_spent,
         category_breakdown=list(legacy_breakdown_map.values()),
         transaction_count=len(curr_txns),
-    )
-
-
-def _compute_contact_balance(contact: Contact, txns: List[Transaction]) -> ContactSummaryItem:
-    total_sent = Decimal("0.00")      # expense
-    total_received = Decimal("0.00")  # income
-
-    for txn in txns:
-        if txn.type == "expense":
-            total_sent += txn.amount
-        elif txn.type == "income":
-            total_received += txn.amount
-
-    net_balance = total_sent - total_received
-
-    if net_balance > Decimal("0.00"):
-        net_status = "owes_you"
-        display_text = f"{contact.name} owes you ₹{net_balance:.2f}"
-    elif net_balance < Decimal("0.00"):
-        net_status = "you_owe"
-        display_text = f"You owe {contact.name} ₹{abs(net_balance):.2f}"
-    else:
-        net_status = "settled"
-        display_text = f"Settled up with {contact.name} (₹0.00)"
-
-    return ContactSummaryItem(
-        contact_id=contact.id,
-        contact_name=contact.name,
-        total_sent=total_sent,
-        total_received=total_received,
-        net_balance=net_balance,
-        status=net_status,
-        display_text=display_text,
-        transaction_count=len(txns),
     )
 
 

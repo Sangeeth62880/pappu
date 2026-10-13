@@ -83,6 +83,13 @@ def init_db(bind_engine=None):
                         FOR ALL
                         USING (user_id = auth.uid())
                         WITH CHECK (user_id = auth.uid());
+
+                    ALTER TABLE pending_actions ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own pending actions" ON pending_actions;
+                    CREATE POLICY "Users can manage their own pending actions" ON pending_actions
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
                 """))
                 connection.commit()
         except Exception as e:
