@@ -61,11 +61,11 @@ describe('Dashboard Component', () => {
 
     // Recent transactions
     expect(getByTestId('txn-item-txn-1')).toHaveTextContent(/Food/);
-    expect(getByTestId('txn-item-txn-1')).toHaveTextContent(/450\.00/);
+    expect(getByTestId('txn-item-txn-1')).toHaveTextContent(/450/);
     expect(getByTestId('txn-item-txn-1')).toHaveTextContent(/lunch/);
 
     expect(getByTestId('txn-item-txn-2')).toHaveTextContent(/Salary/);
-    expect(getByTestId('txn-item-txn-2')).toHaveTextContent(/10000\.00/);
+    expect(getByTestId('txn-item-txn-2')).toHaveTextContent(/10,?000/);
   });
 
   test('fetches summary and transaction data when token is supplied', async () => {

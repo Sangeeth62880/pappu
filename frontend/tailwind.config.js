@@ -8,50 +8,49 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'ink-navy': {
-          DEFAULT: '#161B2E',
-          light: '#1E2540',
-          lighter: '#2A3356',
-          muted: '#3A4268',
+        canvas: '#F8FAFC',
+        surface: {
+          DEFAULT: '#FFFFFF',
+          subtle: '#F1F5F9',
         },
-        'bone': {
-          DEFAULT: '#F4EFE1',
-          dark: '#E8E0CC',
-          darker: '#D4C9AE',
-          muted: '#C8BFA8',
+        border: {
+          DEFAULT: '#E2E8F0',
+          subtle: '#F1F5F9',
         },
-        'warm-brass': {
-          DEFAULT: '#C9A227',
-          light: '#D4B44A',
-          dark: '#A8861F',
-          muted: '#8A6F1A',
+        text: {
+          primary: '#0F172A',
+          secondary: '#475569',
+          tertiary: '#64748B',
+          muted: '#94A3B8',
+          inverse: '#FFFFFF',
         },
-        'banana-leaf': {
-          DEFAULT: '#4B7B5A',
-          light: '#5E9470',
-          dark: '#3A6246',
+        brand: {
+          DEFAULT: '#2563EB',
+          dark: '#1D4ED8',
+          darker: '#1E40AF',
+          tint: '#EFF6FF',
+          tintBorder: '#BFDBFE',
         },
-        'clay-rust': {
-          DEFAULT: '#B5502E',
-          light: '#C96A48',
-          dark: '#963F22',
+        semantic: {
+          income: '#15803D',
+          'income-fill': '#22C55E',
+          'income-bg': '#DCFCE7',
+          expense: '#DC2626',
+          'expense-fill': '#EF4444',
+          'expense-bg': '#FEE2E2',
+          neutral: '#475569',
+          'neutral-bg': '#F1F5F9',
         },
       },
       fontFamily: {
-        serif: ['Libre Baskerville', 'Georgia', 'serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
         malayalam: ['Noto Sans Malayalam', 'sans-serif'],
       },
-      keyframes: {
-        balanceReveal: {
-          '0%': { opacity: '0', transform: 'scale(0.95) translateY(4px)' },
-          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
-        },
-      },
-      animation: {
-        'balance-reveal': 'balanceReveal 400ms ease-out forwards',
+      borderRadius: {
+        '2xl': '20px',
+        '3xl': '24px',
       },
     },
   },
   plugins: [],
-}
+};

@@ -1,14 +1,12 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import Button from './Button';
+import AmountText from './AmountText';
 
 /**
- * Inline card for confirmation and disambiguation prompts.
- * Visually distinct from normal conversation messages.
- *
- * Supports:
- * 1. Transaction edit/delete confirmation
- * 2. Person/contact confirmation ("Did you mean Arjun Nair?")
- * 3. Person/transaction disambiguation candidates
+ * Modern light inline card for confirmation and disambiguation prompts.
+ * Clear confirm-vs-cancel visual hierarchy.
  */
 export default function ConfirmationCard({
   prompt,
@@ -21,50 +19,48 @@ export default function ConfirmationCard({
   onSecondaryAction,
   secondaryLabel = 'Cancel',
 }) {
-  return (
-    <View
-      testID={`${type}-card`}
-      className="my-2 bg-ink-navy-light border-l-[3px] border-l-warm-brass rounded-r-xl p-4 shadow-sm"
-    >
-      {/* Prompt text */}
-      <Text className="text-bone font-sans text-sm leading-5">
-        {prompt}
-      </Text>
+  const isDestructive = actionLabel.toLowerCase().includes('delete');
 
-      {/* Confirmation buttons (single confirmation mode) */}
+  return (
+    <View testID={`${type}-card`} style={[styles.card, shadows.md]}>
+      {/* Prompt text */}
+      <Text style={styles.promptText}>{prompt}</Text>
+
+      {/* Confirmation buttons */}
       {type === 'confirmation' && (
-        <View className="mt-3 flex-row flex-wrap gap-2">
+        <View style={styles.buttonRow}>
           {onConfirm && (
-            <Pressable
+            <Button
               testID="confirm-action-button"
               onPress={onConfirm}
-              className="bg-warm-brass py-2 px-4 rounded-lg self-start active:bg-warm-brass-dark"
-            >
-              <Text className="text-ink-navy font-sans text-xs font-semibold uppercase tracking-wide">
-                ✓ {actionLabel.toLowerCase().startsWith('confirm') || actionLabel.toLowerCase().startsWith('yes')
-                  ? actionLabel
-                  : `Confirm ${actionLabel}`}
-              </Text>
-            </Pressable>
+              title={
+                `✓ ${
+                  actionLabel.toLowerCase().startsWith('confirm') ||
+                  actionLabel.toLowerCase().startsWith('yes')
+                    ? actionLabel
+                    : `Confirm ${actionLabel}`
+                }`
+              }
+              variant={isDestructive ? 'destructive' : 'primary'}
+              size="sm"
+            />
           )}
 
           {secondaryAction && onSecondaryAction && (
-            <Pressable
+            <Button
               testID="secondary-action-button"
               onPress={onSecondaryAction}
-              className="border border-bone-darker/40 py-2 px-3 rounded-lg self-start active:bg-ink-navy-lighter"
-            >
-              <Text className="text-bone-darker font-sans text-xs font-medium">
-                {secondaryLabel}
-              </Text>
-            </Pressable>
+              title={secondaryLabel}
+              variant="secondary"
+              size="sm"
+            />
           )}
         </View>
       )}
 
       {/* Disambiguation / candidate list */}
       {(type === 'disambiguation' || candidates.length > 0) && (
-        <View className="mt-3 space-y-1.5">
+        <View style={styles.candidatesList}>
           {candidates.map((cand) => {
             const isContactCandidate = Boolean(cand.name && !cand.amount);
 
@@ -73,44 +69,44 @@ export default function ConfirmationCard({
                 key={cand.id}
                 testID={`disambig-candidate-${cand.id}`}
                 onPress={() => onSelect && onSelect(cand)}
-                className="flex-row items-center justify-between py-2 px-3 my-0.5 rounded-lg border border-ink-navy-lighter bg-ink-navy active:bg-ink-navy-lighter"
+                style={({ pressed }) => [
+                  styles.candidateRow,
+                  pressed && styles.candidateRowPressed,
+                ]}
               >
                 {isContactCandidate ? (
-                  <View className="flex-1 flex-row items-center">
-                    <Text className="text-base mr-2">
+                  <View style={styles.contactRow}>
+                    <Text style={styles.candidateIcon}>
                       {cand.id === 'new' ? '➕' : '👤'}
                     </Text>
-                    <View className="flex-1">
-                      <Text className="text-bone font-sans text-xs font-semibold">
+                    <View style={styles.candidateInfo}>
+                      <Text style={styles.candidateTitle}>
                         {cand.id === 'new' ? `Add new person "${cand.name}"` : cand.name}
                       </Text>
                       {cand.id !== 'new' && (
-                        <Text className="text-bone-darker font-sans text-[10px]">
-                          Existing Contact
-                        </Text>
+                        <Text style={styles.candidateSub}>Existing Contact</Text>
                       )}
                     </View>
                   </View>
                 ) : (
-                  <View className="flex-1 pr-2">
-                    <Text className="text-bone font-sans text-xs font-medium">
+                  <View style={styles.candidateInfo}>
+                    <Text style={styles.candidateTitle}>
                       {cand.category_name || 'Transaction'}
                     </Text>
-                    <Text className="text-bone-darker font-sans text-[10px]">
-                      {cand.txn_date}{cand.description ? ` · ${cand.description}` : ''}
+                    <Text style={styles.candidateSub}>
+                      {cand.txn_date}
+                      {cand.description ? ` · ${cand.description}` : ''}
                     </Text>
                   </View>
                 )}
 
                 {cand.amount !== undefined && (
-                  <Text
-                    className={`font-serif text-xs font-bold ${
-                      cand.type === 'income' ? 'text-banana-leaf' : 'text-clay-rust'
-                    }`}
-                    style={{ fontFamily: 'Libre Baskerville, Georgia, serif' }}
-                  >
-                    ₹{Number(cand.amount).toFixed(2)}
-                  </Text>
+                  <AmountText
+                    amount={cand.amount}
+                    type={cand.type === 'income' ? 'income' : 'expense'}
+                    showSign={true}
+                    size="sm"
+                  />
                 )}
               </Pressable>
             );
@@ -120,3 +116,71 @@ export default function ConfirmationCard({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    marginVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.brand.default,
+    padding: spacing.lg,
+  },
+  promptText: {
+    color: colors.text.primary,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  buttonRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  candidatesList: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+  },
+  candidateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSubtle,
+    minHeight: 44,
+  },
+  candidateRowPressed: {
+    backgroundColor: colors.brand.tint,
+    borderColor: colors.brand.tintBorder,
+  },
+  contactRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  candidateIcon: {
+    fontSize: 15,
+    marginRight: spacing.sm,
+  },
+  candidateInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  candidateTitle: {
+    color: colors.text.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  candidateSub: {
+    color: colors.text.secondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+});

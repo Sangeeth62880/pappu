@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import AmountText from './AmountText';
 
 const CATEGORY_ICONS = {
   Food: '🍔',
@@ -25,52 +27,45 @@ export default function QueryDataCard({ result }) {
   const displayTransactions = showAll ? transactions : transactions.slice(0, 3);
 
   return (
-    <View
-      testID="query-data-card"
-      className="my-2 bg-ink-navy-light border border-warm-brass/40 rounded-2xl p-4 shadow-sm"
-    >
+    <View testID="query-data-card" style={[styles.card, shadows.sm]}>
       {/* Header Badge & Period */}
-      <View className="flex-row items-center justify-between mb-2">
-        <View className="flex-row items-center bg-ink-navy px-2.5 py-1 rounded-full border border-ink-navy-lighter">
-          <Text className="text-xs mr-1">{icon}</Text>
-          <Text className="text-warm-brass font-sans text-xs font-semibold">
+      <View style={styles.headerRow}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeIcon}>{icon}</Text>
+          <Text style={styles.badgeText}>
             {result.contact_name ? result.contact_name : category}
           </Text>
         </View>
-        <Text className="text-bone-darker font-sans text-[11px] font-medium">
-          {period}
-        </Text>
+        <Text style={styles.periodText}>{period}</Text>
       </View>
 
       {/* Main Stat / Big Number */}
-      <View className="my-1.5">
-        <Text className="text-bone-darker font-sans text-[10px] uppercase tracking-wider">
+      <View style={styles.statContainer}>
+        <Text style={styles.statLabel}>
           {result.status === 'queried_contact'
             ? result.display_text
             : `Total ${category === 'All' ? 'Spending' : category}`}
         </Text>
-        <Text
-          className="text-bone text-2xl font-bold mt-0.5 tracking-tight"
-          style={{ fontFamily: 'Libre Baskerville, Georgia, serif' }}
-        >
-          ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </Text>
+        <AmountText
+          amount={totalAmount}
+          type="neutral"
+          size="xl"
+          style={styles.totalAmount}
+        />
       </View>
 
       {/* Transaction List Preview */}
       {transactions.length > 0 && (
-        <View className="mt-3 pt-2.5 border-t border-ink-navy-lighter">
-          <View className="flex-row justify-between items-center mb-1.5">
-            <Text className="text-bone-darker font-sans text-[11px] font-medium">
-              Transactions ({count})
-            </Text>
+        <View style={styles.txListContainer}>
+          <View style={styles.txListHeader}>
+            <Text style={styles.txListCount}>Transactions ({count})</Text>
             {transactions.length > 3 && (
               <Pressable
                 testID="query-card-toggle-view"
                 onPress={() => setShowAll(!showAll)}
-                className="py-0.5 px-1.5"
+                hitSlop={8}
               >
-                <Text className="text-warm-brass font-sans text-[11px] font-medium">
+                <Text style={styles.toggleText}>
                   {showAll ? 'Show less' : `View all ${count}`}
                 </Text>
               </Pressable>
@@ -78,25 +73,21 @@ export default function QueryDataCard({ result }) {
           </View>
 
           {displayTransactions.map((t, idx) => (
-            <View
-              key={t.id || idx}
-              className="flex-row justify-between items-center py-1.5 border-b border-ink-navy-lighter/60"
-            >
-              <View className="flex-1 pr-2">
-                <Text className="text-bone font-sans text-xs" numberOfLines={1}>
+            <View key={t.id || idx} style={styles.txRow}>
+              <View style={styles.txInfo}>
+                <Text style={styles.txTitle} numberOfLines={1}>
                   {t.description || t.category_name || category}
                 </Text>
-                <Text className="text-bone-darker font-sans text-[10px]">
+                <Text style={styles.txSub}>
                   {t.txn_date || 'Recent'}
                 </Text>
               </View>
-              <Text
-                className={`font-serif text-xs font-semibold ${
-                  t.type === 'income' ? 'text-banana-leaf' : 'text-bone'
-                }`}
-              >
-                {t.type === 'income' ? '+' : '-'}₹{Number(t.amount || 0).toFixed(2)}
-              </Text>
+              <AmountText
+                amount={t.amount || 0}
+                type={t.type === 'income' ? 'income' : 'expense'}
+                showSign={true}
+                size="sm"
+              />
             </View>
           ))}
         </View>
@@ -104,10 +95,112 @@ export default function QueryDataCard({ result }) {
 
       {/* Empty State */}
       {count === 0 && (
-        <Text className="text-bone-darker font-sans text-xs italic mt-2">
-          No matching transactions recorded.
-        </Text>
+        <Text style={styles.emptyText}>No matching transactions recorded.</Text>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    marginVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.brand.tint,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.brand.tintBorder,
+  },
+  badgeIcon: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  badgeText: {
+    color: colors.brand.dark,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  periodText: {
+    color: colors.text.muted,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  statContainer: {
+    marginVertical: spacing.xs,
+  },
+  statLabel: {
+    color: colors.text.secondary,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  totalAmount: {
+    marginTop: 4,
+  },
+  txListContainer: {
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  txListHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  txListCount: {
+    color: colors.text.secondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  toggleText: {
+    color: colors.brand.default,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  txRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  txInfo: {
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  txTitle: {
+    color: colors.text.primary,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  txSub: {
+    color: colors.text.muted,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  emptyText: {
+    color: colors.text.muted,
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginTop: spacing.sm,
+  },
+});

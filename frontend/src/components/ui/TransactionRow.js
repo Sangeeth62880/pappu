@@ -1,56 +1,57 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { colors, spacing } from '../../theme/tokens';
+import AmountText from './AmountText';
 
 /**
- * Passbook-style transaction row — quiet, dense, scannable.
- * No cards, no drop shadows. Just a bottom border between rows.
+ * Modern light transaction row.
+ * Scannable, clean, with accessible amounts and category badge/date.
  *
  * Props:
- *   category    — string, e.g. "Food & Dining"
+ *   category    — string, e.g. "Food"
  *   description — string (optional)
  *   amount      — number or string
  *   type        — 'income' | 'expense'
  *   date        — string, e.g. "2026-08-31"
  *   testID      — string (optional)
  */
-export default function TransactionRow({ category, description, amount, type, date, testID }) {
+export default function TransactionRow({
+  category,
+  description,
+  amount,
+  type,
+  date,
+  testID,
+}) {
   const isIncome = type === 'income';
-  const formattedAmount = Number(amount).toFixed(2);
-  const sign = isIncome ? '+' : '−';
-  const amountColor = isIncome ? 'text-banana-leaf' : 'text-clay-rust';
-
-  // Format date to a shorter display
   const displayDate = formatDate(date);
 
   return (
-    <View
-      testID={testID}
-      className="flex-row items-center py-3 border-b border-ink-navy-lighter"
-    >
-      {/* Date column */}
-      <Text className="text-bone-darker font-sans text-[11px] w-16 font-medium">
-        {displayDate}
-      </Text>
+    <View testID={testID} style={styles.row}>
+      {/* Date */}
+      <View style={styles.dateCol}>
+        <Text style={styles.dateText}>{displayDate}</Text>
+      </View>
 
       {/* Category + Description */}
-      <View className="flex-1 px-3">
-        <Text className="text-bone font-sans text-sm font-medium" numberOfLines={1}>
+      <View style={styles.infoCol}>
+        <Text style={styles.titleText} numberOfLines={1}>
           {category || 'Transaction'}
         </Text>
         {description ? (
-          <Text className="text-bone-darker font-sans text-xs mt-0.5" numberOfLines={1}>
+          <Text style={styles.descText} numberOfLines={1}>
             {description}
           </Text>
         ) : null}
       </View>
 
-      {/* Amount — serif */}
-      <Text
-        className={`font-serif text-sm font-bold ${amountColor}`}
-        style={{ fontFamily: 'Libre Baskerville, Georgia, serif' }}
-      >
-        {sign}₹{formattedAmount}
-      </Text>
+      {/* Amount with tabular formatting */}
+      <AmountText
+        amount={amount}
+        type={isIncome ? 'income' : 'expense'}
+        showSign={true}
+        size="md"
+      />
     </View>
   );
 }
@@ -64,7 +65,7 @@ function formatDate(dateStr) {
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (d.toDateString() === today.toDateString()) return 'Today';
-    if (d.toDateString() === yesterday.toDateString()) return 'Y\'day';
+    if (d.toDateString() === yesterday.toDateString()) return "Y'day";
 
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${d.getDate()} ${months[d.getMonth()]}`;
@@ -72,3 +73,38 @@ function formatDate(dateStr) {
     return dateStr;
   }
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+    minHeight: 48,
+  },
+  dateCol: {
+    width: 54,
+    justifyContent: 'center',
+  },
+  dateText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text.muted,
+  },
+  infoCol: {
+    flex: 1,
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
+  },
+  titleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  descText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+});

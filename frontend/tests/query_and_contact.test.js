@@ -52,7 +52,7 @@ describe('ConversationLog - Contact Confirmation & Query Visuals', () => {
 
     expect(await findByTestId('query-data-card')).toBeTruthy();
     expect(await findByText('Food')).toBeTruthy();
-    expect(await findByText('₹1,450.00')).toBeTruthy();
+    expect(await findByText(/₹1,450(\.00)?/)).toBeTruthy();
     expect(await findByText('Lunch at cafe')).toBeTruthy();
   });
 
