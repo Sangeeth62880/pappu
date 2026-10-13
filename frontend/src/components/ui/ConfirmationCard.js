@@ -1,12 +1,25 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../../theme/tokens';
 import Button from './Button';
 import AmountText from './AmountText';
 
+const CATEGORY_ICONS = {
+  Food: 'restaurant',
+  Transport: 'directions-car',
+  Shopping: 'local-mall',
+  Bills: 'receipt',
+  Entertainment: 'confirmation-number',
+  Salary: 'payments',
+  People: 'group',
+  Other: 'account-balance-wallet',
+};
+
 /**
- * Modern light inline card for confirmation and disambiguation prompts.
- * Clear confirm-vs-cancel visual hierarchy.
+ * Stitch assistant confirmation and disambiguation card.
+ * Embedded transaction card preview, visually distinct action buttons,
+ * and vector icons for candidates.
  */
 export default function ConfirmationCard({
   prompt,
@@ -18,13 +31,61 @@ export default function ConfirmationCard({
   secondaryAction,
   onSecondaryAction,
   secondaryLabel = 'Cancel',
+  targetTransaction = null,
 }) {
   const isDestructive = actionLabel.toLowerCase().includes('delete');
+  const catIcon = targetTransaction?.category_name
+    ? (CATEGORY_ICONS[targetTransaction.category_name] || 'receipt')
+    : 'receipt';
 
   return (
     <View testID={`${type}-card`} style={[styles.card, shadows.md]}>
-      {/* Prompt text */}
-      <Text style={styles.promptText}>{prompt}</Text>
+      {/* Bot Header + Prompt */}
+      <View style={styles.headerRow}>
+        <View style={styles.botIconCircle}>
+          <MaterialIcons name="smart-toy" size={16} color={colors.brand.default} />
+        </View>
+        <Text style={styles.promptText}>{prompt}</Text>
+      </View>
+
+      {/* Embedded Transaction Card (if target transaction data exists) */}
+      {targetTransaction && (
+        <View style={styles.embeddedTxnCard}>
+          <View style={styles.embeddedLeft}>
+            <View
+              style={[
+                styles.categoryIconCircle,
+                isDestructive ? styles.categoryIconRed : styles.categoryIconBlue,
+              ]}
+            >
+              <MaterialIcons
+                name={catIcon}
+                size={18}
+                color={isDestructive ? colors.semantic.expense : colors.brand.default}
+              />
+            </View>
+            <View style={styles.embeddedMeta}>
+              <Text style={styles.embeddedCategory} numberOfLines={1}>
+                {targetTransaction.category_name || 'Transaction'}
+                {targetTransaction.description ? ` · ${targetTransaction.description}` : ''}
+              </Text>
+              <Text style={styles.embeddedDate}>
+                {targetTransaction.txn_date || 'Today'}
+              </Text>
+            </View>
+          </View>
+          {targetTransaction.amount !== undefined && (
+            <Text
+              style={[
+                styles.embeddedAmount,
+                isDestructive && { color: colors.semantic.expense },
+              ]}
+            >
+              ₹{Number(targetTransaction.amount).toLocaleString('en-IN')}
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Confirmation buttons */}
       {type === 'confirmation' && (
@@ -43,6 +104,14 @@ export default function ConfirmationCard({
               }
               variant={isDestructive ? 'destructive' : 'primary'}
               size="sm"
+              icon={
+                <MaterialIcons
+                  name={isDestructive ? 'delete' : 'check'}
+                  size={16}
+                  color="#FFFFFF"
+                />
+              }
+              style={{ flex: 1 }}
             />
           )}
 
@@ -53,6 +122,7 @@ export default function ConfirmationCard({
               title={secondaryLabel}
               variant="secondary"
               size="sm"
+              style={{ flex: 1 }}
             />
           )}
         </View>
@@ -76,9 +146,13 @@ export default function ConfirmationCard({
               >
                 {isContactCandidate ? (
                   <View style={styles.contactRow}>
-                    <Text style={styles.candidateIcon}>
-                      {cand.id === 'new' ? '➕' : '👤'}
-                    </Text>
+                    <View style={styles.candIconCircle}>
+                      <MaterialIcons
+                        name={cand.id === 'new' ? 'person-add' : 'person'}
+                        size={16}
+                        color={cand.id === 'new' ? colors.brand.default : colors.text.secondary}
+                      />
+                    </View>
                     <View style={styles.candidateInfo}>
                       <Text style={styles.candidateTitle}>
                         {cand.id === 'new' ? `Add new person "${cand.name}"` : cand.name}
@@ -124,20 +198,80 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.brand.default,
     padding: spacing.lg,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  botIconCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    backgroundColor: colors.brand.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
   promptText: {
+    flex: 1,
     color: colors.text.primary,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  embeddedTxnCard: {
+    marginTop: spacing.md,
+    backgroundColor: colors.canvas,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  embeddedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+  },
+  categoryIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryIconRed: {
+    backgroundColor: colors.semantic.expenseBg,
+  },
+  categoryIconBlue: {
+    backgroundColor: colors.brand.tint,
+  },
+  embeddedMeta: {
+    flex: 1,
+  },
+  embeddedCategory: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  embeddedDate: {
+    fontSize: 11,
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  embeddedAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text.primary,
   },
   buttonRow: {
     marginTop: spacing.md,
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
   },
   candidatesList: {
@@ -150,7 +284,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceSubtle,
@@ -164,10 +298,15 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
-  candidateIcon: {
-    fontSize: 15,
-    marginRight: spacing.sm,
+  candIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   candidateInfo: {
     flex: 1,

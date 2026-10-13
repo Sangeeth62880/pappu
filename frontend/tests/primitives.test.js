@@ -178,4 +178,44 @@ describe('Design System Primitives & Tokens', () => {
       expect(screen.getByText('₹100')).toBeTruthy();
     });
   });
+
+  describe('Toast component', () => {
+    test('returns null when not visible and unmounted', async () => {
+      const Toast = require('../src/components/ui/Toast').default;
+      await render(
+        <Toast visible={false} message="Test Toast" />
+      );
+      expect(screen.queryByTestId('toast')).toBeNull();
+    });
+
+    test('renders message and triggers onAction callback when visible', async () => {
+      const Toast = require('../src/components/ui/Toast').default;
+      const onAction = jest.fn();
+      await render(
+        <Toast visible={true} message="Transaction Added" actionText="Undo" onAction={onAction} />
+      );
+      expect(screen.getByText('Transaction Added')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('toast-action'));
+      expect(onAction).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('BottomSheet component', () => {
+    test('calls onClose when backdrop or close button is pressed', async () => {
+      const BottomSheet = require('../src/components/ui/BottomSheet').default;
+      const { Text } = require('react-native');
+      const onClose = jest.fn();
+      await render(
+        <BottomSheet visible={true} onClose={onClose} title="Edit Profile">
+          <Text>Sheet Content</Text>
+        </BottomSheet>
+      );
+      expect(screen.getByTestId('bottom-sheet-backdrop')).toBeTruthy();
+      expect(screen.getByTestId('bottom-sheet-close-button')).toBeTruthy();
+
+      fireEvent.press(screen.getByTestId('bottom-sheet-close-button'));
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
 });
+

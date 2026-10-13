@@ -7,6 +7,7 @@ import {
   RefreshControl,
   StyleSheet,
 } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fetchSummary, fetchTransactions } from '../api/client';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import Balance from './ui/Balance';
@@ -14,9 +15,6 @@ import Card from './ui/Card';
 import SegmentedControl from './ui/SegmentedControl';
 import Avatar from './ui/Avatar';
 import AmountText from './ui/AmountText';
-import SectionHeader from './ui/SectionHeader';
-import EmptyState from './ui/EmptyState';
-import Skeleton from './ui/Skeleton';
 import Button from './ui/Button';
 
 const PERIOD_SEGMENTS = [
@@ -24,6 +22,17 @@ const PERIOD_SEGMENTS = [
   { key: 'month', label: 'Month' },
   { key: 'year', label: 'Year' },
 ];
+
+const CATEGORY_ICONS = {
+  Food: 'restaurant',
+  Transport: 'directions-car',
+  Shopping: 'local-mall',
+  Bills: 'receipt',
+  Entertainment: 'confirmation-number',
+  Salary: 'payments',
+  People: 'group',
+  Other: 'account-balance-wallet',
+};
 
 export default function Dashboard({
   token,
@@ -93,6 +102,9 @@ export default function Dashboard({
   const dailyBuckets = summary?.daily_buckets || [];
   const maxBucketAmount = Math.max(...dailyBuckets.map((b) => Number(b.amount || 0)), 1);
   const hasChartSpending = dailyBuckets.some((b) => Number(b.amount || 0) > 0);
+  const avgDailyAmount = dailyBuckets.length > 0
+    ? Math.round(dailyBuckets.reduce((acc, b) => acc + Number(b.amount || 0), 0) / dailyBuckets.length)
+    : 0;
 
   const categories = summary?.categories || [];
   const legacyBreakdown = summary?.category_breakdown || [];
@@ -155,8 +167,8 @@ export default function Dashboard({
         </View>
       ) : null}
 
-      {/* 1. Period Selector Segmented Control */}
-      <View style={styles.periodSelectorContainer}>
+      {/* 1. Period Selector Segmented Control (Stitch pill container) */}
+      <View style={styles.periodSelectorWrapper}>
         <SegmentedControl
           segments={PERIOD_SEGMENTS}
           selectedKey={period}
@@ -164,7 +176,7 @@ export default function Dashboard({
         />
       </View>
 
-      {/* 2. Hero Card */}
+      {/* 2. Hero Glass Card */}
       <View style={styles.heroSection}>
         <Balance
           balance={totalSpent}
@@ -177,9 +189,15 @@ export default function Dashboard({
         />
       </View>
 
-      {/* 3. Spending Chart (Daily Bars) */}
+      {/* 3. Daily Spending Card (Stitch bar chart with peak highlight) */}
       <Card style={styles.chartCard} padding="lg">
-        <Text style={styles.cardHeaderTitle}>Daily Spending</Text>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.cardHeaderTitle}>Daily spending</Text>
+          <Text style={styles.cardHeaderSubtitle}>
+            Avg ₹{avgDailyAmount}/day
+          </Text>
+        </View>
+
         {!hasChartSpending && !loading ? (
           <View style={styles.chartEmpty}>
             <Text style={styles.chartEmptyText}>No expenses recorded for this {period}</Text>
@@ -188,11 +206,16 @@ export default function Dashboard({
           <View style={styles.barsContainer}>
             {dailyBuckets.map((bucket, idx) => {
               const amt = Number(bucket.amount || 0);
-              const heightPct = Math.max((amt / maxBucketAmount) * 100, 6);
+              const heightPct = Math.max((amt / maxBucketAmount) * 100, 8);
               const isPeak = amt === maxBucketAmount && amt > 0;
 
               return (
                 <View key={bucket.date || idx} style={styles.barColumn}>
+                  {isPeak ? (
+                    <View style={styles.peakBadge}>
+                      <Text style={styles.peakBadgeText}>₹{Math.round(amt)}</Text>
+                    </View>
+                  ) : null}
                   <View style={styles.barTrack}>
                     <View
                       style={[
@@ -212,38 +235,21 @@ export default function Dashboard({
         )}
       </Card>
 
-      {/* 4. People Card */}
+      {/* 4. People Card (Stitch Split Overview) */}
       <Card style={styles.peopleCard} padding="lg">
-        <View style={styles.peopleCardHeader}>
-          <Text style={styles.cardHeaderTitle}>People & IOUs</Text>
-          {onNavigateToPeople ? (
-            <TouchableOpacity onPress={() => onNavigateToPeople()} hitSlop={8}>
-              <Text style={styles.seeAllLink}>View all</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
         <View style={styles.peopleTotalsRow}>
           <View style={styles.peopleTotalCol}>
             <Text style={styles.peopleSubLabel}>You're owed</Text>
-            <AmountText
-              amount={totalOwed}
-              type="income"
-              size="lg"
-              showSign={false}
-            />
+            <Text style={styles.peopleOwedAmount}>+₹{totalOwed.toFixed(0)}</Text>
           </View>
           <View style={styles.peopleDivider} />
-          <View style={styles.peopleTotalCol}>
+          <View style={[styles.peopleTotalCol, { alignItems: 'flex-end' }]}>
             <Text style={styles.peopleSubLabel}>You owe</Text>
-            <AmountText
-              amount={totalOwes}
-              type="expense"
-              size="lg"
-              showSign={false}
-            />
+            <Text style={styles.peopleOwesAmount}>-₹{totalOwes.toFixed(0)}</Text>
           </View>
         </View>
+
+        <View style={styles.hairline} />
 
         {topContacts.length === 0 ? (
           <View style={styles.peopleEmpty}>
@@ -262,34 +268,103 @@ export default function Dashboard({
                   activeOpacity={0.7}
                   onPress={() => onNavigateToPeople && onNavigateToPeople(contact.id)}
                 >
-                  <Avatar name={contact.name} size={36} />
-                  <View style={styles.contactInfo}>
-                    <Text style={styles.contactName}>{contact.name}</Text>
-                    <Text style={styles.contactSubtitle}>
-                      {isOwed ? 'owes you' : 'you owe'}
-                    </Text>
+                  <View style={styles.contactLeft}>
+                    <View
+                      style={[
+                        styles.contactAvatarCircle,
+                        {
+                          backgroundColor: isOwed ? colors.brand.tint : colors.semantic.expenseBg,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.contactAvatarInitial,
+                          {
+                            color: isOwed ? colors.brand.default : colors.semantic.expense,
+                          },
+                        ]}
+                      >
+                        {contact.name?.charAt(0)?.toUpperCase() || 'P'}
+                      </Text>
+                    </View>
+                    <View style={styles.contactInfo}>
+                      <Text style={styles.contactName}>{contact.name}</Text>
+                      <View
+                        style={[
+                          styles.statusPill,
+                          {
+                            backgroundColor: isOwed ? colors.semantic.incomeBg : colors.semantic.expenseBg,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusPillText,
+                            {
+                              color: isOwed ? colors.semantic.income : colors.semantic.expense,
+                            },
+                          ]}
+                        >
+                          {isOwed ? 'Owes you' : 'You owe'}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                  <AmountText
-                    amount={Math.abs(net)}
-                    type={isOwed ? 'income' : 'expense'}
-                    size="sm"
-                    showSign={false}
-                  />
+                  <Text
+                    style={[
+                      styles.contactAmount,
+                      { color: isOwed ? colors.semantic.income : colors.semantic.expense },
+                    ]}
+                  >
+                    {isOwed ? '+' : '-'}₹{Math.abs(net).toFixed(0)}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
         )}
+
+        {onNavigateToPeople ? (
+          <TouchableOpacity
+            style={styles.viewAllRow}
+            onPress={() => onNavigateToPeople()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.seeAllLink}>View all</Text>
+            <MaterialIcons name="chevron-right" size={16} color={colors.brand.default} />
+          </TouchableOpacity>
+        ) : null}
       </Card>
 
-      {/* 5. "Where it went" (Expense Categories Proportion Bars) */}
+      {/* 5. "Where it went" (Stitch Segmented Proportion Bar + Categories) */}
       {displayCategories.length > 0 ? (
         <Card style={styles.categoriesCard} padding="lg">
-          <SectionHeader
-            title="Where it went"
-            actionText={onNavigateToHistory ? "Filter" : null}
-            onActionPress={() => onNavigateToHistory && onNavigateToHistory({ period })}
-          />
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardHeaderTitle}>Where it went</Text>
+            <Text style={styles.cardHeaderSubtitle}>
+              {displayCategories.length} Categories
+            </Text>
+          </View>
+
+          {/* Stitch multi-segment proportion bar */}
+          <View style={styles.multiSegmentBar}>
+            {displayCategories.map((item, idx) => {
+              const catColor = colors.categories[item.category] || colors.brand.default;
+              return (
+                <View
+                  key={`seg-${item.category || idx}`}
+                  style={[
+                    styles.multiSegmentPiece,
+                    {
+                      width: `${Math.max(item.percentage, 4)}%`,
+                      backgroundColor: catColor,
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
 
           <View style={styles.categoriesList}>
             {displayCategories.map((item, idx) => {
@@ -307,34 +382,14 @@ export default function Dashboard({
                   }
                   style={styles.categoryRow}
                 >
-                  <View style={styles.categoryInfoRow}>
-                    <View style={styles.categoryNameContainer}>
-                      <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
-                      <Text style={styles.categoryNameText}>{item.category}</Text>
-                    </View>
-                    <View style={styles.categoryRight}>
-                      <Text style={styles.categoryPctText}>{item.percentage}%</Text>
-                      <AmountText
-                        amount={item.amount}
-                        type="neutral"
-                        size="sm"
-                        style={styles.categoryAmount}
-                      />
-                    </View>
+                  <View style={styles.categoryNameContainer}>
+                    <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
+                    <Text style={styles.categoryNameText}>{item.category}</Text>
+                    <Text style={styles.categoryPctText}>{item.percentage}%</Text>
                   </View>
-
-                  {/* Horizontal proportion bar */}
-                  <View style={styles.progressTrack}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        {
-                          width: `${Math.min(Math.max(item.percentage, 2), 100)}%`,
-                          backgroundColor: catColor,
-                        },
-                      ]}
-                    />
-                  </View>
+                  <Text style={styles.categoryAmountText}>
+                    ₹{Number(item.amount).toFixed(0)}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -348,13 +403,16 @@ export default function Dashboard({
         </Card>
       ) : null}
 
-      {/* 6. Recent Activity (At most 5 rows) */}
+      {/* 6. Recent Activity Section */}
       <View style={styles.recentSection}>
-        <SectionHeader
-          title="Recent Activity"
-          actionText={transactions.length > 0 ? "See all" : null}
-          onActionPress={() => onNavigateToHistory && onNavigateToHistory()}
-        />
+        <View style={styles.recentHeaderRow}>
+          <Text style={styles.recentSectionTitle}>Recent</Text>
+          {transactions.length > 0 && onNavigateToHistory ? (
+            <TouchableOpacity onPress={() => onNavigateToHistory()} activeOpacity={0.7}>
+              <Text style={styles.seeAllText}>See all</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {recentTxns.length === 0 ? (
           <Card padding="lg" style={styles.emptyRecentCard}>
@@ -373,6 +431,9 @@ export default function Dashboard({
               const subtitle = isPeople
                 ? isIncome ? 'Received' : 'Sent'
                 : txn.category_name || 'Transaction';
+              const iconName = isPeople
+                ? isIncome ? 'call-received' : 'call-made'
+                : (CATEGORY_ICONS[txn.category_name] || 'account-balance-wallet');
 
               return (
                 <View
@@ -383,20 +444,20 @@ export default function Dashboard({
                     index === recentTxns.length - 1 && styles.txnRowLast,
                   ]}
                 >
-                  {isPeople ? (
-                    <Avatar name={txn.contact_name} size={36} />
-                  ) : (
-                    <View style={styles.categoryIconCircle}>
-                      <Text style={styles.categoryIconText}>
-                        {txn.category_name === 'Food' ? '🍔'
-                          : txn.category_name === 'Transport' ? '🚗'
-                          : txn.category_name === 'Shopping' ? '🛍️'
-                          : txn.category_name === 'Bills' ? '📄'
-                          : txn.category_name === 'Salary' ? '💼'
-                          : '₹'}
-                      </Text>
-                    </View>
-                  )}
+                  <View
+                    style={[
+                      styles.txnIconCircle,
+                      {
+                        backgroundColor: isIncome ? colors.semantic.incomeBg : colors.surfaceSubtle,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name={iconName}
+                      size={18}
+                      color={isIncome ? colors.semantic.income : colors.brand.default}
+                    />
+                  </View>
 
                   <View style={styles.txnMiddle}>
                     <Text style={styles.txnTitle} numberOfLines={1}>
@@ -442,7 +503,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
-    paddingBottom: 110, // Room for bottom floating navigation bar
+    paddingBottom: 110, // Inset clearance for floating bottom bar
   },
   errorContainer: {
     flex: 1,
@@ -452,9 +513,9 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   errorTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: colors.semantic.expense,
+    color: colors.text.primary,
     marginBottom: spacing.xs,
   },
   errorSubtitle: {
@@ -468,248 +529,331 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.semantic.expenseBorder,
   },
   inlineErrorText: {
     color: colors.semantic.expense,
     fontSize: 13,
   },
-  periodSelectorContainer: {
-    marginVertical: spacing.md,
+  periodSelectorWrapper: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    marginTop: spacing.xs,
   },
   heroSection: {
     marginBottom: spacing.lg,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
   cardHeaderTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: spacing.md,
-    letterSpacing: -0.2,
+  },
+  cardHeaderSubtitle: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    fontWeight: '500',
   },
   chartCard: {
+    borderRadius: radius['2xl'],
+    backgroundColor: colors.surface,
     marginBottom: spacing.lg,
+    ...shadows.md,
   },
   chartEmpty: {
     paddingVertical: spacing.xl,
     alignItems: 'center',
   },
   chartEmptyText: {
-    color: colors.text.muted,
     fontSize: 13,
-    fontStyle: 'italic',
+    color: colors.text.muted,
   },
   barsContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: 120,
-    paddingTop: spacing.sm,
     justifyContent: 'space-between',
+    height: 130,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.xs,
   },
   barColumn: {
     flex: 1,
     alignItems: 'center',
     height: '100%',
     justifyContent: 'flex-end',
+    position: 'relative',
+  },
+  peakBadge: {
+    position: 'absolute',
+    top: -4,
+    backgroundColor: colors.brand.tint,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    shadowColor: colors.brand.default,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  peakBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.brand.default,
   },
   barTrack: {
-    width: 22,
-    flex: 1,
+    width: 24,
+    height: '80%',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    marginBottom: spacing.xs,
   },
   barFill: {
     width: '100%',
-    borderRadius: radius.full,
-    minHeight: 6,
+    borderTopLeftRadius: radius.sm,
+    borderTopRightRadius: radius.sm,
   },
   barFillNormal: {
-    backgroundColor: '#93C5FD', // Soft brand blue tint
+    backgroundColor: colors.brand.tintBorder,
   },
   barFillPeak: {
-    backgroundColor: colors.brand.default, // Confident solid blue
+    backgroundColor: colors.brand.default,
   },
   barLabel: {
     fontSize: 11,
+    color: colors.text.secondary,
+    marginTop: 6,
     fontWeight: '500',
-    color: colors.text.muted,
   },
   barLabelPeak: {
     color: colors.brand.default,
     fontWeight: '700',
   },
   peopleCard: {
+    borderRadius: radius['2xl'],
+    backgroundColor: colors.surface,
     marginBottom: spacing.lg,
-  },
-  peopleCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  seeAllLink: {
-    color: colors.brand.default,
-    fontSize: 13,
-    fontWeight: '600',
+    ...shadows.md,
   },
   peopleTotalsRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   peopleTotalCol: {
     flex: 1,
-    alignItems: 'center',
   },
   peopleSubLabel: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 12,
     color: colors.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontWeight: '500',
     marginBottom: 2,
+  },
+  peopleOwedAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.semantic.income,
+    fontVariant: ['tabular-nums'],
+  },
+  peopleOwesAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.semantic.expense,
+    fontVariant: ['tabular-nums'],
   },
   peopleDivider: {
     width: 1,
-    height: 28,
+    height: 30,
     backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
+  },
+  hairline: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
   peopleEmpty: {
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   peopleEmptyText: {
-    color: colors.text.muted,
     fontSize: 13,
-    fontStyle: 'italic',
+    color: colors.text.muted,
   },
   topContactsList: {
-    marginTop: spacing.md,
-    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+  },
+  contactLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  contactAvatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactAvatarInitial: {
+    fontSize: 15,
+    fontWeight: '700',
   },
   contactInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
+    flexDirection: 'column',
   },
   contactName: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text.primary,
   },
-  contactSubtitle: {
+  statusPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radius.full,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  contactAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  seeAllLink: {
     fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 1,
+    fontWeight: '600',
+    color: colors.brand.default,
+    marginRight: 2,
   },
   categoriesCard: {
+    borderRadius: radius['2xl'],
+    backgroundColor: colors.surface,
     marginBottom: spacing.lg,
+    ...shadows.md,
+  },
+  multiSegmentBar: {
+    height: 8,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    backgroundColor: colors.surfaceSubtle,
+    marginBottom: spacing.md,
+  },
+  multiSegmentPiece: {
+    height: '100%',
   },
   categoriesList: {
     marginTop: spacing.xs,
-    gap: spacing.md,
   },
   categoryRow: {
-    paddingVertical: 2,
-  },
-  categoryInfoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
+    paddingVertical: 6,
   },
   categoryNameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
   categoryDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    marginRight: spacing.sm,
+    borderRadius: radius.full,
   },
   categoryNameText: {
     fontSize: 14,
-    fontWeight: '600',
     color: colors.text.primary,
-  },
-  categoryRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    fontWeight: '500',
   },
   categoryPctText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
     color: colors.text.secondary,
   },
-  categoryAmount: {
-    minWidth: 60,
-    textAlign: 'right',
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceSubtle,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-  recentSection: {
-    marginBottom: spacing.xl,
-  },
-  emptyRecentCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xl,
+  categoryAmountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+    fontVariant: ['tabular-nums'],
   },
   emptyText: {
-    color: colors.text.muted,
     fontSize: 13,
-    fontStyle: 'italic',
+    color: colors.text.muted,
+    textAlign: 'center',
+    paddingVertical: spacing.md,
+  },
+  recentSection: {
+    marginBottom: spacing.md,
+  },
+  recentHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    paddingHorizontal: 2,
+  },
+  recentSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.brand.default,
+  },
+  emptyRecentCard: {
+    borderRadius: radius['2xl'],
+    backgroundColor: colors.surface,
+    ...shadows.md,
   },
   recentListCard: {
     borderRadius: radius['2xl'],
-    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    padding: spacing.xs,
+    ...shadows.md,
   },
   txnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-    minHeight: 52,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.xl,
   },
   txnRowLast: {
     borderBottomWidth: 0,
   },
-  categoryIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceSubtle,
+  txnIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  categoryIconText: {
-    fontSize: 16,
+    marginRight: spacing.md,
   },
   txnMiddle: {
     flex: 1,
-    marginLeft: spacing.md,
-    paddingRight: spacing.sm,
+    marginRight: spacing.sm,
   },
   txnTitle: {
     fontSize: 14,

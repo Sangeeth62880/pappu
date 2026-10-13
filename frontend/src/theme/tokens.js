@@ -6,41 +6,41 @@
 
 export const colors = {
   // Canvases & Surfaces
-  canvas: '#F8FAFC',       // Slate 50
+  canvas: '#F5F7FB',       // Calming cool canvas
   surface: '#FFFFFF',      // Pure white card
   surfaceSubtle: '#F1F5F9',// Slate 100
-  border: '#E2E8F0',       // Slate 200
+  border: '#E2E8F0',       // Slate 200 hairline
   borderSubtle: '#F1F5F9', // Slate 100
 
   // Text Hierarchy
   text: {
-    primary: '#0F172A',    // Slate 900 (16.5:1 on white - AAA)
-    secondary: '#475569',  // Slate 600 (5.9:1 on white - AA)
-    tertiary: '#64748B',   // Slate 500 (4.6:1 on white - AA)
-    inverse: '#FFFFFF',    // Pure white on dark/brand fills
-    muted: '#94A3B8',      // Slate 400 (captions / non-essential)
+    primary: '#0F172A',    // Slate 900 (AAA contrast on white)
+    secondary: '#475569',  // Slate 600
+    tertiary: '#64748B',   // Slate 500
+    inverse: '#FFFFFF',    // Pure white on brand fills
+    muted: '#94A3B8',      // Slate 400
   },
 
   // Brand Accent (Blue)
   brand: {
-    default: '#2563EB',    // Blue 600 (primary fill/buttons)
-    dark: '#1D4ED8',       // Blue 700 (text on white, 4.8:1 - AA)
-    darker: '#1E40AF',     // Blue 800 (gradients / hero)
-    tint: '#EFF6FF',       // Blue 50 (chips / light backgrounds)
-    tintBorder: '#BFDBFE', // Blue 200
-    pressed: '#1D4ED8',    // Active pressed state
+    default: '#2563EB',    // Confident royal blue
+    dark: '#1D4ED8',       // Active press
+    darker: '#1E40AF',     // Hero gradient accent
+    tint: '#EAF1FF',       // Soft secondary tint / active nav pill
+    tintBorder: '#BFDBFE', // Accent border
+    pressed: '#1D4ED8',    // Pressed state
   },
 
-  // Semantic Status (Kept distinct from brand blue)
+  // Semantic Status (Cashflow Tokens)
   semantic: {
-    income: '#15803D',       // Green 700 (text on white, 4.8:1 - AA)
-    incomeFill: '#22C55E',   // Green 500 (bars, fills, icons)
-    incomeBg: '#DCFCE7',     // Green 100 (chips, badges)
-    incomeBorder: '#BBF7D0', // Green 200
+    income: '#15803D',       // Emerald 700 (4.8:1 on white - WCAG AA compliant text)
+    incomeFill: '#059669',   // Emerald 600 (bars, fills, icons from DESIGN.md)
+    incomeBg: '#ECFDF5',     // Emerald 50 surface badge tint from DESIGN.md
+    incomeBorder: '#A7F3D0', // Emerald 200
 
-    expense: '#DC2626',      // Red 600 (text on white, 4.6:1 - AA)
-    expenseFill: '#EF4444',  // Red 500 (bars, fills, icons)
-    expenseBg: '#FEE2E2',    // Red 100 (chips, badges)
+    expense: '#DC2626',      // Red 600 (Expense / "You Owe")
+    expenseFill: '#EF4444',  // Red 500
+    expenseBg: '#FEF2F2',    // Red 50 surface badge tint
     expenseBorder: '#FECACA',// Red 200
 
     neutral: '#475569',      // Slate 600
@@ -54,7 +54,7 @@ export const colors = {
     Shopping: '#7C3AED',     // Violet
     Bills: '#D97706',        // Amber
     Entertainment: '#EA580C',// Orange
-    Salary: '#16A34A',       // Green
+    Salary: '#059669',       // Emerald
     People: '#4F46E5',       // Indigo
     Other: '#64748B',        // Slate
   },
@@ -89,10 +89,10 @@ export const shadows = {
     elevation: 1,
   },
   md: {
-    shadowColor: '#0F172A',
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowRadius: 12,
     elevation: 3,
   },
   lg: {
@@ -103,11 +103,18 @@ export const shadows = {
     elevation: 6,
   },
   hero: {
-    shadowColor: '#1D4ED8',
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
     elevation: 8,
+  },
+  floatingNav: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 10,
   },
 };
 

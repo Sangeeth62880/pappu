@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { colors, radius, shadows, spacing } from '../../theme/tokens';
 
@@ -11,11 +11,13 @@ export default function Toast({
   duration = 4000,
   testID = 'toast',
 }) {
+  const [mounted, setMounted] = useState(Boolean(visible));
   const translateY = useRef(new Animated.Value(100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
+      setMounted(true);
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: 0,
@@ -34,7 +36,7 @@ export default function Toast({
       }, duration);
 
       return () => clearTimeout(timer);
-    } else {
+    } else if (mounted) {
       hideToast();
     }
   }, [visible]);
@@ -52,15 +54,17 @@ export default function Toast({
         useNativeDriver: true,
       }),
     ]).start(() => {
+      setMounted(false);
       if (onDismiss) onDismiss();
     });
   };
 
-  if (!visible && opacity._value === 0) return null;
+  if (!visible && !mounted) return null;
 
   return (
     <Animated.View
       testID={testID}
+      pointerEvents="box-none"
       style={[
         styles.container,
         {
@@ -69,7 +73,7 @@ export default function Toast({
         },
       ]}
     >
-      <View style={styles.card}>
+      <View style={styles.card} pointerEvents="auto">
         <Text style={styles.message} numberOfLines={2}>
           {message}
         </Text>

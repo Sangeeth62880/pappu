@@ -5,13 +5,13 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
 } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fetchTransactions } from '../api/client';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import Card from './ui/Card';
-import TransactionRow from './ui/TransactionRow';
-import EmptyState from './ui/EmptyState';
 
 const TYPE_FILTERS = [
   { key: 'all', label: 'All' },
@@ -20,16 +20,30 @@ const TYPE_FILTERS = [
   { key: 'people', label: 'People' },
 ];
 
+const CATEGORY_ICONS = {
+  Food: 'restaurant',
+  Transport: 'local-taxi',
+  Shopping: 'local-mall',
+  Bills: 'receipt',
+  Entertainment: 'confirmation-number',
+  Salary: 'payments',
+  People: 'group',
+  Other: 'account-balance-wallet',
+};
+
 export default function HistoryScreen({
   token,
   refreshTrigger = 0,
   initialFilter = null,
+  onBack = null,
 }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeType, setActiveType] = useState('all');
   const [activeCategory, setActiveCategory] = useState(initialFilter?.category || null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (initialFilter?.category) {
@@ -59,9 +73,20 @@ export default function HistoryScreen({
     load();
   }, [token, refreshTrigger]);
 
-  // Filter logic
+  // Filter & Search logic
   const filteredTransactions = useMemo(() => {
     return transactions.filter((txn) => {
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const desc = (txn.description || '').toLowerCase();
+        const cat = (txn.category_name || '').toLowerCase();
+        const contact = (txn.contact_name || '').toLowerCase();
+        if (!desc.includes(q) && !cat.includes(q) && !contact.includes(q)) {
+          return false;
+        }
+      }
+
       // Type filter
       if (activeType === 'expense' && txn.type !== 'expense') return false;
       if (activeType === 'income' && txn.type !== 'income') return false;
@@ -77,7 +102,13 @@ export default function HistoryScreen({
 
       return true;
     });
-  }, [transactions, activeType, activeCategory]);
+  }, [transactions, activeType, activeCategory, searchQuery]);
+
+  const totalFilteredSpent = useMemo(() => {
+    return filteredTransactions
+      .filter((t) => t.type === 'expense')
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  }, [filteredTransactions]);
 
   const grouped = useMemo(() => {
     return groupByDate(filteredTransactions);
@@ -99,7 +130,74 @@ export default function HistoryScreen({
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Filter Chips Row ── */}
+      {/* ── 1. Top Viewport Context Header (stitch/history.html) ── */}
+      <View style={styles.topContextRow}>
+        {onBack && (
+          <TouchableOpacity
+            testID="history-back-button"
+            onPress={onBack}
+            style={styles.backButton}
+            accessibilityLabel="Back to Home"
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="arrow-back" size={22} color={colors.text.primary} />
+          </TouchableOpacity>
+        )}
+        <View style={styles.titleCol}>
+          <View style={styles.titleBadgeRow}>
+            <Text style={styles.screenHeading}>History</Text>
+            <View style={styles.entryCountBadge}>
+              <Text style={styles.entryCountText}>
+                {filteredTransactions.length} entries
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.screenSubheading}>
+            Voice & UPI settlements overview
+          </Text>
+        </View>
+
+        <View style={styles.headerActionRow}>
+          <TouchableOpacity
+            style={styles.circleActionBtn}
+            onPress={() => setSearchOpen(!searchOpen)}
+            accessibilityLabel="Search transactions"
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="search" size={20} color={colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.circleActionBtn}
+            onPress={() => setActiveType('all')}
+            accessibilityLabel="Reset filters"
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="tune" size={20} color={colors.text.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ── 2. Collapsible Real-Time Search Bar ── */}
+      {searchOpen ? (
+        <View style={styles.searchBarWrap}>
+          <MaterialIcons name="search" size={20} color={colors.text.tertiary} style={{ marginRight: 8 }} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search by name, 'Swiggy', or 'പൂജ'..."
+            placeholderTextColor={colors.text.muted}
+            style={styles.searchInput}
+            autoFocus
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+              <MaterialIcons name="close" size={18} color={colors.text.tertiary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+
+      {/* ── 3. Horizontal Filter Row ── */}
       <View style={styles.filterRow}>
         <ScrollView
           horizontal
@@ -115,14 +213,15 @@ export default function HistoryScreen({
                 onPress={() => setActiveType(chip.key)}
                 style={[
                   styles.chip,
-                  isSelected && styles.chipSelected,
+                  isSelected ? styles.chipSelected : styles.chipUnselected,
                 ]}
                 activeOpacity={0.7}
               >
+                {isSelected ? <View style={styles.activeDot} /> : null}
                 <Text
                   style={[
                     styles.chipText,
-                    isSelected && styles.chipTextSelected,
+                    isSelected ? styles.chipTextSelected : styles.chipTextUnselected,
                   ]}
                 >
                   {chip.label}
@@ -144,6 +243,23 @@ export default function HistoryScreen({
         </ScrollView>
       </View>
 
+      {/* ── 4. Monthly Metric Summary Strip ── */}
+      <View style={styles.summaryStripCard}>
+        <View style={styles.summaryStripLeft}>
+          <View style={styles.insightsIconCircle}>
+            <MaterialIcons name="insights" size={20} color={colors.brand.default} />
+          </View>
+          <View style={styles.summaryStripTextBox}>
+            <Text style={styles.summaryStripKicker}>Monthly Activity</Text>
+            <Text style={styles.summaryStripAmount}>₹{Math.round(totalFilteredSpent)} spent</Text>
+          </View>
+        </View>
+        <View style={styles.comparisonBadge}>
+          <MaterialIcons name="arrow-downward" size={12} color={colors.semantic.income} style={{ marginRight: 2 }} />
+          <Text style={styles.comparisonBadgeText}>Active period</Text>
+        </View>
+      </View>
+
       {/* Error banner */}
       {error ? (
         <View style={styles.errorBanner}>
@@ -151,41 +267,95 @@ export default function HistoryScreen({
         </View>
       ) : null}
 
-      {/* Empty State */}
+      {/* ── 5. Date Groups Stream ── */}
       {filteredTransactions.length === 0 && !loading ? (
         <Card padding="xl" style={styles.emptyCard}>
           <Text style={styles.emptyText}>No transactions recorded yet</Text>
         </Card>
       ) : (
-        Object.entries(grouped).map(([dateLabel, txns]) => (
-          <View key={dateLabel} style={styles.dateGroup}>
-            {/* Sticky/Section Date Header */}
-            <View style={styles.dateHeader}>
-              <Text style={styles.dateHeaderText}>{dateLabel}</Text>
-            </View>
+        Object.entries(grouped).map(([dateLabel, txns]) => {
+          const dateExpenseSum = txns
+            .filter((t) => t.type === 'expense')
+            .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-            <Card padding="none" style={styles.txListCard}>
-              {txns.map((txn, idx) => (
-                <View
-                  key={txn.id}
-                  style={[
-                    styles.rowWrapper,
-                    idx === txns.length - 1 && styles.rowWrapperLast,
-                  ]}
-                >
-                  <TransactionRow
-                    testID={`history-txn-${txn.id}`}
-                    category={txn.contact_name ? txn.contact_name : txn.category_name}
-                    description={txn.description}
-                    amount={txn.amount}
-                    type={txn.type}
-                    date={txn.txn_date}
-                  />
-                </View>
-              ))}
-            </Card>
-          </View>
-        ))
+          return (
+            <View key={dateLabel} style={styles.dateGroup}>
+              {/* Section Date Header with Day Subtotal */}
+              <View style={styles.dateHeaderRow}>
+                <Text style={styles.dateHeaderText}>{dateLabel}</Text>
+                {dateExpenseSum > 0 ? (
+                  <Text style={styles.dateSubtotalText}>- ₹{Math.round(dateExpenseSum)}</Text>
+                ) : null}
+              </View>
+
+              <Card padding="none" style={styles.txListCard}>
+                {txns.map((txn, idx) => {
+                  const isIncome = txn.type === 'income';
+                  const isPeople = Boolean(txn.contact_name);
+                  const title = isPeople
+                    ? txn.contact_name
+                    : txn.description || txn.category_name || 'Expense';
+                  const subtitle = isPeople
+                    ? isIncome ? 'Received · UPI' : 'Sent · Split settlement'
+                    : txn.category_name ? `${txn.category_name} · ${txn.description || 'Expense'}` : 'Transaction';
+                  const iconName = isPeople
+                    ? isIncome ? 'call-received' : 'call-made'
+                    : (CATEGORY_ICONS[txn.category_name] || 'account-balance-wallet');
+
+                  return (
+                    <View
+                      key={txn.id}
+                      style={[
+                        styles.rowWrapper,
+                        idx === txns.length - 1 && styles.rowWrapperLast,
+                      ]}
+                    >
+                      <View style={styles.txnLeft}>
+                        {isPeople ? (
+                          <View style={styles.contactAvatarCircle}>
+                            <Text style={styles.contactAvatarInitial}>
+                              {txn.contact_name?.charAt(0)?.toUpperCase() || 'P'}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={styles.catIconCircle}>
+                            <MaterialIcons name={iconName} size={18} color={colors.brand.default} />
+                          </View>
+                        )}
+
+                        <View style={styles.txnInfo}>
+                          <Text style={styles.txnTitle} numberOfLines={1}>
+                            {title}
+                          </Text>
+                          <Text style={styles.txnSubtitle} numberOfLines={1}>
+                            {subtitle}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.txnRight}>
+                        <Text
+                          style={[
+                            styles.txnAmountText,
+                            { color: isIncome ? colors.semantic.income : colors.semantic.expense },
+                          ]}
+                        >
+                          {isIncome ? '+ ' : '- '}₹{Number(txn.amount).toFixed(0)}
+                        </Text>
+                        <MaterialIcons
+                          name={isIncome ? 'north-east' : 'south-east'}
+                          size={14}
+                          color={isIncome ? colors.semantic.income : colors.semantic.expense}
+                          style={{ marginLeft: 3 }}
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+              </Card>
+            </View>
+          );
+        })
       )}
     </ScrollView>
   );
@@ -209,14 +379,19 @@ function formatDateGroup(dateStr) {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (d.toDateString() === today.toDateString()) return 'Today';
-    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    if (d.toDateString() === today.toDateString()) return 'Today, ' + d.getDate() + ' ' + getMonthShort(d);
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday, ' + d.getDate() + ' ' + getMonthShort(d);
 
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    return `${d.getDate()} ${months[d.getMonth()]}`;
   } catch {
     return dateStr;
   }
+}
+
+function getMonthShort(date) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return months[date.getMonth()];
 }
 
 const styles = StyleSheet.create({
@@ -240,6 +415,87 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: spacing.sm,
   },
+  topContextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+    ...shadows.sm,
+  },
+  titleCol: {
+    flex: 1,
+  },
+  titleBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  screenHeading: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text.primary,
+    letterSpacing: -0.5,
+  },
+  entryCountBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.full,
+  },
+  entryCountText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.secondary,
+  },
+  screenSubheading: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  headerActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  circleActionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
+  },
+  searchBarWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    height: 44,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text.primary,
+  },
   filterRow: {
     marginBottom: spacing.md,
   },
@@ -249,48 +505,112 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   chip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    height: 32,
     borderRadius: radius.full,
-    backgroundColor: colors.surfaceSubtle,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 36,
-    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   chipSelected: {
     backgroundColor: colors.brand.default,
-    borderColor: colors.brand.default,
+  },
+  chipUnselected: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: radius.full,
+    backgroundColor: '#FFFFFF',
+    marginRight: 6,
   },
   chipText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: colors.text.secondary,
   },
   chipTextSelected: {
-    color: colors.text.inverse,
+    color: '#FFFFFF',
+  },
+  chipTextUnselected: {
+    color: colors.text.secondary,
   },
   activeCategoryPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
     backgroundColor: colors.brand.tint,
     borderWidth: 1,
     borderColor: colors.brand.tintBorder,
-    minHeight: 36,
+    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    height: 32,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   activeCategoryText: {
-    fontSize: 13,
+    color: colors.brand.default,
+    fontSize: 12,
     fontWeight: '600',
-    color: colors.brand.dark,
+  },
+  summaryStripCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: radius['2xl'],
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadows.md,
+  },
+  summaryStripLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  insightsIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    backgroundColor: colors.brand.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryStripTextBox: {
+    flexDirection: 'column',
+  },
+  summaryStripKicker: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  summaryStripAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginTop: 1,
+  },
+  comparisonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.semantic.incomeBg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  comparisonBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.semantic.income,
   },
   errorBanner: {
     backgroundColor: colors.semantic.expenseBg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.semantic.expenseBorder,
     padding: spacing.md,
+    borderRadius: radius.md,
     marginBottom: spacing.md,
   },
   errorText: {
@@ -298,37 +618,102 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   emptyCard: {
+    borderRadius: radius['2xl'],
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.xl,
+    backgroundColor: colors.surface,
+    ...shadows.md,
   },
   emptyText: {
     color: colors.text.muted,
-    fontSize: 14,
-    fontStyle: 'italic',
+    fontSize: 13,
   },
   dateGroup: {
     marginBottom: spacing.lg,
   },
-  dateHeader: {
-    paddingVertical: spacing.xs,
+  dateHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.xs,
+    paddingHorizontal: 4,
   },
   dateHeaderText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.text.muted,
+    color: colors.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  dateSubtotalText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.secondary,
+  },
   txListCard: {
     borderRadius: radius['2xl'],
-    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    padding: spacing.xs,
+    ...shadows.md,
   },
   rowWrapper: {
-    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
   },
   rowWrapperLast: {
     borderBottomWidth: 0,
+  },
+  txnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  contactAvatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    backgroundColor: colors.brand.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  contactAvatarInitial: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.brand.default,
+  },
+  catIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  txnInfo: {
+    flex: 1,
+  },
+  txnTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  txnSubtitle: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
+  txnRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  txnAmountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
 });

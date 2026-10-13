@@ -1,21 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../../theme/tokens';
 import Skeleton from './Skeleton';
 
 /**
- * Hero Card figure — visual anchor of the Dashboard.
- * Confident brand blue gradient with white text and a frosted secondary strip.
- *
- * Props:
- *   balance       — numeric string, e.g. "12450.00" (Spent in period)
- *   income        — numeric string
- *   expense       — numeric string
- *   loading       — boolean
- *   title         — string (default: "Spent this week")
- *   deltaText     — string (optional delta comparison vs previous period)
- *   isLowerDelta  — boolean (true if spent less than previous period)
+ * Hero Glass Card for Dashboard — matched to stitch/home.html.
+ * Frosted translucent glass card with ambient blue tint, tabular figures, and clean secondary metrics.
  */
 export default function Balance({
   balance = '0.00',
@@ -27,7 +19,7 @@ export default function Balance({
   isLowerDelta = false,
 }) {
   const [fadeAnim] = useState(() => new Animated.Value(0));
-  const [scaleAnim] = useState(() => new Animated.Value(0.96));
+  const [scaleAnim] = useState(() => new Animated.Value(0.97));
 
   useEffect(() => {
     if (!loading) {
@@ -64,17 +56,16 @@ export default function Balance({
       testID="balance-hero"
       style={[
         styles.heroContainer,
-        shadows.hero,
         { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
       ]}
     >
       <LinearGradient
-        colors={[colors.brand.darker, colors.brand.default]}
+        colors={['rgba(255,255,255,0.98)', 'rgba(255,255,255,0.90)', 'rgba(219,225,255,0.40)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
-        {/* Top Header & Delta */}
+        {/* Top Header & Delta comparison */}
         <View style={styles.headerRow}>
           <Text style={styles.titleText}>{title}</Text>
           {deltaText ? (
@@ -84,8 +75,18 @@ export default function Balance({
                 isLowerDelta ? styles.deltaGreen : styles.deltaRed,
               ]}
             >
-              <Text style={styles.deltaBadgeText}>
-                {isLowerDelta ? '↓ ' : '↑ '}
+              <MaterialIcons
+                name={isLowerDelta ? 'arrow-downward' : 'arrow-upward'}
+                size={12}
+                color={isLowerDelta ? colors.semantic.income : colors.semantic.expense}
+                style={{ marginRight: 2 }}
+              />
+              <Text
+                style={[
+                  styles.deltaBadgeText,
+                  { color: isLowerDelta ? colors.semantic.income : colors.semantic.expense },
+                ]}
+              >
                 {deltaText}
               </Text>
             </View>
@@ -93,26 +94,31 @@ export default function Balance({
         </View>
 
         {/* Hero Figure */}
-        <Text
-          testID="dashboard-balance"
-          style={styles.heroAmount}
-          numberOfLines={1}
-          adjustsFontSizeToFit={true}
-        >
-          ₹{balance}
-        </Text>
+        <View style={styles.amountRow}>
+          <Text
+            testID="dashboard-balance"
+            style={styles.heroAmount}
+            numberOfLines={1}
+            adjustsFontSizeToFit={true}
+          >
+            ₹{balance}
+          </Text>
+        </View>
 
-        {/* Frosted Secondary Figures Strip */}
-        <View style={styles.frostedStrip}>
-          <View style={styles.subFigureCol}>
+        {/* Ambient Hairline Separator */}
+        <View style={styles.hairlineDivider} />
+
+        {/* Secondary Figures Grid */}
+        <View style={styles.secondaryGrid}>
+          <View style={styles.subCol}>
             <Text style={styles.subLabel}>Income</Text>
             <Text testID="dashboard-income" style={styles.incomeAmount}>
               +₹{income}
             </Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.subFigureCol}>
-            <Text style={styles.subLabel}>Expenses</Text>
+          <View style={styles.verticalDivider} />
+          <View style={[styles.subCol, { paddingLeft: spacing.md }]}>
+            <Text style={styles.subLabel}>Net</Text>
             <Text testID="dashboard-expense" style={styles.expenseAmount}>
               -₹{expense}
             </Text>
@@ -133,9 +139,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     minHeight: 180,
     justifyContent: 'center',
+    ...shadows.hero,
   },
   heroContainer: {
     borderRadius: radius['3xl'],
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    ...shadows.hero,
     overflow: 'hidden',
   },
   gradient: {
@@ -149,74 +159,75 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   titleText: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: 13,
+    color: colors.text.secondary,
+    fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   deltaBadge: {
-    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.full,
   },
   deltaGreen: {
-    backgroundColor: 'rgba(220, 252, 231, 0.25)',
+    backgroundColor: colors.semantic.incomeBg,
   },
   deltaRed: {
-    backgroundColor: 'rgba(254, 226, 226, 0.25)',
+    backgroundColor: colors.semantic.expenseBg,
   },
   deltaBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  amountRow: {
+    marginVertical: spacing.xs,
   },
   heroAmount: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 38,
-    lineHeight: 48,
+    lineHeight: 46,
     fontWeight: '800',
+    letterSpacing: -0.8,
     fontVariant: ['tabular-nums'],
-    marginVertical: spacing.sm,
   },
-  frostedStrip: {
+  hairlineDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  secondaryGrid: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: radius.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.md,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  subFigureCol: {
+  subCol: {
     flex: 1,
-    alignItems: 'center',
   },
   subLabel: {
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: colors.text.secondary,
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   incomeAmount: {
-    color: '#A7F3D0', // Soft mint green on blue
-    fontSize: 15,
+    color: colors.text.primary,
+    fontSize: 16,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   expenseAmount: {
-    color: '#FECACA', // Soft red-coral on blue
-    fontSize: 15,
+    color: colors.semantic.expense,
+    fontSize: 16,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
-  divider: {
+  verticalDivider: {
     width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    height: 32,
+    backgroundColor: colors.border,
   },
   secondaryRow: {
     flexDirection: 'row',

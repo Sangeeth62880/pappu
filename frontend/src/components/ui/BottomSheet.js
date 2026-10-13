@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Modal,
@@ -7,7 +7,9 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Dimensions,
+  PanResponder,
 } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../../theme/tokens';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -16,36 +18,68 @@ export default function BottomSheet({
   visible,
   onClose,
   children,
+  title = null,
   testID = 'bottom-sheet',
 }) {
+  const [mounted, setMounted] = useState(Boolean(visible));
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   useEffect(() => {
     if (visible) {
+      setMounted(true);
       Animated.spring(translateY, {
         toValue: 0,
         damping: 25,
         stiffness: 250,
         useNativeDriver: true,
       }).start();
-    } else {
+    } else if (mounted) {
       Animated.timing(translateY, {
         toValue: SCREEN_HEIGHT,
         duration: 200,
         useNativeDriver: true,
-      }).start();
+      }).start(() => {
+        setMounted(false);
+      });
     }
   }, [visible]);
+
+  // Swipe-down pan responder
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 80 || gestureState.vy > 0.5) {
+          if (onClose) onClose();
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            damping: 25,
+            stiffness: 250,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  if (!visible && !mounted) return null;
 
   return (
     <Modal
       transparent
-      visible={visible}
+      visible={visible || mounted}
       animationType="none"
       onRequestClose={onClose}
       testID={testID}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback testID="bottom-sheet-backdrop" onPress={onClose}>
         <View style={styles.backdrop} />
       </TouchableWithoutFeedback>
 
@@ -55,9 +89,23 @@ export default function BottomSheet({
           { transform: [{ translateY }] },
         ]}
       >
-        <View style={styles.handleContainer}>
-          <View style={styles.handle} />
+        {/* Drag handle & close control header */}
+        <View style={styles.topHeaderBar} {...panResponder.panHandlers}>
+          <View style={styles.handleContainer}>
+            <View style={styles.handle} />
+          </View>
+          <TouchableOpacity
+            testID="bottom-sheet-close-button"
+            onPress={onClose}
+            style={styles.closeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Close sheet"
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="close" size={20} color={colors.text.secondary} />
+          </TouchableOpacity>
         </View>
+
         <View style={styles.content}>{children}</View>
       </Animated.View>
     </Modal>
@@ -80,15 +128,37 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.85,
     ...shadows.lg,
   },
+  topHeaderBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    position: 'relative',
+  },
   handleContainer: {
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 4,
   },
   handle: {
     width: 36,
     height: 4,
     borderRadius: radius.full,
     backgroundColor: '#CBD5E1', // Slate 300
+  },
+  closeBtn: {
+    position: 'absolute',
+    right: spacing.md,
+    top: spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     paddingHorizontal: spacing.xl,

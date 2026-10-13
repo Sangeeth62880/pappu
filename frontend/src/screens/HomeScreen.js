@@ -6,6 +6,8 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
+  BackHandler,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -18,15 +20,16 @@ import BottomSheet from '../components/ui/BottomSheet';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import GlassCard from '../components/ui/GlassCard';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
 import { undoTransaction } from '../api/client';
 
 const TABS = [
-  { key: 'dashboard', label: 'Home', icon: '🏠' },
-  { key: 'assistant', label: 'Assistant', icon: '💬' },
-  { key: 'history',   label: 'History',   icon: '📜' },
-  { key: 'people',    label: 'People',    icon: '👥' },
+  { key: 'dashboard', label: 'Home', icon: 'account-balance-wallet' },
+  { key: 'assistant', label: 'Assistant', icon: 'mic' },
+  { key: 'history',   label: 'History',   icon: 'receipt-long' },
+  { key: 'people',    label: 'People',    icon: 'group' },
 ];
 
 export default function HomeScreen({ initialToken = null, initialSession = null }) {
@@ -97,9 +100,63 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     };
   }, [initialToken, initialSession]);
 
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  // ── Keyboard Visibility Listener (hides floating nav bar when typing) ──
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // ── Android Hardware Back Button Navigation Handler ──
+  useEffect(() => {
+    const onBackPress = () => {
+      // 1. Close profile sheet if open
+      if (profileSheetVisible) {
+        setProfileSheetVisible(false);
+        return true;
+      }
+      // 2. Return from Contact Detail to People list
+      if (activeTab === 'people' && selectedPersonId) {
+        setSelectedPersonId(null);
+        return true;
+      }
+      // 3. Return from filtered History to Dashboard
+      if (activeTab === 'history' && historyFilter) {
+        setHistoryFilter(null);
+        setActiveTab('dashboard');
+        return true;
+      }
+      // 4. Return from any non-root tab to Dashboard
+      if (activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+        return true;
+      }
+      // 5. At root dashboard: allow system default (exit app)
+      return false;
+    };
+
+    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSubscription.remove();
+  }, [profileSheetVisible, activeTab, selectedPersonId, historyFilter]);
+
   const handleAuthenticated = (newSession) => {
     setSession(newSession);
-    setToken(newSession.access_token);
+    setToken(newSession?.access_token || null);
+    setActiveTab('dashboard');
+    setHistoryFilter(null);
+    setSelectedPersonId(null);
+    setProfileSheetVisible(false);
   };
 
   const handleSignOut = async () => {
@@ -108,6 +165,9 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
       await signOut();
       setSession(null);
       setToken(null);
+      setActiveTab('dashboard');
+      setHistoryFilter(null);
+      setSelectedPersonId(null);
     } catch (err) {}
   };
 
@@ -169,6 +229,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             messages={conversationMessages}
             setMessages={handleUpdateMessages}
             onClearMessages={handleClearMessages}
+            onBack={() => setActiveTab('dashboard')}
           />
         );
       case 'history':
@@ -177,6 +238,10 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             token={token}
             refreshTrigger={refreshTrigger}
             initialFilter={historyFilter}
+            onBack={() => {
+              setHistoryFilter(null);
+              setActiveTab('dashboard');
+            }}
           />
         );
       case 'people':
@@ -185,6 +250,10 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             token={token}
             refreshTrigger={refreshTrigger}
             initialContactId={selectedPersonId}
+            onBack={() => {
+              setSelectedPersonId(null);
+              setActiveTab('dashboard');
+            }}
           />
         );
       default:
@@ -196,21 +265,54 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     <SafeAreaView testID="home-screen" style={styles.screen}>
       <StatusBar style="dark" />
 
-      {/* ── 1. Slim Header ── */}
+      {/* ── 1. Header with Brand Badge, Wordmark & Language Pill (Stitch) ── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.wordmark}>Pappu</Text>
+          <View style={styles.brandIconBadge}>
+            <MaterialIcons
+              name={
+                activeTab === 'dashboard'
+                  ? 'account-balance-wallet'
+                  : activeTab === 'assistant'
+                  ? 'mic'
+                  : activeTab === 'history'
+                  ? 'receipt-long'
+                  : 'group'
+              }
+              size={18}
+              color="#FFFFFF"
+            />
+          </View>
+          <View style={styles.headerTitleBox}>
+            <Text style={styles.headerKicker}>Pappu</Text>
+            <Text style={styles.wordmark}>
+              {activeTab === 'dashboard'
+                ? 'Home'
+                : activeTab === 'assistant'
+                ? 'Assistant'
+                : activeTab === 'history'
+                ? 'History'
+                : 'People'}
+            </Text>
+          </View>
         </View>
 
-        <TouchableOpacity
-          testID="profile-avatar-button"
-          onPress={() => setProfileSheetVisible(true)}
-          style={styles.avatarButton}
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-        >
-          <Avatar name={userEmail} size={36} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <View style={styles.langPill}>
+            <MaterialIcons name="translate" size={13} color={colors.text.tertiary} style={{ marginRight: 4 }} />
+            <Text style={styles.langPillText}>EN / മലയാളം</Text>
+          </View>
+
+          <TouchableOpacity
+            testID="profile-avatar-button"
+            onPress={() => setProfileSheetVisible(true)}
+            style={styles.avatarButton}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          >
+            <Avatar name={userEmail} size={36} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── 2. Active Tab Screen Content ── */}
@@ -219,51 +321,57 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
       </View>
 
       {/* ── 3. Floating Frosted Bottom Navigation Bar ── */}
-      <View style={styles.floatingNavContainer} pointerEvents="box-none">
-        <GlassCard style={styles.navGlassCard} padding="none">
-          <View style={styles.navRow}>
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  testID={`tab-${tab.key}`}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
-                  accessibilityLabel={tab.label}
-                  onPress={() => {
-                    if (tab.key !== 'history') setHistoryFilter(null);
-                    if (tab.key !== 'people') setSelectedPersonId(null);
-                    setActiveTab(tab.key);
-                  }}
-                  style={styles.navItem}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[
-                      styles.indicatorPill,
-                      isActive && styles.indicatorPillActive,
-                    ]}
+      {!keyboardVisible && (
+        <View style={styles.floatingNavContainer} pointerEvents="box-none">
+          <GlassCard style={styles.navGlassCard} padding="none">
+            <View style={styles.navRow}>
+              {TABS.map((tab) => {
+                const isActive = activeTab === tab.key;
+                const iconColor = isActive ? colors.brand.default : colors.text.tertiary;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    testID={`tab-${tab.key}`}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: isActive }}
+                    accessibilityLabel={tab.label}
+                    onPress={() => {
+                      if (tab.key !== 'history') setHistoryFilter(null);
+                      if (tab.key !== 'people') setSelectedPersonId(null);
+                      setActiveTab(tab.key);
+                    }}
+                    style={styles.navItem}
+                    activeOpacity={0.7}
                   >
-                    <Text style={[styles.navIcon, isActive && styles.navIconActive]}>
-                      {tab.icon}
-                    </Text>
-                    <Text
+                    <View
                       style={[
-                        styles.navLabel,
-                        isActive ? styles.navLabelActive : styles.navLabelInactive,
+                        styles.indicatorPill,
+                        isActive && styles.indicatorPillActive,
                       ]}
-                      numberOfLines={1}
                     >
-                      {tab.label}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </GlassCard>
-      </View>
+                      <MaterialIcons
+                        name={tab.icon}
+                        size={20}
+                        color={iconColor}
+                        style={styles.navIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.navLabel,
+                          isActive ? styles.navLabelActive : styles.navLabelInactive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {tab.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </GlassCard>
+        </View>
+      )}
 
       {/* ── 4. Profile Bottom Sheet ── */}
       <BottomSheet
@@ -330,11 +438,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  brandIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md,
+    backgroundColor: colors.brand.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    ...shadows.sm,
+  },
+  headerTitleBox: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+  headerKicker: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.text.tertiary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   wordmark: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
-    color: colors.brand.default,
+    color: colors.text.primary,
     letterSpacing: -0.5,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  langPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+  },
+  langPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.secondary,
   },
   avatarButton: {
     padding: 2,
@@ -344,17 +493,19 @@ const styles = StyleSheet.create({
   },
   floatingNavContainer: {
     position: 'absolute',
-    bottom: 12,
+    bottom: Platform.OS === 'ios' ? 14 : 10,
     left: spacing.lg,
     right: spacing.lg,
     alignItems: 'center',
+    zIndex: 100,
   },
   navGlassCard: {
     width: '100%',
-    borderRadius: radius['3xl'],
+    maxWidth: 420,
+    borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.8)',
-    ...shadows.lg,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+    ...shadows.floatingNav,
   },
   navRow: {
     flexDirection: 'row',
@@ -362,34 +513,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 6,
     paddingHorizontal: 6,
-    minHeight: 58,
+    minHeight: 56,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 46,
+    minHeight: 48,
   },
   indicatorPill: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.full,
+    minWidth: 56,
+    minHeight: 44,
   },
   indicatorPillActive: {
     backgroundColor: colors.brand.tint,
   },
   navIcon: {
-    fontSize: 18,
     marginBottom: 2,
-    opacity: 0.6,
-  },
-  navIconActive: {
-    opacity: 1,
   },
   navLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     includeFontPadding: false,
   },
@@ -397,7 +545,7 @@ const styles = StyleSheet.create({
     color: colors.brand.default,
   },
   navLabelInactive: {
-    color: colors.text.secondary,
+    color: colors.text.tertiary,
   },
   profileSheetContent: {
     paddingTop: spacing.xs,

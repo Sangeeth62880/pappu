@@ -46,5 +46,22 @@ describe('AuthScreen Component', () => {
 
     expect(await findByText('Create an Account')).toBeTruthy();
     expect(await findByTestId('auth-name-input')).toBeTruthy();
+
+    // Press back button to revert to sign-in mode
+    const backBtn = await findByTestId('auth-back-button');
+    fireEvent.press(backBtn);
+    expect(await findByText('Sign In to Pappu')).toBeTruthy();
+  });
+
+  test('calls onBack prop when back button pressed in sign-in mode', async () => {
+    const onAuth = jest.fn();
+    const onBack = jest.fn();
+    const { findByTestId } = await render(
+      <AuthScreen onAuthenticated={onAuth} onBack={onBack} />
+    );
+
+    const backBtn = await findByTestId('auth-back-button');
+    fireEvent.press(backBtn);
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 });

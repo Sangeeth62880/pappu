@@ -179,4 +179,70 @@ describe('HomeScreen Component', () => {
 
     expect(await findByTestId('auth-screen')).toBeTruthy();
   });
+
+  test('tapping back button on history screen returns to dashboard tab', async () => {
+    client.fetchSummary.mockResolvedValueOnce(initialSummary);
+    client.fetchTransactions.mockResolvedValueOnce([]);
+
+    const { findByTestId } = await render(
+      <HomeScreen initialSession={mockSession} />
+    );
+
+    // Switch to history tab
+    fireEvent.press(await findByTestId('tab-history'));
+    expect(await findByTestId('history-view')).toBeTruthy();
+
+    // Press back button
+    fireEvent.press(await findByTestId('history-back-button'));
+    expect(await findByTestId('dashboard-view')).toBeTruthy();
+  });
+
+  test('tapping back button on people screen returns to dashboard tab', async () => {
+    client.fetchSummary.mockResolvedValueOnce(initialSummary);
+    client.fetchTransactions.mockResolvedValueOnce([]);
+    client.fetchPeopleSummary.mockResolvedValueOnce({ contacts: [] });
+
+    const { findByTestId } = await render(
+      <HomeScreen initialSession={mockSession} />
+    );
+
+    // Switch to people tab
+    fireEvent.press(await findByTestId('tab-people'));
+    expect(await findByTestId('people-view')).toBeTruthy();
+
+    // Press back button
+    fireEvent.press(await findByTestId('people-back-button'));
+    expect(await findByTestId('dashboard-view')).toBeTruthy();
+  });
+
+  test('hardware back press navigates to dashboard when on another tab', async () => {
+    const { BackHandler } = require('react-native');
+    let backPressHandler = null;
+    jest.spyOn(BackHandler, 'addEventListener').mockImplementation((event, handler) => {
+      if (event === 'hardwareBackPress') {
+        backPressHandler = handler;
+      }
+      return { remove: jest.fn() };
+    });
+
+    client.fetchSummary.mockResolvedValueOnce(initialSummary);
+    client.fetchTransactions.mockResolvedValueOnce([]);
+
+    const { findByTestId } = await render(
+      <HomeScreen initialSession={mockSession} />
+    );
+
+    // Switch to history tab
+    fireEvent.press(await findByTestId('tab-history'));
+    expect(await findByTestId('history-view')).toBeTruthy();
+
+    // Trigger hardware back press
+    expect(backPressHandler).toBeTruthy();
+    const handled = backPressHandler();
+    expect(handled).toBe(true);
+
+    // Should return to dashboard
+    expect(await findByTestId('dashboard-view')).toBeTruthy();
+  });
 });
+
