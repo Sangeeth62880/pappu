@@ -124,13 +124,15 @@ def compare_plans(actual: PlanV2, expected: PlanV2) -> Tuple[bool, str]:
                     return False, f"Op[{idx}] query balance_side mismatch: expected {exp_bs}, got {act_bs}"
             exp_sel = exp_op.selector
             act_sel = act_op.selector
-            for field in ["contact", "category", "direction", "amount_min", "amount_max", "period"]:
+            for field in ["contact", "category", "direction", "amount_min", "amount_max", "period", "limit", "recency"]:
                 exp_val = getattr(exp_sel, field, None)
                 if exp_val is not None:
                     act_val = getattr(act_sel, field, None)
                     if isinstance(exp_val, str):
-                        if (act_val or "").lower() != (exp_val and exp_val.lower()):
+                        if (act_val or "").lower() != (exp_val or "").lower():
                             return False, f"Op[{idx}] query selector.{field} mismatch: expected {exp_val}, got {act_val}"
+                    elif act_val != exp_val:
+                        return False, f"Op[{idx}] query selector.{field} mismatch: expected {exp_val}, got {act_val}"
 
         elif exp_op.op == "clarify":
             if exp_op.missing:
