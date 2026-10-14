@@ -117,9 +117,14 @@ def compare_plans(actual: PlanV2, expected: PlanV2) -> Tuple[bool, str]:
         elif exp_op.op == "query":
             if act_op.query_kind != exp_op.query_kind:
                 return False, f"Op[{idx}] query query_kind mismatch: expected {exp_op.query_kind}, got {act_op.query_kind}"
+            exp_bs = getattr(exp_op, "balance_side", None)
+            if exp_bs is not None:
+                act_bs = getattr(act_op, "balance_side", None)
+                if act_bs != exp_bs:
+                    return False, f"Op[{idx}] query balance_side mismatch: expected {exp_bs}, got {act_bs}"
             exp_sel = exp_op.selector
             act_sel = act_op.selector
-            for field in ["contact", "category", "direction", "amount_min", "amount_max"]:
+            for field in ["contact", "category", "direction", "amount_min", "amount_max", "period"]:
                 exp_val = getattr(exp_sel, field, None)
                 if exp_val is not None:
                     act_val = getattr(act_sel, field, None)
@@ -135,7 +140,11 @@ def compare_plans(actual: PlanV2, expected: PlanV2) -> Tuple[bool, str]:
                     return False, f"Op[{idx}] clarify missing mismatch: expected {exp_op.missing}, got {act_op.missing}"
 
         elif exp_op.op == "chat":
-            pass
+            exp_kind = getattr(exp_op, "kind", None)
+            if exp_kind is not None:
+                act_kind = getattr(act_op, "kind", None)
+                if act_kind != exp_kind:
+                    return False, f"Op[{idx}] chat kind mismatch: expected {exp_kind}, got {act_kind}"
 
         elif exp_op.op == "answer_pending":
             if str(act_op.value).lower() != str(exp_op.value).lower():
@@ -425,6 +434,13 @@ def compare_end_state(
         if any(r.get("action") == "undo" and r.get("ok") for r in response.results):
             return True, "", "Match"
         return False, "executor", "Expected undo to succeed"
+
+    elif action in ("pending", "contact_confirm"):
+        if response.pending and response.pending.kind in ("contact_confirm", "confirm"):
+            return True, "", "Match"
+        if any(r.get("status") in ("contact_confirm", "pending") for r in response.results):
+            return True, "", "Match"
+        return False, "executor", "Expected pending contact confirmation"
 
     return True, "", "Match"
 

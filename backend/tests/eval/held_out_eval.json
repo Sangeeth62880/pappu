@@ -1,0 +1,946 @@
+[
+  {
+    "id": "typed_01",
+    "type": "typed",
+    "group": "basic_add",
+    "input": "Dinner 450",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 450,
+          "category": "Food",
+          "description": "dinner"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_02",
+    "type": "typed",
+    "group": "basic_add",
+    "input": "Uber to airport 650",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 650,
+          "category": "Transport",
+          "description": "uber to airport"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_03",
+    "type": "typed",
+    "group": "basic_add",
+    "input": "Bought milk and bread 95",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 95,
+          "category": "Shopping",
+          "description": "milk and bread"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_04",
+    "type": "typed",
+    "group": "basic_add",
+    "input": "Amazon order 1299",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 1299,
+          "category": "Shopping",
+          "description": "amazon order"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_05",
+    "type": "typed",
+    "group": "basic_add",
+    "input": "Electricity 1450",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 1450,
+          "category": "Bills",
+          "description": "electricity"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_06",
+    "type": "typed",
+    "group": "income",
+    "input": "Salary credited 85000",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "income",
+          "amount": 85000,
+          "category": "Salary",
+          "description": "salary"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_07",
+    "type": "typed",
+    "group": "income",
+    "input": "Freelance design work 12000",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "income",
+          "amount": 12000,
+          "category": "Salary",
+          "description": "freelance design work"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_08",
+    "type": "typed",
+    "group": "income",
+    "input": "Cashback received 250",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "income",
+          "amount": 250,
+          "category": "Other",
+          "description": "cashback"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_09",
+    "type": "typed",
+    "group": "person_txns",
+    "input": "Sent 1200 to Pooja for movies",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [
+        {
+          "id": "c1",
+          "name": "Pooja",
+          "aliases": ["pooja"]
+        }
+      ],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "person",
+          "direction": "sent",
+          "amount": 1200,
+          "contact": "Pooja",
+          "description": "movies"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_10",
+    "type": "typed",
+    "group": "person_txns",
+    "input": "Gave Rahul 350",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [
+        {
+          "id": "c4",
+          "name": "Rahul",
+          "aliases": ["rahul"]
+        }
+      ],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "person",
+          "direction": "sent",
+          "amount": 350,
+          "contact": "Rahul"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_11",
+    "type": "typed",
+    "group": "person_txns",
+    "input": "Sneha sent 500",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [
+        {
+          "id": "c6",
+          "name": "Sneha",
+          "aliases": ["sneha"]
+        }
+      ],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "person",
+          "direction": "received",
+          "amount": 500,
+          "contact": "Sneha"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_12",
+    "type": "typed",
+    "group": "person_txns",
+    "input": "Lent Vivek 2000",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [
+        {
+          "id": "c5",
+          "name": "Vivek",
+          "aliases": ["vivek"]
+        }
+      ],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "person",
+          "direction": "sent",
+          "amount": 2000,
+          "contact": "Vivek",
+          "description": "lent money"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_13",
+    "type": "typed",
+    "group": "queries",
+    "input": "How much did I spend this week?",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "sum",
+          "selector": {
+            "period": "this_week"
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "typed_14",
+    "type": "typed",
+    "group": "queries",
+    "input": "Food spending today",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "sum",
+          "selector": {
+            "category": "Food",
+            "period": "today"
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "typed_15",
+    "type": "typed",
+    "group": "queries",
+    "input": "Show transactions above 1000",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "list",
+          "selector": {
+            "amount_min": 1000
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "typed_16",
+    "type": "typed",
+    "group": "queries",
+    "input": "Who owes me money?",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "balances",
+          "balance_side": "owed_to_me",
+          "selector": {}
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "typed_17",
+    "type": "typed",
+    "group": "queries",
+    "input": "What is my biggest expense this month",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "biggest",
+          "selector": {
+            "period": "this_month"
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "typed_18",
+    "type": "typed",
+    "group": "queries",
+    "input": "Spending yesterday",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "sum",
+          "selector": {
+            "period": "yesterday"
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "typed_19",
+    "type": "typed",
+    "group": "delete",
+    "input": "Delete my last coffee transaction",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "delete",
+          "selector": {
+            "text": "coffee",
+            "recency": "latest"
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "deleted",
+      "count": 1
+    }
+  },
+  {
+    "id": "typed_20",
+    "type": "typed",
+    "group": "edit",
+    "input": "Change it to 500",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": {
+        "amount": 400,
+        "category": "Food",
+        "date": "2026-10-14",
+        "description": "lunch"
+      },
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "edit",
+          "selector": {
+            "ref": "last_touched"
+          },
+          "patch": {
+            "amount": 500
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "edited"
+    }
+  },
+  {
+    "id": "voice_01",
+    "type": "voice",
+    "group": "basic_add",
+    "input": "spent. 350 rupees. on groceries",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 350,
+          "category": "Shopping",
+          "description": "groceries"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "voice_02",
+    "type": "voice",
+    "group": "person_txns",
+    "input": "paid rahul, 500 back",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [
+        {
+          "id": "c4",
+          "name": "Rahul",
+          "aliases": ["rahul"]
+        }
+      ],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "person",
+          "direction": "sent",
+          "amount": 500,
+          "contact": "Rahul",
+          "description": "paid back"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "voice_03",
+    "type": "voice",
+    "group": "basic_add",
+    "input": "dinner at hotel, 850",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 850,
+          "category": "Food",
+          "description": "dinner at hotel"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "voice_04",
+    "type": "voice",
+    "group": "queries",
+    "input": "how much did i spend on food, this week",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "sum",
+          "selector": {
+            "category": "Food",
+            "period": "this_week"
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "voice_05",
+    "type": "voice",
+    "group": "person_txns",
+    "input": "sent. pooja 400",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [
+        {
+          "id": "c1",
+          "name": "Pooja",
+          "aliases": ["pooja"]
+        }
+      ],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "person",
+          "direction": "sent",
+          "amount": 400,
+          "contact": "Pooja"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "voice_06",
+    "type": "voice",
+    "group": "basic_add",
+    "input": "auto fare 60, to office",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 60,
+          "category": "Transport",
+          "description": "auto fare"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "voice_07",
+    "type": "voice",
+    "group": "queries",
+    "input": "who owes me money.",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "query",
+          "query_kind": "balances",
+          "balance_side": "owed_to_me",
+          "selector": {}
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "query_result"
+    }
+  },
+  {
+    "id": "voice_08",
+    "type": "voice",
+    "group": "delete",
+    "input": "delete last transaction, to rahul",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [
+        {
+          "id": "c4",
+          "name": "Rahul",
+          "aliases": ["rahul"]
+        }
+      ],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "delete",
+          "selector": {
+            "contact": "Rahul",
+            "recency": "latest"
+          }
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "deleted",
+      "count": 1
+    }
+  },
+  {
+    "id": "voice_09",
+    "type": "voice",
+    "group": "income",
+    "input": "received 50000, salary",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "income",
+          "amount": 50000,
+          "category": "Salary",
+          "description": "salary"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  },
+  {
+    "id": "voice_10",
+    "type": "voice",
+    "group": "basic_add",
+    "input": "spent 150. for coffee today.",
+    "language": "en",
+    "context": {
+      "today": "2026-10-14",
+      "weekday": "Wednesday",
+      "contacts": [],
+      "last_3_chat_turns": [],
+      "last_touched_transaction": null,
+      "pending_item": null
+    },
+    "expected_plan": {
+      "ops": [
+        {
+          "op": "add",
+          "kind": "expense",
+          "amount": 150,
+          "category": "Food",
+          "date": "2026-10-14",
+          "description": "coffee"
+        }
+      ]
+    },
+    "expected_end_state": {
+      "action": "added",
+      "count": 1
+    }
+  }
+]

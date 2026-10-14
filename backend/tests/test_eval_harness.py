@@ -149,3 +149,22 @@ def test_baseline_adapter_mapping():
     assert v2_plan.ops[0].op == "add"
     assert v2_plan.ops[0].amount == 250
     assert v2_plan.ops[0].category == "Food"
+
+
+def test_held_out_eval_dataset():
+    held_out_path = Path(__file__).parent / "eval" / "held_out_eval.json"
+    assert held_out_path.exists(), "held_out_eval.json must exist"
+
+    with open(held_out_path, "r", encoding="utf-8") as f:
+        cases = json.load(f)
+
+    assert len(cases) == 30, f"Expected 30 held-out cases, got {len(cases)}"
+    typed_cases = [c for c in cases if c.get("type") == "typed"]
+    voice_cases = [c for c in cases if c.get("type") == "voice"]
+
+    assert len(typed_cases) == 20, f"Expected 20 typed cases, got {len(typed_cases)}"
+    assert len(voice_cases) == 10, f"Expected 10 voice cases, got {len(voice_cases)}"
+
+    for case in cases:
+        PlanV2.model_validate(case["expected_plan"])
+

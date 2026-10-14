@@ -86,7 +86,7 @@ def format_superseded_message(item: PendingAction) -> str:
     plan_json = item.plan_json or {}
     action = plan_json.get("action") or {}
     op = action.get("op") or ("add" if item.kind == "contact_confirm" else "action")
-    q = plan_json.get("question") or item.question or ""
+    q = plan_json.get("question") or getattr(item, "question", None) or ""
 
     cands = item.candidates_json or []
     first_cand = cands[0] if (cands and isinstance(cands, list) and isinstance(cands[0], dict)) else {}
