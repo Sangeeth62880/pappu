@@ -15,6 +15,7 @@ from sqlalchemy import func
 from app.models.transaction import Transaction
 from app.models.contact import Contact
 from app.models.undo_action import UndoAction
+from app.services.date_utils import get_current_ist_datetime
 from app.assistant.schemas import AddOp, direction_to_type
 from app.assistant.validation import (
     validate_amount,
@@ -177,6 +178,7 @@ def execute_add(
                 error=f"Unsupported transaction kind: {op.kind}",
             )
 
+        now_dt = get_current_ist_datetime()
         txn = Transaction(
             id=uuid.uuid4(),
             user_id=user_id,
@@ -186,9 +188,11 @@ def execute_add(
             contact_id=contact.id if contact else None,
             description=op.description,
             txn_date=parsed_date,
+            created_at=now_dt,
         )
+        txn.category = category
+        txn.contact = contact
         db.add(txn)
-        db.flush()
 
         undo = UndoAction(
             user_id=user_id,
@@ -196,12 +200,16 @@ def execute_add(
             transaction_id=txn.id,
             batch_id=batch_id,
             previous_state=None,
+            created_at=now_dt,
         )
         db.add(undo)
         db.commit()
-        db.refresh(txn)
 
-        serialized = serialize_transaction(txn)
+        serialized = serialize_transaction(
+            txn,
+            category_name=category.name if category else None,
+            contact_name=contact.name if contact else None,
+        )
         if op.kind == "person" and person_flow:
             serialized["person_flow"] = person_flow
 

@@ -11,7 +11,7 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_recycle=300,
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
 Base = declarative_base()
 
 def check_db_connection() -> bool:

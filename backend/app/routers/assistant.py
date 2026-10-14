@@ -57,14 +57,21 @@ from app.assistant.composer import compose_reply, format_inr, format_date_short
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
 
+_VERIFIED_USER_PROFILES = set()
+
+
 def _ensure_profile_exists(db: Session, user_id: uuid.UUID) -> Profile:
+    if user_id in _VERIFIED_USER_PROFILES:
+        return Profile(id=user_id, name="User", preferred_language="en")
     profile = db.query(Profile).filter(Profile.id == user_id).first()
     if not profile:
         profile = Profile(id=user_id, name="User", preferred_language="en")
         db.add(profile)
         db.commit()
         db.refresh(profile)
+    _VERIFIED_USER_PROFILES.add(user_id)
     return profile
+
 
 
 @router.post("/pending/{pending_id}/answer", response_model=AssistantResponse)
@@ -173,8 +180,13 @@ def handle_assistant_message(
         message_text=body.text,
         input_type=body.input,
     ) as tracer:
+        with tracer.time_stage("connection_acquisition"):
+            try:
+                db.connection()
+            except Exception:
+                pass
 
-        # 3. Context Loading (in parallel)
+        # 3. Context Loading
         with tracer.time_stage("context_loading"):
             ctx = load_assistant_context(user_id, db=db, current_message_text=body.text)
             tracer.context_json = ctx.to_dict_for_prompt()
@@ -466,7 +478,6 @@ def handle_assistant_message(
             }, default=str),
         )
         db.add_all([user_msg, asst_msg])
-        db.commit()
 
         # 10. Record Trace & Results
         tracer.set_resolver_filters(last_filters_used)
@@ -482,7 +493,7 @@ def handle_assistant_message(
             changed=changed,
         )
 
-        # 11. Record Idempotency
+        # 11. Record Idempotency and Commit
         if body.client_msg_id:
             idemp = AssistantIdempotency(
                 user_id=user_id,
@@ -490,6 +501,8 @@ def handle_assistant_message(
                 response_json=json.loads(json.dumps(response_obj.model_dump(), default=str)),
             )
             db.add(idemp)
+
+        with tracer.time_stage("commit"):
             db.commit()
 
         return response_obj

@@ -11,7 +11,7 @@ All checks are consolidated here:
 
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -81,6 +81,9 @@ def validate_and_parse_date(date_val: Union[str, date, datetime, None]) -> Tuple
     return parsed, needs_confirmation
 
 
+_CATEGORY_CACHE: Dict[str, Category] = {}
+
+
 def resolve_category(
     db: Session,
     category_name: Optional[str],
@@ -89,12 +92,28 @@ def resolve_category(
     """
     Resolves category name to a database Category row.
     Unknown or missing category maps to Other.
+    Uses in memory category cache to prevent redundant round trips.
     """
     target_name = "Other"
     if category_name:
         clean = category_name.strip().lower()
         if clean in KNOWN_CATEGORIES:
             target_name = KNOWN_CATEGORIES[clean]
+
+    target_key = target_name.lower()
+    if not _CATEGORY_CACHE:
+        try:
+            for c in db.query(Category).all():
+                _CATEGORY_CACHE[c.name.lower()] = c
+        except Exception:
+            pass
+
+    cached = _CATEGORY_CACHE.get(target_key)
+    if cached is not None:
+        try:
+            return db.merge(cached, load=False)
+        except Exception:
+            return cached
 
     cat = db.query(Category).filter(func.lower(Category.name) == target_name.lower()).first()
     if not cat:
@@ -106,6 +125,10 @@ def resolve_category(
         db.add(cat)
         db.commit()
         db.refresh(cat)
+
+    if cat:
+        _CATEGORY_CACHE[target_key] = cat
+        _CATEGORY_CACHE[cat.name.lower()] = cat
 
     return cat
 

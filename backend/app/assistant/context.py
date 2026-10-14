@@ -14,12 +14,14 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Dict, Any, Callable
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import text
+from sqlalchemy.orm import Session, sessionmaker, joinedload
 
 from app.database import SessionLocal
 from app.models.contact import Contact
 from app.models.chat_message import ChatMessage
 from app.models.transaction import Transaction
+from app.models.undo_action import UndoAction
 from app.models.pending_action import PendingAction
 from app.services.date_utils import get_current_ist_datetime
 from app.assistant.last_touched import get_last_touched_id
@@ -149,7 +151,9 @@ def load_assistant_context(
     current_message_text: Optional[str] = None,
 ) -> AssistantContext:
     """
-    Loads assistant context in parallel using threads.
+    Loads assistant context with optimal latency.
+    For PostgreSQL: runs a single round-trip combined query via JSON aggregation.
+    For SQLite: runs parallel queries with eager joins and pool reuse.
     Guarantees user isolation by filtering every query by user_id.
     Excludes the current message from last_3_chat_turns.
     """
@@ -157,6 +161,122 @@ def load_assistant_context(
     today_str = ist_now.date().isoformat()
     weekday_str = ist_now.strftime("%A")
 
+    # Fast path for PostgreSQL (production and Supabase)
+    if db is not None and getattr(getattr(db, "get_bind", lambda: None)(), "dialect", None) and db.get_bind().dialect.name == "postgresql":
+        sql = text("""
+            SELECT
+                (
+                    SELECT COALESCE(json_agg(c), '[]'::json)
+                    FROM (
+                        SELECT id::text, name, aliases
+                        FROM contacts
+                        WHERE user_id = :uid
+                        ORDER BY created_at DESC
+                        LIMIT 30
+                    ) c
+                ) AS contacts,
+                (
+                    SELECT COALESCE(json_agg(m), '[]'::json)
+                    FROM (
+                        SELECT role, text
+                        FROM chat_messages
+                        WHERE user_id = :uid
+                        ORDER BY created_at DESC, id DESC
+                        LIMIT 10
+                    ) m
+                ) AS chat_messages,
+                (
+                    SELECT row_to_json(lt)
+                    FROM (
+                        SELECT t.id::text, t.amount, cat.name AS category, con.name AS contact, t.txn_date::text AS date, t.description
+                        FROM transactions t
+                        JOIN undo_actions u ON u.transaction_id = t.id
+                        LEFT JOIN categories cat ON cat.id = t.category_id
+                        LEFT JOIN contacts con ON con.id = t.contact_id
+                        WHERE u.user_id = :uid AND t.user_id = :uid
+                        ORDER BY u.id DESC
+                        LIMIT 1
+                    ) lt
+                ) AS last_touched,
+                (
+                    SELECT row_to_json(p)
+                    FROM (
+                        SELECT id::text, kind, plan_json AS plan, candidates_json AS candidates, created_at::text
+                        FROM pending_actions
+                        WHERE user_id = :uid AND status = 'pending'
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    ) p
+                ) AS pending_action
+        """)
+        row = db.execute(sql, {"uid": str(user_id)}).mappings().first()
+
+        contacts_data = row["contacts"] or []
+        contacts = [
+            ContactContextItem(
+                id=c["id"],
+                name=c["name"],
+                aliases=c.get("aliases") or [],
+            )
+            for c in contacts_data
+        ]
+
+        raw_msgs = row["chat_messages"] or []
+        chronological = list(reversed(raw_msgs))
+        deduped: List[ChatTurnContextItem] = []
+        for msg in chronological:
+            m_role = msg.get("role", "user")
+            m_text = msg.get("text", "")
+            if (
+                current_message_text
+                and m_role == "user"
+                and (m_text or "").strip().lower() == current_message_text.strip().lower()
+            ):
+                continue
+            if deduped and deduped[-1].role == m_role and (deduped[-1].text or "").strip() == (m_text or "").strip():
+                continue
+            deduped.append(ChatTurnContextItem(role=m_role, text=m_text))
+        chat_turns = deduped[-6:]
+
+        lt_raw = row["last_touched"]
+        last_touched = (
+            LastTouchedContextItem(
+                id=lt_raw["id"],
+                amount=float(lt_raw["amount"]),
+                category=lt_raw.get("category"),
+                contact=lt_raw.get("contact"),
+                date=lt_raw["date"],
+                description=lt_raw.get("description"),
+            )
+            if lt_raw
+            else None
+        )
+
+        p_raw = row["pending_action"]
+        pending_item = (
+            PendingItemContextItem(
+                id=p_raw["id"],
+                kind=p_raw["kind"],
+                plan=p_raw.get("plan"),
+                candidates=p_raw.get("candidates"),
+                created_at=p_raw.get("created_at"),
+            )
+            if p_raw
+            else None
+        )
+
+        context = AssistantContext(
+            today=today_str,
+            weekday=weekday_str,
+            contacts=contacts,
+            last_3_chat_turns=chat_turns,
+            last_touched_transaction=last_touched,
+            pending_item=pending_item,
+        )
+        context.token_estimate = _estimate_tokens(str(context.to_dict_for_prompt()))
+        return context
+
+    # Fallback path (SQLite in tests or custom session_factory)
     if session_factory is None:
         if db is not None:
             bind = db.get_bind()
@@ -186,8 +306,6 @@ def load_assistant_context(
         with session_factory() as s:
             query = s.query(ChatMessage).filter(ChatMessage.user_id == user_id)
             if current_message_text:
-                norm_curr = current_message_text.strip().lower()
-                # Exclude any user message matching the current message
                 query = query.filter(
                     ~((ChatMessage.role == "user") & (ChatMessage.text == current_message_text))
                 )
@@ -197,7 +315,6 @@ def load_assistant_context(
                 .all()
             )
             chronological = list(reversed(rows))
-            # Deduplicate consecutive identical messages
             deduped: List[ChatTurnContextItem] = []
             for msg in chronological:
                 if (
@@ -213,12 +330,12 @@ def load_assistant_context(
 
     def fetch_last_touched() -> Optional[LastTouchedContextItem]:
         with session_factory() as s:
-            t_id = get_last_touched_id(s, user_id)
-            if not t_id:
-                return None
             txn = (
                 s.query(Transaction)
-                .filter(Transaction.id == t_id, Transaction.user_id == user_id)
+                .join(UndoAction, UndoAction.transaction_id == Transaction.id)
+                .filter(UndoAction.user_id == user_id, Transaction.user_id == user_id)
+                .order_by(UndoAction.id.desc())
+                .options(joinedload(Transaction.category), joinedload(Transaction.contact))
                 .first()
             )
             if not txn:
@@ -267,8 +384,7 @@ def load_assistant_context(
         pending_item=pending_item,
     )
 
-    # Calculate token estimate
     prompt_str = str(context.to_dict_for_prompt())
     context.token_estimate = _estimate_tokens(prompt_str)
-
     return context
+

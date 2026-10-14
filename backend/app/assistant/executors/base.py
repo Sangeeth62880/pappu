@@ -33,16 +33,22 @@ class ActionResult:
         }
 
 
-def serialize_transaction(txn: Transaction) -> Dict[str, Any]:
+def serialize_transaction(
+    txn: Transaction,
+    category_name: Optional[str] = None,
+    contact_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    resolved_category_name = category_name or (txn.category.name if txn.category else None)
+    resolved_contact_name = contact_name or (txn.contact.name if txn.contact else None)
     return {
         "id": str(txn.id),
         "user_id": str(txn.user_id),
         "type": txn.type,
         "amount": float(txn.amount),
         "category_id": txn.category_id,
-        "category_name": txn.category.name if txn.category else None,
+        "category_name": resolved_category_name,
         "contact_id": str(txn.contact_id) if txn.contact_id else None,
-        "contact_name": txn.contact.name if txn.contact else None,
+        "contact_name": resolved_contact_name,
         "description": txn.description,
         "txn_date": txn.txn_date.isoformat(),
         "created_at": txn.created_at.isoformat() if txn.created_at else None,
