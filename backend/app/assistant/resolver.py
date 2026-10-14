@@ -39,13 +39,16 @@ def resolve(
     selector: Optional[Union[Selector, dict]] = None,
     last_touched_id: Optional[uuid.UUID] = None,
     ref_date: Optional[Union[date, str]] = None,
+    for_mutation: bool = False,
 ) -> ResolveResult:
     """
     Resolve transactions strictly matching selector criteria for user_id.
 
-    Ordering: txn_date desc then created_at desc.
+    Ordering:
+    - For delete and edit (for_mutation=True), "latest" orders by created_at desc.
+    - For list and query results (for_mutation=False), order by txn_date desc then created_at desc.
     Recency: 'latest' takes 1 (newest), 'earliest' takes 1 (oldest).
-    nth: 1-indexed position in ordered results.
+    nth: 1-indexed position in ordered results for delete and edit. For list queries with recency latest, nth is treated as limit.
     Description is never filtered unless selector.text is set.
     """
     filters_used: Dict[str, Any] = {}
@@ -161,32 +164,62 @@ def resolve(
         filters_used["text"] = clean_text
         query = query.filter(Transaction.description.ilike(f"%{clean_text}%"))
 
-    # Ordering: txn_date desc then created_at desc
-    query = query.order_by(Transaction.txn_date.desc(), Transaction.created_at.desc())
+    # Ordering
+    if for_mutation:
+        # For delete and edit, latest orders by created_at desc
+        query = query.order_by(Transaction.created_at.desc())
+    else:
+        # For list and query results, order by txn_date desc then created_at desc
+        query = query.order_by(Transaction.txn_date.desc(), Transaction.created_at.desc())
+
     rows: List[Transaction] = query.all()
 
-    # Recency and position slicing
     recency_val = _get_val(selector, "recency")
-    if recency_val:
-        filters_used["recency"] = recency_val
-        if recency_val == "latest":
+    nth_val = _get_val(selector, "nth")
+    limit_val = _get_val(selector, "limit")
+
+    if for_mutation:
+        if recency_val:
+            filters_used["recency"] = recency_val
+        if nth_val is not None:
+            filters_used["nth"] = nth_val
+            idx = nth_val - 1 if nth_val >= 1 else 0
+            if 0 <= idx < len(rows):
+                rows = [rows[idx]]
+            else:
+                rows = []
+        elif recency_val == "latest":
             rows = rows[:1]
         elif recency_val == "earliest":
             rows = rows[-1:] if rows else []
-
-    nth_val = _get_val(selector, "nth")
-    if nth_val is not None:
-        filters_used["nth"] = nth_val
-        idx = nth_val - 1 if nth_val >= 1 else 0
-        if 0 <= idx < len(rows):
-            rows = [rows[idx]]
-        else:
-            rows = []
-
-    limit_val = _get_val(selector, "limit")
-    if limit_val is not None and not recency_val and nth_val is None:
-        filters_used["limit"] = limit_val
-        rows = rows[:limit_val]
+        elif limit_val is not None:
+            filters_used["limit"] = limit_val
+            rows = rows[:limit_val]
+    else:
+        # List and query results:
+        # For list queries treat nth with recency latest as limit and never return an empty result because of it
+        if recency_val == "latest" and nth_val is not None:
+            filters_used["recency"] = "latest"
+            filters_used["limit"] = nth_val
+            rows = rows[:nth_val]
+        elif limit_val is not None:
+            filters_used["limit"] = limit_val
+            if recency_val:
+                filters_used["recency"] = recency_val
+            rows = rows[:limit_val]
+        elif nth_val is not None:
+            filters_used["nth"] = nth_val
+            idx = nth_val - 1 if nth_val >= 1 else 0
+            if 0 <= idx < len(rows):
+                rows = [rows[idx]]
+            else:
+                rows = []
+        elif recency_val == "latest":
+            filters_used["recency"] = "latest"
+            rows = rows[:1]
+        elif recency_val == "earliest":
+            filters_used["recency"] = "earliest"
+            rows = rows[-1:] if rows else []
 
     count = len(rows)
     if count == 0:

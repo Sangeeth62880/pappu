@@ -30,7 +30,7 @@ def execute_delete(
     Requires confirmed=True to actually delete; otherwise returns needs_confirmation.
     """
     try:
-        resolve_res = resolve(db, user_id, op.selector, last_touched_id)
+        resolve_res = resolve(db, user_id, op.selector, last_touched_id, for_mutation=True)
 
         if resolve_res.outcome == "none":
             return ActionResult(

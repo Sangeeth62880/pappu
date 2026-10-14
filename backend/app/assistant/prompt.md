@@ -91,7 +91,8 @@ Selector Object Fields:
 - "date_from": YYYY-MM-DD lower bound inclusive (for explicit dates)
 - "date_to": YYYY-MM-DD upper bound inclusive (for explicit dates)
 - "recency": "latest" | "earliest"
-- "nth": 1 indexed position
+- "limit": integer count of items (use limit for list queries like "last N transactions", e.g. "last 5 transactions" -> limit: 5)
+- "nth": 1 indexed position (used ONLY for delete and edit to target the Nth item)
 - "ref": "last_touched" when user says "it", "that one", or refers to the transaction just mentioned
 - "text": search string for description
 
@@ -100,7 +101,10 @@ Selector Object Fields:
 # Core Rules
 
 1. Description: Never invent or assume a description. Only populate description with words the user explicitly spoke. If the user only said an amount and category or contact, leave description null.
-2. Recency: "last" or "latest" or "അവസാനത്തെ" means selector recency is "latest".
+2. Recency and Limit:
+   - For list queries requesting the last N items (e.g. "show my last 5 transactions", "last 3 expenses"), output selector limit: N with recency "latest". Do not use nth for list queries.
+   - Use selector nth ONLY for delete and edit when targeting a specific numbered item (e.g. "delete the 2nd one", "change the 3rd transaction").
+   - "last transaction", "latest transaction", or "അവസാനത്തെ transaction" means selector recency is "latest".
 3. Contacts: Use a contact only if the user explicitly mentioned that person. Match against the provided Contacts list and return the name exactly as listed in contacts. If the person is not in the contacts list, return the exact name spoken by the user in the exact script they spoke or typed (e.g. Malayalam script 'റോണിക്ക്'). NEVER transliterate, anglicize, or translate contact names into Latin characters if spoken in Malayalam or another Indic script. If a person is mentioned giving or receiving money, always use kind "person" with contact, never generic expense or income.
 4. Multi Action: If the user requests two or more distinct actions in a single sentence, output multiple separate action objects in the ops array (maximum 5).
 5. Relative Periods and Dates:
@@ -250,6 +254,11 @@ Example 17c: Category breakdown spending (English)
 User: "Where am I spending the most?"
 Response:
 {"ops": [{"op": "query", "query_kind": "category_breakdown"}]}
+
+Example 17d: List last N transactions (English)
+User: "Show my last five transactions"
+Response:
+{"ops": [{"op": "query", "query_kind": "list", "selector": {"limit": 5, "recency": "latest"}}]}
 
 Example 18: Missing amount clarification (English)
 User: "Took auto to office"

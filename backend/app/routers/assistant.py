@@ -295,7 +295,7 @@ def handle_assistant_message(
                         results.append(res.model_dump())
 
                 elif op_name == "edit":
-                    resolve_res = resolve(db, user_id, action.selector, last_touched_id, ref_date=ref_date)
+                    resolve_res = resolve(db, user_id, action.selector, last_touched_id, ref_date=ref_date, for_mutation=True)
                     last_filters_used = resolve_res.filters_used
 
                     if resolve_res.outcome == "none":
@@ -332,7 +332,7 @@ def handle_assistant_message(
                         results.append(res.model_dump())
 
                 elif op_name == "delete":
-                    resolve_res = resolve(db, user_id, action.selector, last_touched_id, ref_date=ref_date)
+                    resolve_res = resolve(db, user_id, action.selector, last_touched_id, ref_date=ref_date, for_mutation=True)
                     last_filters_used = resolve_res.filters_used
 
                     if resolve_res.outcome == "none":

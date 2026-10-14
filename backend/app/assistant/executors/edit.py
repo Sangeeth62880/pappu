@@ -34,7 +34,7 @@ def execute_edit(
     Executes an Edit operation for user_id and logs previous state into UndoAction.
     """
     try:
-        resolve_res = resolve(db, user_id, op.selector, last_touched_id)
+        resolve_res = resolve(db, user_id, op.selector, last_touched_id, for_mutation=True)
 
         if resolve_res.outcome == "none":
             return ActionResult(

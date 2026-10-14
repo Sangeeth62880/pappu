@@ -248,6 +248,11 @@ Spending has a single consistent definition across the entire codebase (defined 
 * Biggest expense queries strictly use this definition: they only inspect expense transactions excluding People (unless a person is requested), ensuring income rows such as Salary and transfers to contacts are never returned.
 * The same rule applies to sum, biggest, category breakdown / group by, and the Home dashboard summary calculations so that all reported metrics match exactly.
 
+### Recency Ordering
+
+* For delete and edit operations, "latest" orders strictly by created_at desc (physical wall clock insertion order), ensuring that recently entered or backdated records can be targeted accurately.
+* For list and query results, ordering is strictly by txn_date desc then created_at desc, displaying transactions in chronological calendar order.
+
 ---
 
 ## 8. API Contracts (Backend)
