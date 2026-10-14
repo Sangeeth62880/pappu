@@ -3,18 +3,7 @@ Bilingual spoken response generator for Pappu.
 Generates concise, natural spoken responses matching the user's input language (English / Malayalam / code-mixed).
 """
 
-import os
 from typing import Optional, Dict, Any
-
-RESPONSE_PROMPT_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "response_prompt.md"
-)
-
-
-def load_response_prompt() -> str:
-    """Load the versioned response prompt markdown template."""
-    with open(RESPONSE_PROMPT_PATH, "r", encoding="utf-8") as f:
-        return f.read()
 
 
 def generate_spoken_response(

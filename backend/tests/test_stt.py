@@ -193,14 +193,17 @@ def test_stt_transcription_flows_to_intent_and_routing(mock_jwks_client, test_db
         assert intent["action"] == "add"
         assert intent["fields"]["amount"] == 350
 
-    # 3. Route the intent -> executes immediately in DB
-    route_resp = client.post(
-        "/intent/route",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"intent": intent},
-    )
-    assert route_resp.status_code == 200
-    route_data = route_resp.json()
-    assert route_data["decision"] == "EXECUTE"
-    assert route_data["execution_result"]["status"] == "created"
-    assert route_data["execution_result"]["transaction"]["amount"] == 350.0
+    # 3. Process via assistant message -> executes immediately in DB
+    from app.assistant.schemas import Plan, AddAction
+    add_plan = Plan(ops=[AddAction(op="add", kind="expense", amount=350, category="Food", date="2026-08-31")])
+    with patch("app.assistant.planner.AssistantPlanner.plan", return_value=add_plan):
+        asst_resp = client.post(
+            "/assistant/message",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"text": transcribed_text},
+        )
+    assert asst_resp.status_code == 200
+    asst_data = asst_resp.json()
+    assert asst_data["results"][0]["action"] == "add"
+    assert asst_data["results"][0]["data"]["amount"] == 350.0
+    assert asst_data["changed"] is True

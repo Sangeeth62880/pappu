@@ -32,8 +32,4 @@ SARVAM_TTS_API_URL = os.getenv(
 )
 SARVAM_TTS_DEFAULT_SPEAKER = os.getenv("SARVAM_TTS_DEFAULT_SPEAKER", "kavitha")
 
-# Assistant v2 feature flag
-ASSISTANT_V2 = os.getenv("ASSISTANT_V2", "true").lower() in ("true", "1", "yes")
-
-
 

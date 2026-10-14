@@ -4,7 +4,6 @@
  */
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://100.82.216.61:8000';
-export const ASSISTANT_V2 = process.env.EXPO_PUBLIC_ASSISTANT_V2 !== 'false';
 
 /**
  * Helper to execute HTTP requests with auth headers.
@@ -86,46 +85,7 @@ export async function fetchTransactions(token, filters = {}) {
   return request('/transactions', { method: 'GET', token, params: filters });
 }
 
-/**
- * POST /intent/parse - Converts plain text into a validated IntentObject.
- */
-export async function parseIntent(token, text) {
-  return request('/intent/parse', {
-    method: 'POST',
-    token,
-    body: { text },
-  });
-}
 
-/**
- * POST /intent/route - Routes IntentObject per 4-tier rules and executes or returns prompts.
- */
-export async function routeIntent(token, intent) {
-  return request('/intent/route', {
-    method: 'POST',
-    token,
-    body: { intent },
-  });
-}
-
-/**
- * POST /intent/confirm - Confirms and executes an add, edit or delete action.
- */
-export async function confirmAction(token, transactionId, action, fields = null, extra = {}) {
-  const body = {
-    transaction_id: transactionId,
-    action,
-    fields,
-  };
-  if (extra && extra.contact_id) body.contact_id = extra.contact_id;
-  if (extra && extra.contact_name) body.contact_name = extra.contact_name;
-
-  return request('/intent/confirm', {
-    method: 'POST',
-    token,
-    body,
-  });
-}
 
 /**
  * PATCH /transactions/{id} - Updates an existing transaction.

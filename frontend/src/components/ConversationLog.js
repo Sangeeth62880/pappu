@@ -11,9 +11,6 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
-  parseIntent,
-  routeIntent,
-  confirmAction,
   synthesizeSpeech,
   undoTransaction,
   fetchChatHistory,
@@ -22,7 +19,6 @@ import {
   sendAssistantMessage,
   answerPending,
   fetchActivePending,
-  ASSISTANT_V2,
 } from '../api/client';
 import { generateUUID } from '../utils/uuid';
 import { playAudioBase64 } from '../utils/audioPlayer';
@@ -58,11 +54,6 @@ function formatDateHeader(date = new Date()) {
   }
 }
 
-const DEFAULT_ASSISTANT_V2 =
-  typeof process !== 'undefined' && process.env?.NODE_ENV === 'test'
-    ? false
-    : Boolean(ASSISTANT_V2);
-
 export default function ConversationLog({
   token,
   onTransactionMutated,
@@ -70,7 +61,7 @@ export default function ConversationLog({
   messages: externalMessages = null,
   setMessages: externalSetMessages = null,
   onClearMessages = null,
-  assistantV2 = DEFAULT_ASSISTANT_V2,
+  assistantV2 = true,
 }) {
   const [inputText, setInputText] = useState('');
   const textRef = useRef(inputText);
@@ -92,12 +83,10 @@ export default function ConversationLog({
   const [activePending, setActivePending] = useState(null);
   const [undoneIds, setUndoneIds] = useState({});
 
-  const shouldUseV2 = Boolean(assistantV2);
-
   // Fetch active pending action from server on mount
   useEffect(() => {
     let isMounted = true;
-    if (token && shouldUseV2 && typeof fetchActivePending === 'function') {
+    if (token && typeof fetchActivePending === 'function') {
       try {
         const promise = fetchActivePending(token);
         if (promise && typeof promise.then === 'function') {
@@ -126,7 +115,7 @@ export default function ConversationLog({
     return () => {
       isMounted = false;
     };
-  }, [token, shouldUseV2]);
+  }, [token]);
 
   useEffect(() => {
     let isMounted = true;
@@ -242,338 +231,55 @@ export default function ConversationLog({
       return;
     }
 
-    if (shouldUseV2) {
-      try {
-        setLoading(true);
-        const res = await sendAssistantMessage(token, {
-          text,
-          input: options.input || 'text',
-          client_msg_id: clientMsgId,
-        });
-
-        const replyText = res.display_text || res.spoken_text || 'Done';
-        const spokenText = res.spoken_text || '';
-        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-
-        if (res.pending && res.pending.id) {
-          setActivePending(res.pending);
-        } else {
-          setActivePending(null);
-        }
-
-        const pappuMsg = {
-          id: msgId,
-          sender: 'pappu',
-          text: replyText,
-          spoken_text: spokenText,
-          results: res.results || [],
-          pending: res.pending || null,
-          client_msg_id: clientMsgId,
-          timestamp: formatTime(),
-        };
-
-        setMessages((prev) => [...prev, pappuMsg]);
-
-        persistMessage('assistant', replyText, {
-          spoken_text: spokenText,
-          results: res.results || [],
-          pending: res.pending || null,
-        });
-
-        if (spokenText) {
-          const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';
-          speakResponse(spokenText, lang).then((audioBase64) => {
-            if (audioBase64) {
-              setMessages((prev) =>
-                prev.map((m) => (m.id === msgId ? { ...m, audioBase64 } : m))
-              );
-            }
-          });
-        }
-
-        if (res.changed && onTransactionMutated) {
-          onTransactionMutated();
-        }
-      } catch (err) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `pappu-err-${Date.now()}`,
-            sender: 'pappu',
-            text: `Error: ${err.message || 'Network request failed'}`,
-            isError: true,
-            canRetry: true,
-            failedText: text,
-            client_msg_id: clientMsgId,
-            timestamp: formatTime(),
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Legacy fallback path for existing v1 tests
     try {
       setLoading(true);
-      const parseRes = await parseIntent(token, text);
-      const intent = parseRes.intent;
-      const routeRes = await routeIntent(token, intent);
-      const decision = routeRes.decision;
-      const lang = intent.language || (activeDialect === 'Malayalam' ? 'ml' : 'en');
+      const res = await sendAssistantMessage(token, {
+        text,
+        input: options.input || 'text',
+        client_msg_id: clientMsgId,
+      });
 
-      if (decision === 'EXECUTE') {
-        let replyText = routeRes.spoken_response || 'Done!';
-        const isAddAction = intent.action === 'add';
-        if (!routeRes.spoken_response) {
-          if (isAddAction) {
-            const amt = intent.fields.amount;
-            const cat = intent.fields.category || 'expense';
-            replyText = `Added ${cat} transaction for ₹${amt}.`;
-          } else if (intent.action === 'query') {
-            replyText = 'Fetching your data. Details are displayed below.';
-          }
-        }
+      const replyText = res.display_text || res.spoken_text || 'Done';
+      const spokenText = res.spoken_text || '';
+      const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: msgId,
-            sender: 'pappu',
-            text: replyText,
-            language: lang,
-            queryResult: intent.action === 'query' ? routeRes.execution_result : null,
-            isAddSuccess: isAddAction,
-            timestamp: formatTime(),
-          },
-        ]);
+      if (res.pending && res.pending.id) {
+        setActivePending(res.pending);
+      } else {
+        setActivePending(null);
+      }
 
-        persistMessage('assistant', replyText, {
-          queryResult: intent.action === 'query' ? routeRes.execution_result : null,
-          isAddSuccess: isAddAction,
-          language: lang,
-        });
+      const pappuMsg = {
+        id: msgId,
+        sender: 'pappu',
+        text: replyText,
+        spoken_text: spokenText,
+        results: res.results || [],
+        pending: res.pending || null,
+        client_msg_id: clientMsgId,
+        timestamp: formatTime(),
+      };
 
-        speakResponse(replyText, lang).then((audioBase64) => {
+      setMessages((prev) => [...prev, pappuMsg]);
+
+      persistMessage('assistant', replyText, {
+        spoken_text: spokenText,
+        results: res.results || [],
+        pending: res.pending || null,
+      });
+
+      if (spokenText) {
+        const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';
+        speakResponse(spokenText, lang).then((audioBase64) => {
           if (audioBase64) {
             setMessages((prev) =>
               prev.map((m) => (m.id === msgId ? { ...m, audioBase64 } : m))
             );
           }
         });
-
-        if (onTransactionMutated) {
-          onTransactionMutated();
-        }
-      } else if (decision === 'ASK_CONFIRMATION') {
-        if (routeRes.contact_match) {
-          const suggested = routeRes.contact_match;
-          const prompt =
-            routeRes.confirmation_prompt ||
-            `Did you mean ${suggested.name}? Or add as new person "${suggested.original}"?`;
-
-          const confirmData = {
-            type: 'contact_confirmation',
-            action: 'add',
-            fields: intent.fields,
-            contact_id: suggested.id,
-            contact_name: suggested.name,
-            suggested_contact: suggested,
-            language: lang,
-          };
-
-          const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: msgId,
-              sender: 'pappu',
-              text: prompt,
-              type: 'contact_confirmation',
-              confirmData,
-              candidates: routeRes.candidates,
-              language: lang,
-              timestamp: formatTime(),
-            },
-          ]);
-
-          persistMessage('assistant', prompt, {
-            type: 'contact_confirmation',
-            confirmData,
-            candidates: routeRes.candidates,
-            language: lang,
-          });
-
-          speakResponse(routeRes.spoken_response || prompt, lang);
-        } else {
-          const targetId = routeRes.matched_transactions?.[0];
-          const prompt =
-            routeRes.spoken_response ||
-            routeRes.confirmation_prompt ||
-            `Are you sure you want to ${intent.action} transaction ${targetId}?`;
-
-          const confirmData = {
-            transaction_id: targetId,
-            action: intent.action,
-            fields: intent.fields,
-            target_transaction: routeRes.target_transaction,
-            language: lang,
-          };
-
-          const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: msgId,
-              sender: 'pappu',
-              text: prompt,
-              type: 'confirmation',
-              confirmData,
-              target_transaction: routeRes.target_transaction,
-              language: lang,
-              timestamp: formatTime(),
-            },
-          ]);
-
-          persistMessage('assistant', prompt, {
-            type: 'confirmation',
-            confirmData,
-            target_transaction: routeRes.target_transaction,
-            language: lang,
-          });
-
-          speakResponse(prompt, lang);
-        }
-      } else if (decision === 'ASK_DISAMBIGUATION') {
-        const prompt =
-          routeRes.spoken_response ||
-          routeRes.disambiguation_prompt ||
-          'Multiple options match. Please select:';
-        const candidates = routeRes.candidates || [];
-
-        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: msgId,
-            sender: 'pappu',
-            text: prompt,
-            type: 'disambiguation',
-            action: intent.action,
-            fields: intent.fields,
-            candidates,
-            language: lang,
-            timestamp: formatTime(),
-          },
-        ]);
-
-        persistMessage('assistant', prompt, {
-          type: 'disambiguation',
-          action: intent.action,
-          fields: intent.fields,
-          candidates,
-          language: lang,
-        });
-
-        speakResponse(prompt, lang);
-      } else if (decision === 'ASK_CLARIFICATION') {
-        const prompt =
-          routeRes.spoken_response ||
-          routeRes.clarification_prompt ||
-          'Please provide more details (amount, category, or date).';
-
-        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: msgId,
-            sender: 'pappu',
-            text: prompt,
-            type: 'clarification',
-            language: lang,
-            timestamp: formatTime(),
-          },
-        ]);
-
-        persistMessage('assistant', prompt, {
-          type: 'clarification',
-          language: lang,
-        });
-
-        speakResponse(prompt, lang);
-      }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `pappu-err-${Date.now()}`,
-          sender: 'pappu',
-          text: `Error: ${err.message || 'Something went wrong'}`,
-          isError: true,
-          timestamp: formatTime(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConfirmAction = async (confirmData, customContact = null) => {
-    try {
-      setLoading(true);
-
-      const action = confirmData.action || 'add';
-      const extra = {};
-      if (customContact) {
-        if (customContact.id && customContact.id !== 'new') {
-          extra.contact_id = customContact.id;
-        }
-        if (customContact.name) {
-          extra.contact_name = customContact.name;
-        }
-      } else if (confirmData.contact_id) {
-        extra.contact_id = confirmData.contact_id;
-        extra.contact_name = confirmData.contact_name;
       }
 
-      if (Object.keys(extra).length > 0) {
-        await confirmAction(
-          token,
-          confirmData.transaction_id || null,
-          action,
-          confirmData.fields,
-          extra
-        );
-      } else {
-        await confirmAction(
-          token,
-          confirmData.transaction_id || null,
-          action,
-          confirmData.fields
-        );
-      }
-
-      const replyText = action === 'add'
-        ? `Added transaction for ${extra.contact_name || 'contact'}.`
-        : `Successfully executed ${action}.`;
-
-      const msgId = `pappu-${Date.now()}`;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: msgId,
-          sender: 'pappu',
-          text: replyText,
-          timestamp: formatTime(),
-        },
-      ]);
-
-      persistMessage('assistant', replyText);
-      speakResponse(replyText, confirmData.language || 'en');
-
-      if (onTransactionMutated) {
+      if (res.changed && onTransactionMutated) {
         onTransactionMutated();
       }
     } catch (err) {
@@ -582,8 +288,11 @@ export default function ConversationLog({
         {
           id: `pappu-err-${Date.now()}`,
           sender: 'pappu',
-          text: `Failed to execute: ${err.message}`,
+          text: `Error: ${err.message || 'Network request failed'}`,
           isError: true,
+          canRetry: true,
+          failedText: text,
+          client_msg_id: clientMsgId,
           timestamp: formatTime(),
         },
       ]);
@@ -591,6 +300,7 @@ export default function ConversationLog({
       setLoading(false);
     }
   };
+
 
   const handleAnswerPending = async (pendingId, answer, index = null) => {
     if (!token || !pendingId) return;
@@ -655,43 +365,6 @@ export default function ConversationLog({
     }
   };
 
-  const handleSelectDisambiguationCandidate = (candidate, action, fields, lang = 'en') => {
-    if (candidate.type === 'existing' || candidate.type === 'new' || (candidate.name && !candidate.amount)) {
-      const confirmData = {
-        action: action || 'add',
-        fields,
-        contact_id: candidate.id !== 'new' ? candidate.id : null,
-        contact_name: candidate.name,
-        language: lang,
-      };
-      handleConfirmAction(confirmData, candidate);
-      return;
-    }
-
-    const confirmData = {
-      transaction_id: candidate.id,
-      action,
-      fields,
-      target_transaction: candidate,
-      language: lang,
-    };
-
-    const prompt = `Selected ₹${candidate.amount} (${candidate.category_name || 'txn'} on ${candidate.txn_date}). Confirm ${action}?`;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `pappu-${Date.now()}`,
-        sender: 'pappu',
-        text: prompt,
-        type: 'confirmation',
-        confirmData,
-        target_transaction: candidate,
-        timestamp: formatTime(),
-      },
-    ]);
-
-    speakResponse(prompt, lang);
-  };
 
   const handleUndo = async (msgId) => {
     if (!token) return;
@@ -842,55 +515,7 @@ export default function ConversationLog({
           {/* v2 Pending Card */}
           {hasV2Pending ? (
             renderPendingCard(msg.pending, isPendingHistorical, msg.text)
-          ) : msg.type === 'contact_confirmation' && msg.confirmData ? (
-            /* Legacy Contact Confirmation */
-            <ConfirmationCard
-              prompt={msg.text}
-              type="confirmation"
-              isHistorical={Boolean(msg.isHistorical)}
-              actionLabel={msg.isHistorical ? 'Resolved' : `Yes, ${msg.confirmData.suggested_contact?.name || 'confirm'}`}
-              onConfirm={
-                msg.isHistorical
-                  ? null
-                  : () =>
-                      handleConfirmAction(msg.confirmData, {
-                        id: msg.confirmData.suggested_contact?.id,
-                        name: msg.confirmData.suggested_contact?.name,
-                      })
-              }
-              secondaryAction={!msg.isHistorical}
-              secondaryLabel={`+ Add new "${msg.confirmData.suggested_contact?.original || 'person'}"`}
-              onSecondaryAction={() =>
-                handleConfirmAction(msg.confirmData, {
-                  id: 'new',
-                  name: msg.confirmData.suggested_contact?.original,
-                })
-              }
-            />
-          ) : msg.type === 'confirmation' && msg.confirmData ? (
-            /* Legacy Confirmation */
-            <ConfirmationCard
-              prompt={msg.text}
-              type="confirmation"
-              isHistorical={Boolean(msg.isHistorical)}
-              targetTransaction={msg.target_transaction || msg.confirmData.target_transaction}
-              onConfirm={msg.isHistorical ? null : () => handleConfirmAction(msg.confirmData)}
-              actionLabel={msg.isHistorical ? 'Resolved' : msg.confirmData.action}
-              secondaryAction={!msg.isHistorical}
-              secondaryLabel="Cancel"
-              onSecondaryAction={() => {}}
-            />
-          ) : msg.type === 'disambiguation' && msg.candidates ? (
-            /* Legacy Disambiguation */
-            <ConfirmationCard
-              prompt={msg.text}
-              type="disambiguation"
-              candidates={msg.candidates}
-              onSelect={(cand) =>
-                handleSelectDisambiguationCandidate(cand, msg.action, msg.fields, msg.language)
-              }
-              actionLabel={msg.action}
-            />
+
           ) : isAddCard ? (
             /* Add Result Card with heard amount & Undo button */
             <View style={[styles.assistantCard, shadows.sm]} testID="add-result-card">

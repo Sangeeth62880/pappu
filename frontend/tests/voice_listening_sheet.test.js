@@ -67,24 +67,12 @@ describe('Fix 6: Mic Accessible from Every Screen', () => {
   test('VoiceListeningSheet processes input, displays result, and triggers live update', async () => {
     const mockOnMutated = jest.fn();
 
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 350, category: 'Food' },
-        matched_transactions: [],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'add',
-      confidence: 'high',
-      execution_result: { status: 'created' },
-      spoken_response: 'Added Food for ₹350.',
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Added Food for ₹350.',
+      spoken_text: 'Added Food for ₹350.',
+      results: [{ kind: 'added', amount: 350 }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(

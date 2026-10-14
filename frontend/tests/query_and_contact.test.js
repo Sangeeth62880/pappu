@@ -13,33 +13,24 @@ describe('ConversationLog - Contact Confirmation & Query Visuals', () => {
   });
 
   test('query command renders QueryDataCard with total amount and category badge', async () => {
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'query',
-        language: 'en',
-        fields: { category: 'Food' },
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'query',
-      confidence: 'high',
-      spoken_response: 'Fetching your data.',
-      execution_result: {
-        status: 'queried',
-        category: 'Food',
-        period: 'This month',
-        total_amount: 1450.0,
-        count: 2,
-        transactions: [
-          { id: 't-1', description: 'Lunch at cafe', amount: 450.0, txn_date: '2026-10-05', type: 'expense' },
-          { id: 't-2', description: 'Groceries', amount: 1000.0, txn_date: '2026-10-10', type: 'expense' },
-        ],
-      },
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Fetching your data.',
+      spoken_text: 'Fetching your data.',
+      results: [
+        {
+          kind: 'sum',
+          category: 'Food',
+          period: 'This month',
+          total_amount: 1450.0,
+          count: 2,
+          transactions: [
+            { id: 't-1', description: 'Lunch at cafe', amount: 450.0, txn_date: '2026-10-05', type: 'expense' },
+            { id: 't-2', description: 'Groceries', amount: 1000.0, txn_date: '2026-10-10', type: 'expense' },
+          ],
+        },
+      ],
+      pending: null,
+      changed: false,
     });
 
     const { findByTestId, findByText } = await render(
@@ -59,33 +50,25 @@ describe('ConversationLog - Contact Confirmation & Query Visuals', () => {
   test('contact similarity prompts for confirmation with suggested person', async () => {
     const mockOnMutated = jest.fn();
 
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 500, contact_name: 'arjun' },
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: "Did you mean 'Arjun Nair'? Or add as new person 'arjun'?",
+      spoken_text: "Did you mean 'Arjun Nair'? Or add as new person 'arjun'?",
+      results: [],
+      pending: {
+        id: 'pend_contact',
+        action_type: 'contact_confirm',
+        summary: "Did you mean 'Arjun Nair'? Or add as new person 'arjun'?",
+        candidates: [{ id: 'c-123', name: 'Arjun Nair', original: 'arjun' }],
       },
+      changed: false,
     });
 
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'ASK_CONFIRMATION',
-      action: 'add',
-      confidence: 'high',
-      confirmation_prompt: "Did you mean 'Arjun Nair'? Or add as new person 'arjun'?",
-      contact_match: { id: 'c-123', name: 'Arjun Nair', original: 'arjun' },
-      candidates: [
-        { id: 'c-123', name: 'Arjun Nair', type: 'existing' },
-        { id: 'new', name: 'arjun', type: 'new' },
-      ],
-    });
-
-    client.confirmAction.mockResolvedValueOnce({
-      status: 'executed',
-      action: 'add',
-      transaction: { id: 't-99', amount: 500, contact_name: 'Arjun Nair' },
+    client.answerPending.mockResolvedValueOnce({
+      display_text: 'Added transaction for Arjun Nair.',
+      spoken_text: 'Added transaction for Arjun Nair.',
+      results: [{ kind: 'added', amount: 500, contact_name: 'Arjun Nair' }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(
@@ -104,12 +87,11 @@ describe('ConversationLog - Contact Confirmation & Query Visuals', () => {
     fireEvent.press(confirmBtn);
 
     await waitFor(() => {
-      expect(client.confirmAction).toHaveBeenCalledWith(
+      expect(client.answerPending).toHaveBeenCalledWith(
         mockToken,
-        null,
-        'add',
-        expect.anything(),
-        expect.objectContaining({ contact_id: 'c-123', contact_name: 'Arjun Nair' })
+        'pend_contact',
+        'yes',
+        0
       );
       expect(mockOnMutated).toHaveBeenCalledTimes(1);
     });

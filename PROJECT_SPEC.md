@@ -142,6 +142,70 @@ Rules:
 
 ---
 
+## 5b. Pappu Assistant v2 Architecture and Specification
+
+Pappu Assistant v2 replaces legacy multi round intent routing with a single LLM planner architecture. Intent classification is the LLM planner's job. Resolution, execution, and replies are deterministic code. Zero keyword or regex intent classification is used.
+
+### Plan Schema
+Plans are strictly validated using Pydantic models. A plan consists of up to 5 actions executed in order:
+
+```json
+{
+  "ops": [
+    {
+      "op": "add",
+      "amount": 250.0,
+      "category": "Food",
+      "type": "expense",
+      "description": "lunch",
+      "contact_name": null,
+      "date": "2026-10-14"
+    }
+  ]
+}
+```
+
+Action operations include:
+* `add`: requires `amount` (float), optional `category`, `type` (`expense` or `income`), `description`, `contact_name`, `date`.
+* `edit`: requires `target` filter criteria and `patch` with fields to update.
+* `delete`: requires `target` filter criteria.
+* `query`: requires `query_type` (`balances`, `sum`, `list`, `compare`, `top`), with optional `filters` (`category`, `contact_name`, `date_range`, `search`), `group_by`, and `compare_with`.
+* `clarify`: requires `question` and `missing_fields`.
+* `chat`: requires `kind` (`greeting`, `help`, `off_topic`, `unsupported`). The composer generates the text reply.
+
+### Endpoints
+* `POST /assistant/message`: Primary conversational endpoint. Accepts `{ text: str, input: "text" | "voice", client_msg_id: str }`. Runs one LLM planner call, resolves entities, executes actions, and returns `{ reply, display_text, spoken_text, results, pending, changed }`.
+* `POST /assistant/pending/{id}/answer`: Answers an active pending confirmation or disambiguation. Accepts `{ answer: "confirm" | "cancel" | "choose" | str, index: int | null }`. Deterministically executes or cancels the pending plan.
+* `GET /assistant/pending`: Returns the single active pending action for the verified user.
+
+### Pending State Machine
+Destructive actions (edit, delete) or ambiguous contact references produce a pending state stored in `assistant_pending`.
+* States: `pending`, `resolved`, `cancelled`.
+* Exactly one active pending state exists per user. Submitting a new conflicting command cancels prior pending state.
+* Actions requiring confirmation display a confirmation card with target transaction details.
+* Actions with multiple matches display a disambiguation card with candidate selection buttons.
+
+### Contact Aliases
+Contacts support alternate names and nicknames stored in `contacts.aliases` as a JSON list.
+* The planner returns the contact name or alias matching user input.
+* The resolver matches names and aliases using exact matching followed by fuzzy similarity.
+
+### Resolver Rules
+* Dates: Relative expressions such as today, yesterday, last week, and weekday names resolve strictly in IST timezone.
+* Contacts: Exact match attaches the contact id. Close similarity above 0.85 Jaro Winkler threshold prompts contact confirmation. New names prompt creation.
+* Disambiguation: Single match for edit or delete creates a pending confirmation. Multiple matches create a pending disambiguation with up to 5 candidates. Zero matches returns a clear not found notice.
+
+### Composer Templates
+The response composer uses deterministic template generation for English and Malayalam.
+* Zero secondary LLM calls. The composer formats results directly.
+* Produces two distinct strings: `display_text` with currency formatting and styling, and `spoken_text` optimized for text to speech pronunciation without emojis.
+
+### Latency Budget
+* Roundtrip target: p50 under 1500ms, p95 under 2500ms.
+* Parallel context loading: User context (IST date, top 30 contacts with aliases, last 3 chat turns, last touched transaction, active pending item) loads concurrently before prompt assembly.
+
+---
+
 ## 6. Confirmation & Error-Recovery Tiers
 
 | Tier | Trigger | System behavior |
@@ -192,12 +256,14 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| POST | `/intent/route` | Accepts an LLM intent object, returns routing decision (§6) + any data needed for confirmation/disambiguation prompts |
+| POST | `/assistant/message` | Accepts user message, loads context, invokes LLM planner, resolves, executes, and returns composer reply |
+| POST | `/assistant/pending/{id}/answer` | Answers active pending confirmation or disambiguation action |
+| GET | `/assistant/pending` | Fetches active pending item for authenticated user |
 | POST | `/transactions` | Create transaction |
-| PUT | `/transactions/{id}` | Update transaction |
+| PATCH | `/transactions/{id}` | Update transaction |
 | DELETE | `/transactions/{id}` | Delete transaction |
-| GET | `/transactions` | List/filter transactions (by date range, category, search) |
-| GET | `/summary` | Period-scoped analytics: spent, income, net, previous period delta, daily chart buckets, expense category breakdown, people totals & top contacts, top expenses |
+| GET | `/transactions` | List and filter transactions (by date range, category, search) |
+| GET | `/summary` | Period scoped analytics: spent, income, net, previous period delta, daily chart buckets, expense category breakdown, people totals and top contacts, top expenses |
 | GET | `/summary/people` | List of contacts with net balance, total sent, total received |
 | GET | `/summary/people/{contact_id}` | Full transaction history with that contact plus net balance and contact details |
 

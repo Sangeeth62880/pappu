@@ -104,23 +104,12 @@ describe('HomeScreen Component', () => {
         { id: 'txn-new', amount: 500, category_name: 'Food', type: 'expense', txn_date: '2026-08-31' },
       ]);
 
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 500, category: 'Food' },
-        matched_transactions: [],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'add',
-      confidence: 'high',
-      execution_result: { status: 'created' },
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Added Food transaction for ₹500.',
+      spoken_text: 'Added Food transaction for ₹500.',
+      results: [{ kind: 'added', amount: 500 }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(

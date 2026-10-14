@@ -8,8 +8,8 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base
 from app.models import Contact, Transaction, Category, Profile
 from app.services.contact_matcher import find_similar_contacts
-from app.schemas.intent import IntentFields
-from app.services.matcher import match_transactions
+from app.assistant.resolver import resolve
+from app.assistant.schemas import Selector
 
 
 @pytest.fixture
@@ -76,6 +76,11 @@ def test_matcher_supports_month_range(db_session):
     db_session.add_all([t1, t2])
     db_session.commit()
 
-    fields = IntentFields(category="Food", date="2026-10-01")
-    matched = match_transactions(db_session, user_id, fields, reasoning="User wants food expenses for this month")
-    assert len(matched) == 2
+    sel = Selector(
+        category="Food",
+        date_from="2026-10-01",
+        date_to="2026-10-31",
+    )
+    res = resolve(db_session, user_id, selector=sel)
+    assert res.outcome == "many"
+    assert len(res.rows) == 2

@@ -67,8 +67,11 @@ describe('Persistent Chat History', () => {
           role: 'assistant',
           text: 'Are you sure you want to delete transaction txn-old?',
           payload: {
-            type: 'confirmation',
-            confirmData: { action: 'delete', transaction_id: 'txn-old' },
+            pending: {
+              id: 'pend-old',
+              action_type: 'delete',
+              summary: 'Are you sure you want to delete transaction txn-old?',
+            },
           },
           created_at: '2026-10-13T09:00:00Z',
         },
@@ -87,22 +90,12 @@ describe('Persistent Chat History', () => {
 
   test('persists user message and assistant reply to backend', async () => {
     client.fetchChatHistory.mockResolvedValueOnce({ messages: [], total: 0 });
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 120, category: 'Food' },
-        matched_transactions: [],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'add',
-      confidence: 'high',
-      execution_result: { status: 'created' },
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Added Food transaction for ₹120.',
+      spoken_text: 'Added Food transaction for ₹120.',
+      results: [{ kind: 'added', amount: 120 }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(

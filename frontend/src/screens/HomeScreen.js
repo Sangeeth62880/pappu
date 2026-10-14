@@ -25,7 +25,7 @@ import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
-import { undoTransaction, clearChatHistory, ASSISTANT_V2 } from '../api/client';
+import { undoTransaction, clearChatHistory } from '../api/client';
 
 const TABS = [
   { key: 'dashboard', label: 'Home', icon: 'account-balance-wallet' },

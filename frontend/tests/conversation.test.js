@@ -15,26 +15,12 @@ describe('ConversationLog Component', () => {
   test('submitting a high-confidence add command executes and triggers onTransactionMutated', async () => {
     const mockOnMutated = jest.fn();
 
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 500, category: 'Food' },
-        matched_transactions: [],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'add',
-      confidence: 'high',
-      execution_result: {
-        status: 'created',
-        transaction: { id: 'txn-1', amount: 500, category_name: 'Food' },
-      },
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Added Food transaction for ₹500.',
+      spoken_text: 'Added Food transaction for ₹500.',
+      results: [{ kind: 'added', amount: 500 }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(
@@ -51,8 +37,10 @@ describe('ConversationLog Component', () => {
     expect(await findByText('Added Food transaction for ₹500.')).toBeTruthy();
 
     await waitFor(() => {
-      expect(client.parseIntent).toHaveBeenCalledWith(mockToken, 'I spent 500 on food today');
-      expect(client.routeIntent).toHaveBeenCalled();
+      expect(client.sendAssistantMessage).toHaveBeenCalledWith(
+        mockToken,
+        expect.objectContaining({ text: 'I spent 500 on food today' })
+      );
       expect(mockOnMutated).toHaveBeenCalledTimes(1);
     });
   });
@@ -61,31 +49,25 @@ describe('ConversationLog Component', () => {
     const mockOnMutated = jest.fn();
     const txnId = '123e4567-e89b-12d3-a456-426614174000';
 
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'delete',
-        language: 'en',
-        fields: { category: 'Food', date: '2026-08-31' },
-        matched_transactions: [txnId],
-        confidence: 'high',
-        requires_confirmation: true,
-        missing_fields: [],
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: `Are you sure you want to delete transaction ${txnId}?`,
+      spoken_text: `Are you sure you want to delete transaction ${txnId}?`,
+      results: [],
+      pending: {
+        id: 'pend_del',
+        action_type: 'delete',
+        summary: `Are you sure you want to delete transaction ${txnId}?`,
+        target_transaction: { id: txnId, amount: 350, category_name: 'Food' },
       },
+      changed: false,
     });
 
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'ASK_CONFIRMATION',
-      action: 'delete',
-      confidence: 'high',
-      matched_transactions: [txnId],
-      confirmation_prompt: `Are you sure you want to delete transaction ${txnId}?`,
-      target_transaction: { id: txnId, amount: 350, category_name: 'Food' },
-    });
-
-    client.confirmAction.mockResolvedValueOnce({
-      status: 'executed',
-      action: 'delete',
-      transaction: { id: txnId },
+    client.answerPending.mockResolvedValueOnce({
+      display_text: 'Successfully executed delete.',
+      spoken_text: 'Successfully executed delete.',
+      results: [{ kind: 'deleted', transaction_id: txnId }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(
@@ -101,21 +83,21 @@ describe('ConversationLog Component', () => {
     // 2. Prompt appears in log
     expect(await findByText(`Are you sure you want to delete transaction ${txnId}?`)).toBeTruthy();
 
-    // CRITICAL ASSERTION: onTransactionMutated has NOT been called yet!
+    // CRITICAL ASSERTION: onTransactionMutated has NOT been called yet
     expect(mockOnMutated).not.toHaveBeenCalled();
 
     // 3. User clicks Confirm button
-    const confirmButton = await findByText(`✓ Confirm delete`);
+    const confirmButton = await findByText('✓ Confirm delete');
     fireEvent.press(confirmButton);
 
     // 4. Action executes and THEN onTransactionMutated is called
     expect(await findByText('Successfully executed delete.')).toBeTruthy();
     await waitFor(() => {
-      expect(client.confirmAction).toHaveBeenCalledWith(
+      expect(client.answerPending).toHaveBeenCalledWith(
         mockToken,
-        txnId,
-        'delete',
-        expect.objectContaining({ category: 'Food' })
+        'pend_del',
+        'confirm',
+        null
       );
       expect(mockOnMutated).toHaveBeenCalledTimes(1);
     });
@@ -126,25 +108,17 @@ describe('ConversationLog Component', () => {
     const cand1 = { id: 'c1', amount: 100, category_name: 'Food', txn_date: '2026-08-30' };
     const cand2 = { id: 'c2', amount: 200, category_name: 'Food', txn_date: '2026-08-30' };
 
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'delete',
-        language: 'en',
-        fields: { category: 'Food' },
-        matched_transactions: ['c1', 'c2'],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Multiple transactions match. Please select which one:',
+      spoken_text: 'Multiple transactions match. Please select which one:',
+      results: [],
+      pending: {
+        id: 'pend_dis',
+        action_type: 'disambiguate',
+        summary: 'Multiple transactions match. Please select which one:',
+        candidates: [cand1, cand2],
       },
-    });
-
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'ASK_DISAMBIGUATION',
-      action: 'delete',
-      confidence: 'high',
-      matched_transactions: ['c1', 'c2'],
-      disambiguation_prompt: 'Multiple transactions match. Please select which one:',
-      candidates: [cand1, cand2],
+      changed: false,
     });
 
     const { findByTestId, findByText, getByText } = await render(

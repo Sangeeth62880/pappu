@@ -14,7 +14,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.config import ASSISTANT_V2
 from app.auth import get_current_user_id
 from app.models.profile import Profile
 from app.models.chat_message import ChatMessage
@@ -76,12 +75,6 @@ def answer_pending_endpoint(
     No LLM call is executed.
     Cross-user pending IDs return 404.
     """
-    if not ASSISTANT_V2:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assistant v2 is disabled",
-        )
-
     _ensure_profile_exists(db, user_id)
 
     item = get_pending_by_id(db, pending_id, user_id)
@@ -117,12 +110,6 @@ def get_active_pending_endpoint(
     Returns the active pending confirmation for the authenticated user, or None.
     If the active pending item has expired, returns None.
     """
-    if not ASSISTANT_V2:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assistant v2 is disabled",
-        )
-
     _ensure_profile_exists(db, user_id)
     item = get_active_pending(db, user_id)
     if not item:
@@ -144,12 +131,6 @@ def handle_assistant_message(
     deterministic execution, pending state management, reply composition,
     idempotency, and tracing.
     """
-    if not ASSISTANT_V2:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assistant v2 is disabled",
-        )
-
     _ensure_profile_exists(db, user_id)
 
     # 1. Idempotency Check

@@ -130,28 +130,13 @@ describe('MicButton & Voice Input Integration', () => {
       language_code: 'en-IN',
     });
 
-    // 2. Mock Intent Parsing
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 400, category: 'Shopping' },
-        matched_transactions: [],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-
-    // 3. Mock Intent Routing & Execution
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'add',
-      confidence: 'high',
-      execution_result: {
-        status: 'created',
-        transaction: { id: 'txn-voice-1', amount: 400, category_name: 'Shopping' },
-      },
+    // 2. Mock Assistant v2
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Added Shopping transaction for ₹400.',
+      spoken_text: 'Added Shopping transaction for ₹400.',
+      results: [{ kind: 'added', amount: 400 }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(
@@ -170,8 +155,10 @@ describe('MicButton & Voice Input Integration', () => {
     expect(await findByText('Added Shopping transaction for ₹400.')).toBeTruthy();
 
     await waitFor(() => {
-      expect(client.parseIntent).toHaveBeenCalledWith(mockToken, 'I spent 400 on shopping');
-      expect(client.routeIntent).toHaveBeenCalled();
+      expect(client.sendAssistantMessage).toHaveBeenCalledWith(
+        mockToken,
+        expect.objectContaining({ text: 'I spent 400 on shopping' })
+      );
       expect(mockOnMutated).toHaveBeenCalledTimes(1);
     });
   });

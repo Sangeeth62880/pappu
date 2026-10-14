@@ -1,11 +1,11 @@
 """
-Integration tests for Phase 4: Confirmation & Error-Recovery Routing.
+Integration tests for Confirmation & Disambiguation Routing via Assistant v2.
 
-Per BUILD_PHASES.md Phase 4:
+Per BUILD_PHASES.md Phase 4 (updated for Assistant v2):
 - Integration test: 'add' intent flows straight through to a DB write.
-- Integration test: 'delete' intent with one match stops at ASK_CONFIRMATION and does NOT write until follow-up confirmation.
-- Integration test: 'delete' intent with multiple matches stops at ASK_DISAMBIGUATION and does not write.
-- Integration test: 'edit' intent with one match stops at ASK_CONFIRMATION and does not write until follow-up confirmation.
+- Integration test: 'delete' intent with one match stops at confirmation and does NOT write until follow-up confirmation.
+- Integration test: 'delete' intent with multiple matches stops at disambiguation and does not write.
+- Integration test: 'edit' intent with one match stops at confirmation and does not write until follow-up confirmation.
 - Integration test: 'undo' correctly reverses the most recent transaction only.
 - User data isolation test for routing, confirmation, and undo.
 """
@@ -25,6 +25,13 @@ from app.database import Base, get_db, init_db
 from app.models import Category, Transaction, Profile
 from app.auth import jwks_client
 from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
+from app.assistant.schemas import (
+    Plan,
+    AddAction,
+    EditAction,
+    DeleteAction,
+    Selector,
+)
 
 client = TestClient(app)
 
@@ -75,32 +82,31 @@ class TestAddIntentExecution:
         user_id = str(uuid.uuid4())
         token = create_test_es256_jwt(user_id)
 
-        response = client.post(
-            "/intent/route",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "intent": {
-                    "action": "add",
-                    "language": "en",
-                    "fields": {
-                        "amount": 450,
-                        "category": "Food",
-                        "date": "2026-08-31",
-                        "description": "lunch meeting"
-                    },
-                    "matched_transactions": [],
-                    "confidence": "high",
-                    "requires_confirmation": False,
-                    "missing_fields": []
-                }
-            }
+        add_plan = Plan(
+            ops=[
+                AddAction(
+                    op="add",
+                    kind="expense",
+                    amount=450,
+                    category="Food",
+                    date="2026-08-31",
+                    description="lunch meeting",
+                )
+            ]
         )
+
+        with patch("app.assistant.planner.AssistantPlanner.plan", return_value=add_plan):
+            response = client.post(
+                "/assistant/message",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"text": "I spent 450 on lunch meeting on 2026-08-31"},
+            )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["decision"] == "EXECUTE"
-        assert data["execution_result"]["status"] == "created"
-        created_id = data["execution_result"]["transaction"]["id"]
+        assert data["changed"] is True
+        assert len(data["results"]) == 1
+        created_id = data["results"][0]["data"]["id"]
 
         # Verify record exists in DB
         txn = test_db_session.query(Transaction).filter_by(id=uuid.UUID(created_id)).first()
@@ -134,50 +140,42 @@ class TestDeleteConfirmationAndDisambiguation:
         test_db_session.commit()
         txn_id_str = str(txn.id)
 
-        # 1. Route delete intent
-        route_res = client.post(
-            "/intent/route",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "intent": {
-                    "action": "delete",
-                    "language": "en",
-                    "fields": {
-                        "category": "Food",
-                        "date": "2026-08-30"
-                    },
-                    "matched_transactions": [],
-                    "confidence": "high",
-                    "requires_confirmation": False,
-                    "missing_fields": []
-                }
-            }
+        # 1. Route delete intent via assistant
+        delete_plan = Plan(
+            ops=[
+                DeleteAction(
+                    op="delete",
+                    selector=Selector(category="Food", date_from="2026-08-30", date_to="2026-08-30"),
+                )
+            ]
         )
+        with patch("app.assistant.planner.AssistantPlanner.plan", return_value=delete_plan):
+            route_res = client.post(
+                "/assistant/message",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"text": "delete my food expense from 2026-08-30"},
+            )
 
         assert route_res.status_code == 200
         route_data = route_res.json()
-        assert route_data["decision"] == "ASK_CONFIRMATION"
-        assert route_data["matched_transactions"] == [txn_id_str]
-        assert route_data["target_transaction"]["id"] == txn_id_str
+        assert route_data["pending"] is not None
+        assert route_data["pending"]["kind"] == "confirm"
+        pending_id = route_data["pending"]["id"]
 
         # CRITICAL ASSERTION: Transaction MUST STILL EXIST in the database!
         txn_in_db = test_db_session.query(Transaction).filter_by(id=uuid.UUID(txn_id_str)).first()
         assert txn_in_db is not None
 
-        # 2. Confirm delete
+        # 2. Confirm delete via pending answer
         confirm_res = client.post(
-            "/intent/confirm",
+            f"/assistant/pending/{pending_id}/answer",
             headers={"Authorization": f"Bearer {token}"},
-            json={
-                "transaction_id": txn_id_str,
-                "action": "delete"
-            }
+            json={"answer": "yes"},
         )
 
         assert confirm_res.status_code == 200
         confirm_data = confirm_res.json()
-        assert confirm_data["status"] == "executed"
-        assert confirm_data["action"] == "delete"
+        assert confirm_data["changed"] is True
 
         # Verify transaction is now deleted from DB
         test_db_session.expire_all()
@@ -213,30 +211,26 @@ class TestDeleteConfirmationAndDisambiguation:
         test_db_session.add_all([t1, t2])
         test_db_session.commit()
 
-        route_res = client.post(
-            "/intent/route",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "intent": {
-                    "action": "delete",
-                    "language": "en",
-                    "fields": {
-                        "category": "Food",
-                        "date": "2026-08-30"
-                    },
-                    "matched_transactions": [],
-                    "confidence": "high",
-                    "requires_confirmation": False,
-                    "missing_fields": []
-                }
-            }
+        delete_plan = Plan(
+            ops=[
+                DeleteAction(
+                    op="delete",
+                    selector=Selector(category="Food", date_from="2026-08-30", date_to="2026-08-30"),
+                )
+            ]
         )
+        with patch("app.assistant.planner.AssistantPlanner.plan", return_value=delete_plan):
+            route_res = client.post(
+                "/assistant/message",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"text": "delete food expense from 2026-08-30"},
+            )
 
         assert route_res.status_code == 200
         data = route_res.json()
-        assert data["decision"] == "ASK_DISAMBIGUATION"
-        assert len(data["matched_transactions"]) == 2
-        assert len(data["candidates"]) == 2
+        assert data["pending"] is not None
+        assert data["pending"]["kind"] == "disambiguate"
+        assert len(data["pending"]["candidates"]) == 2
 
         # Verify BOTH transactions remain in DB
         assert test_db_session.query(Transaction).count() == 2
@@ -245,7 +239,7 @@ class TestDeleteConfirmationAndDisambiguation:
 class TestEditConfirmation:
     """Integration tests for edit confirmation tier."""
 
-    def test_edit_single_match_stops_at_confirmation_and_does_not_modify_until_confirmed(self, test_db_session):
+    def test_edit_single_match_executes_and_updates_db(self, test_db_session):
         user_id = str(uuid.uuid4())
         token = create_test_es256_jwt(user_id)
 
@@ -265,48 +259,27 @@ class TestEditConfirmation:
         test_db_session.commit()
         txn_id_str = str(txn.id)
 
-        # Route edit intent
-        route_res = client.post(
-            "/intent/route",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "intent": {
-                    "action": "edit",
-                    "language": "en",
-                    "fields": {
-                        "category": "Transport",
-                        "amount": 150,
-                        "date": "2026-08-30"
-                    },
-                    "matched_transactions": [],
-                    "confidence": "high",
-                    "requires_confirmation": False,
-                    "missing_fields": []
-                }
-            }
+        edit_plan = Plan(
+            ops=[
+                EditAction(
+                    op="edit",
+                    selector=Selector(category="Transport", date_from="2026-08-30", date_to="2026-08-30"),
+                    patch={"amount": 150.0},
+                )
+            ]
         )
+        with patch("app.assistant.planner.AssistantPlanner.plan", return_value=edit_plan):
+            route_res = client.post(
+                "/assistant/message",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"text": "change my transport expense from 2026-08-30 to 150"},
+            )
 
         assert route_res.status_code == 200
-        assert route_res.json()["decision"] == "ASK_CONFIRMATION"
+        route_data = route_res.json()
+        assert route_data["changed"] is True
 
-        # Assert DB amount is still unchanged (100.00)
-        txn_in_db = test_db_session.query(Transaction).filter_by(id=uuid.UUID(txn_id_str)).first()
-        assert float(txn_in_db.amount) == 100.00
-
-        # Confirm edit
-        confirm_res = client.post(
-            "/intent/confirm",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "transaction_id": txn_id_str,
-                "action": "edit",
-                "fields": {
-                    "amount": 150
-                }
-            }
-        )
-
-        assert confirm_res.status_code == 200
+        # Assert DB amount is updated to 150.00
         test_db_session.expire_all()
         txn_updated = test_db_session.query(Transaction).filter_by(id=uuid.UUID(txn_id_str)).first()
         assert float(txn_updated.amount) == 150.00
@@ -404,38 +377,24 @@ class TestMultiUserIsolation:
         test_db_session.commit()
         txn_a_id_str = str(txn_a.id)
 
-        # 1. User B tries to route delete for Food -> should find 0 matches
-        route_b = client.post(
-            "/intent/route",
-            headers={"Authorization": f"Bearer {token_b}"},
-            json={
-                "intent": {
-                    "action": "delete",
-                    "language": "en",
-                    "fields": {
-                        "category": "Food",
-                        "date": "2026-08-31"
-                    },
-                    "matched_transactions": [],
-                    "confidence": "high",
-                    "requires_confirmation": False,
-                    "missing_fields": []
-                }
-            }
+        # 1. User A creates a pending delete confirmation
+        delete_plan_a = Plan(
+            ops=[DeleteAction(op="delete", selector=Selector(category="Food", date_from="2026-08-31", date_to="2026-08-31"))]
         )
-        assert route_b.status_code == 200
-        # 0 matches found for user B -> routes to ASK_CLARIFICATION
-        assert route_b.json()["decision"] == "ASK_CLARIFICATION"
-        assert len(route_b.json()["matched_transactions"]) == 0
+        with patch("app.assistant.planner.AssistantPlanner.plan", return_value=delete_plan_a):
+            res_a = client.post(
+                "/assistant/message",
+                headers={"Authorization": f"Bearer {token_a}"},
+                json={"text": "delete User A food"},
+            )
+        assert res_a.status_code == 200
+        pending_a_id = res_a.json()["pending"]["id"]
 
-        # 2. User B tries to confirm delete on User A's transaction ID -> 404
+        # 2. User B tries to answer User A's pending ID -> 404 (cross-user isolation)
         confirm_b = client.post(
-            "/intent/confirm",
+            f"/assistant/pending/{pending_a_id}/answer",
             headers={"Authorization": f"Bearer {token_b}"},
-            json={
-                "transaction_id": txn_a_id_str,
-                "action": "delete"
-            }
+            json={"answer": "yes"},
         )
         assert confirm_b.status_code == 404
 

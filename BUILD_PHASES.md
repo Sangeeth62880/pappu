@@ -236,3 +236,26 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 - Jest: 81 frontend tests passing (including `transaction_edit.test.js`, `chat_history.test.js`, `voice_listening_sheet.test.js`).
 
 **Acceptance criteria**: All six UI/UX/logic issues resolved with root-cause fixes, zero regressions, full test coverage across frontend and backend.
+
+---
+
+## Phase 12: Pappu Assistant v2 Architecture and Intent Layer Migration
+
+Note: The compare and group_by operations implemented in this phase cover analytics capabilities of Phase 9. Phase 9 is not marked complete because budgets remain unsupported.
+
+**Tasks**
+1. Evaluation Harness: Created golden dataset cases.jsonl (149 test cases covering English, Malayalam, and Manglish) and runner.py with pluggable planners.
+2. Schemas and Context: Defined PlanV2 and ActionV2 schemas with strict Pydantic validation (max 5 operations per plan). Built parallel context loader gathering IST date, top contacts with aliases, recent chat turns, last touched transaction, and active pending state.
+3. LLM Planner: Authored single call prompt.md generating declarative PlanV2 JSON. Handled add, edit, delete, query, clarify, and chat operations without regex or keyword classification.
+4. Deterministic Resolver: Implemented multi candidate disambiguation, fuzzy alias matching with jaro winkler similarity, relative date parser, and contact confirmation routing.
+5. Deterministic Executors: Implemented transactional add, edit, delete, and query executors with isolation guarantees and 404 responses for missing records.
+6. Deterministic Response Composer: Implemented multilingual natural language generator producing concise display text and spoken text without secondary LLM calls.
+7. Pending Action State Machine: Implemented pending item lifecycle supporting confirm, cancel, choose, and answer across text and voice interfaces.
+8. Frontend Migration and Cleanup: Switched frontend to use /assistant/message, /assistant/pending/{id}/answer, and /assistant/pending. Removed ASSISTANT_V2 flag and retired obsolete v1 intent routing code.
+
+**Tests**
+* Backend: 239 pytest tests passing including assistant message, pending lifecycle, planner validation, executors, and security isolation.
+* Frontend: 94 Jest tests passing across all 16 test suites.
+* Evaluation Suite: 89.3 percent overall accuracy (133/149 test cases passing), zero schema failures, and 7/7 critical regression tests passing.
+
+**Acceptance criteria**: Intent classification is entirely owned by the LLM planner. Resolution, execution, and replies are fully deterministic code. Zero keyword or regex intent classification remains. All unit and integration tests pass.
