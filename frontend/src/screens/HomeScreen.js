@@ -1,23 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   NavigationContainer,
   NavigationContext,
-  useNavigation,
-  useNavigationState,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import Dashboard from '../components/Dashboard';
 import ConversationLog from '../components/ConversationLog';
@@ -26,91 +20,17 @@ import PeopleScreen from '../components/PeopleScreen';
 import AuthScreen from './AuthScreen';
 import MeScreen from './MeScreen';
 import PersonDetailScreen from './PersonDetailScreen';
-import BottomSheet from '../components/ui/BottomSheet';
+import AppHeader from '../components/ui/AppHeader';
+import CustomTabBar from '../components/ui/CustomTabBar';
 import Toast from '../components/ui/Toast';
-import Avatar from '../components/ui/Avatar';
-import Button from '../components/ui/Button';
 import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
 
-import { colors, radius, spacing } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
 import { undoTransaction, clearChatHistory } from '../api/client';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
-const TABS = [
-  { key: 'Home',    testID: 'tab-dashboard', label: 'Home',      icon: 'account-balance-wallet' },
-  { key: 'Assistant', testID: 'tab-assistant', label: 'Assistant', icon: 'mic' },
-  { key: 'History', testID: 'tab-history',   label: 'History',   icon: 'receipt-long' },
-  { key: 'People',  testID: 'tab-people',    label: 'People',    icon: 'group' },
-  { key: 'Me',      testID: 'tab-me',        label: 'Me',        icon: 'person' },
-];
-
-function CustomTabBar({ state, navigation, rootNavigation }) {
-  const currentTabName = state.routes[state.index]?.name;
-
-  return (
-    <View style={styles.floatingNavContainer} pointerEvents="box-none">
-      <View style={styles.navGlassCard}>
-        <View style={styles.navRow}>
-          {TABS.map((tab) => {
-            const isActive = currentTabName === tab.key;
-            const iconColor = isActive ? colors.brand.default : colors.text.tertiary;
-
-            const handlePress = () => {
-              if (tab.key === 'Assistant') {
-                if (rootNavigation) {
-                  rootNavigation.navigate('Assistant');
-                } else {
-                  navigation.navigate('Assistant');
-                }
-              } else {
-                navigation.navigate(tab.key);
-              }
-            };
-
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                testID={tab.testID}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: isActive }}
-                accessibilityLabel={tab.label}
-                onPress={handlePress}
-                style={styles.navItem}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.indicatorPill,
-                    isActive && styles.indicatorPillActive,
-                  ]}
-                >
-                  <MaterialIcons
-                    name={tab.icon}
-                    size={20}
-                    color={iconColor}
-                    style={styles.navIcon}
-                  />
-                  <Text
-                    style={[
-                      styles.navLabel,
-                      isActive ? styles.navLabelActive : styles.navLabelInactive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {tab.label}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    </View>
-  );
-}
 
 function MainTabNavigator({
   token,
@@ -125,9 +45,9 @@ function MainTabNavigator({
   setSelectedPersonId,
   handleClearChatHistory,
   handleSignOut,
-  setProfileSheetVisible,
   setVoiceSheetVisible,
   rootNavigation,
+  initialTooltipVisible = null,
 }) {
   const [currentTab, setCurrentTab] = useState('Home');
 
@@ -135,54 +55,25 @@ function MainTabNavigator({
     <SafeAreaView testID="home-screen" style={styles.screen}>
       <StatusBar style="dark" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.brandIconBadge}>
-            <MaterialIcons name="account-balance-wallet" size={18} color="#FFFFFF" />
-          </View>
-          <View style={styles.headerTitleBox}>
-            <Text style={styles.headerKicker}>Pappu</Text>
-            <Text style={styles.wordmark}>{currentTab}</Text>
-          </View>
-        </View>
+      {/* ── App Header (identical on Home, History, People and Me per Stitch) ── */}
+      <AppHeader
+        screen={currentTab.toLowerCase()}
+        onSearchPress={() => {
+          // Focus search on History screen
+        }}
+        onAddPersonPress={() => {
+          // Open add contact on People screen
+        }}
+      />
 
-        <View style={styles.headerRight}>
-          <View style={styles.langPill}>
-            <MaterialIcons name="translate" size={13} color={colors.text.tertiary} style={{ marginRight: 4 }} />
-            <Text style={styles.langPillText}>EN / മലയാളം</Text>
-          </View>
-
-          <TouchableOpacity
-            testID="header-mic-button"
-            onPress={() => setVoiceSheetVisible(true)}
-            style={styles.headerMicBtn}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Quick voice input"
-          >
-            <MaterialIcons name="mic" size={20} color={colors.brand.default} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            testID="profile-avatar-button"
-            onPress={() => setProfileSheetVisible(true)}
-            style={styles.avatarButton}
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-          >
-            <Avatar name={userEmail} size={36} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Tab Navigator */}
+      {/* ── Tab Navigator with Custom 5-Slot Tab Bar ── */}
       <View style={styles.tabContentContainer}>
         <Tab.Navigator
           tabBar={(tabProps) => (
             <CustomTabBar
               {...tabProps}
               rootNavigation={rootNavigation}
+              initialTooltipVisible={initialTooltipVisible}
             />
           )}
           screenOptions={{ headerShown: false }}
@@ -268,12 +159,15 @@ function MainTabNavigator({
   );
 }
 
-function InnerHomeScreen({ initialToken = null, initialSession = null }) {
+function InnerHomeScreen({
+  initialToken = null,
+  initialSession = null,
+  initialTooltipVisible = null,
+}) {
   const [session, setSession] = useState(initialSession);
   const [token, setToken] = useState(initialToken || initialSession?.access_token || null);
   const [authChecking, setAuthChecking] = useState(!initialToken && !initialSession);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [profileSheetVisible, setProfileSheetVisible] = useState(false);
   const [voiceSheetVisible, setVoiceSheetVisible] = useState(false);
   const [historyFilter, setHistoryFilter] = useState(null);
   const [selectedPersonId, setSelectedPersonId] = useState(null);
@@ -324,7 +218,6 @@ function InnerHomeScreen({ initialToken = null, initialSession = null }) {
 
   const handleClearChatHistory = async () => {
     await handleClearMessages();
-    setProfileSheetVisible(false);
     showToast('Chat history cleared');
   };
 
@@ -360,12 +253,10 @@ function InnerHomeScreen({ initialToken = null, initialSession = null }) {
     setToken(newSession?.access_token || null);
     setHistoryFilter(null);
     setSelectedPersonId(null);
-    setProfileSheetVisible(false);
   };
 
   const handleSignOut = async () => {
     try {
-      setProfileSheetVisible(false);
       await signOut();
       setSession(null);
       setToken(null);
@@ -392,8 +283,7 @@ function InnerHomeScreen({ initialToken = null, initialSession = null }) {
   if (authChecking) {
     return (
       <SafeAreaView testID="auth-loading-screen" style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.brand.default} />
-        <Text style={styles.loadingText}>Checking session…</Text>
+        <ActivityIndicator size="large" color={colors.gold} />
       </SafeAreaView>
     );
   }
@@ -402,7 +292,12 @@ function InnerHomeScreen({ initialToken = null, initialSession = null }) {
 
   return (
     <View style={styles.container}>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
+        }}
+      >
         {!token ? (
           <RootStack.Screen name="Auth">
             {(props) => <AuthScreen {...props} onAuthenticated={handleAuthenticated} />}
@@ -425,17 +320,19 @@ function InnerHomeScreen({ initialToken = null, initialSession = null }) {
                   setSelectedPersonId={setSelectedPersonId}
                   handleClearChatHistory={handleClearChatHistory}
                   handleSignOut={handleSignOut}
-                  setProfileSheetVisible={setProfileSheetVisible}
                   setVoiceSheetVisible={setVoiceSheetVisible}
                   rootNavigation={props.navigation}
+                  initialTooltipVisible={initialTooltipVisible}
                 />
               )}
             </RootStack.Screen>
 
+            {/* Assistant Modal Stack Screen over tabs */}
             <RootStack.Screen
               name="Assistant"
               options={{
                 presentation: 'modal',
+                animation: 'slide_from_bottom',
                 headerShown: false,
               }}
             >
@@ -452,9 +349,11 @@ function InnerHomeScreen({ initialToken = null, initialSession = null }) {
               )}
             </RootStack.Screen>
 
+            {/* Person Detail Stack Screen */}
             <RootStack.Screen
               name="PersonDetail"
               options={{
+                animation: 'slide_from_right',
                 headerShown: false,
               }}
             >
@@ -471,47 +370,7 @@ function InnerHomeScreen({ initialToken = null, initialSession = null }) {
         )}
       </RootStack.Navigator>
 
-      {/* Profile Bottom Sheet */}
-      <BottomSheet
-        visible={profileSheetVisible}
-        onClose={() => setProfileSheetVisible(false)}
-      >
-        <View style={styles.profileSheetContent}>
-          <View style={styles.profileAvatarRow}>
-            <Avatar name={userEmail} size={54} />
-            <View style={styles.profileEmailBox}>
-              <Text style={styles.profileLabel}>Signed in as</Text>
-              <Text
-                testID="user-email-header"
-                style={styles.profileEmail}
-                numberOfLines={1}
-              >
-                {userEmail}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.profileDivider} />
-
-          <Button
-            testID="profile-clear-chat-button"
-            onPress={handleClearChatHistory}
-            title="Clear Chat History"
-            variant="outline"
-            style={{ marginBottom: spacing.md }}
-          />
-
-          <Button
-            testID="auth-signout-button"
-            onPress={handleSignOut}
-            title="Sign Out"
-            variant="destructive"
-            style={styles.signOutBtn}
-          />
-        </View>
-      </BottomSheet>
-
-      {/* Toast */}
+      {/* Toast Notification */}
       <Toast
         testID="home-toast"
         visible={toastVisible}
@@ -548,184 +407,19 @@ export default function HomeScreen(props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
   },
   screen: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  loadingText: {
-    color: colors.text.secondary,
-    marginTop: spacing.md,
-    fontSize: 14,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.canvas,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  brandIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.md,
-    backgroundColor: colors.brand.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  headerTitleBox: {
-    flexDirection: 'column',
-    justifyContent: 'center',
-  },
-  headerKicker: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.text.tertiary,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  wordmark: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text.primary,
-    letterSpacing: -0.5,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  langPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.sm,
-  },
-  langPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.secondary,
-  },
-  headerMicBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.brand.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.xs,
-  },
-  avatarButton: {
-    padding: 2,
   },
   tabContentContainer: {
     flex: 1,
-  },
-  floatingNavContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 14 : 10,
-    left: spacing.lg,
-    right: spacing.lg,
-    alignItems: 'center',
-    zIndex: 100,
-  },
-  navGlassCard: {
-    width: '100%',
-    maxWidth: 420,
-    borderRadius: radius.full,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    minHeight: 56,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  indicatorPill: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.full,
-    minWidth: 56,
-    minHeight: 44,
-  },
-  indicatorPillActive: {
-    backgroundColor: colors.brand.tint,
-  },
-  navIcon: {
-    marginBottom: 2,
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    includeFontPadding: false,
-  },
-  navLabelActive: {
-    color: colors.brand.default,
-  },
-  navLabelInactive: {
-    color: colors.text.tertiary,
-  },
-  profileSheetContent: {
-    paddingTop: spacing.xs,
-  },
-  profileAvatarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  profileEmailBox: {
-    marginLeft: spacing.lg,
-    flex: 1,
-  },
-  profileLabel: {
-    fontSize: 12,
-    color: colors.text.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  profileEmail: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginTop: 2,
-  },
-  profileDivider: {
-    height: 1,
-    backgroundColor: colors.borderSubtle,
-    marginBottom: spacing.xl,
-  },
-  signOutBtn: {
-    width: '100%',
   },
 });

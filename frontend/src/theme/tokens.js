@@ -275,4 +275,11 @@ export const typography = {
     lineHeight: 12,
     fontWeight: '700',
   },
+  fonts: {
+    display: 'BalooChettan2_800ExtraBold',
+    displayBold: 'BalooChettan2_700Bold',
+    body: 'Nunito_600SemiBold',
+    bodyBold: 'Nunito_700Bold',
+    malayalam: 'NotoSansMalayalam_600SemiBold',
+  },
 };

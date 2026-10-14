@@ -27,40 +27,30 @@ describe('Fix 6: Mic Accessible from Every Screen', () => {
     client.saveChatMessage.mockResolvedValue({ id: '1' });
   });
 
-  test('header mic button is visible on Home tab and opens VoiceListeningSheet', async () => {
-    const { findByTestId, queryByTestId } = await render(
+  test('voice input is accessible from Home tab via center coin button', async () => {
+    const { findByTestId } = await render(
       <HomeScreen initialToken={mockToken} initialSession={mockSession} />
     );
 
-    // Header mic button should exist on Home
-    const headerMic = await findByTestId('header-mic-button');
-    expect(headerMic).toBeTruthy();
+    // Center coin tab button exists on Home
+    const coinBtn = await findByTestId('tab-assistant');
+    expect(coinBtn).toBeTruthy();
 
-    // Sheet initially not visible
-    expect(queryByTestId('voice-listening-sheet')).toBeNull();
-
-    // Press header mic
-    fireEvent.press(headerMic);
-
-    // Sheet opens
-    expect(await findByTestId('voice-listening-sheet')).toBeTruthy();
+    // Tap opens assistant modal
+    fireEvent.press(coinBtn);
+    expect(await findByTestId('conversation-container')).toBeTruthy();
   });
 
-  test('header mic button is hidden on Assistant tab to preserve single mic', async () => {
-    const { findByText, queryByTestId, findByTestId } = await render(
+  test('Assistant modal has its own mic button for voice input', async () => {
+    const { findByTestId } = await render(
       <HomeScreen initialToken={mockToken} initialSession={mockSession} />
     );
 
-    // Switch to Assistant tab
-    const assistantTab = await findByText('Assistant');
-    fireEvent.press(assistantTab);
+    // Open Assistant modal
+    const coinBtn = await findByTestId('tab-assistant');
+    fireEvent.press(coinBtn);
 
-    // Header mic button is hidden on Assistant tab
-    await waitFor(() => {
-      expect(queryByTestId('header-mic-button')).toBeNull();
-    });
-
-    // Assistant tab's own mic button is present
+    // Assistant modal's own mic button is present
     expect(await findByTestId('mic-button')).toBeTruthy();
   });
 
