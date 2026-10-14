@@ -1,0 +1,2109 @@
+{
+  "planner": "v2",
+  "execute_mode": false,
+  "timestamp": "2026-10-14T12:18:33.018465+00:00",
+  "total_cases": 30,
+  "total_passed": 30,
+  "total_expressible": 30,
+  "total_inexpressible": 0,
+  "overall_accuracy": 100.0,
+  "expressible_accuracy": 100.0,
+  "schema_failure_rate": 0.0,
+  "p50_latency_ms": 681.1,
+  "p95_latency_ms": 903.9,
+  "avg_input_tokens": 38.9,
+  "elapsed_seconds": 26.51,
+  "failures_by_cause": {
+    "planner": 0,
+    "resolver": 0,
+    "executor": 0,
+    "composer": 0
+  },
+  "regression_cases": {},
+  "group_stats": {
+    "basic_add": {
+      "total": 9,
+      "passed": 9,
+      "expressible": 9,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "delete": {
+      "total": 2,
+      "passed": 2,
+      "expressible": 2,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "edit": {
+      "total": 1,
+      "passed": 1,
+      "expressible": 1,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "income": {
+      "total": 4,
+      "passed": 4,
+      "expressible": 4,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "person_txns": {
+      "total": 6,
+      "passed": 6,
+      "expressible": 6,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "queries": {
+      "total": 8,
+      "passed": 8,
+      "expressible": 8,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    }
+  },
+  "results": [
+    {
+      "id": "typed_01",
+      "group": "basic_add",
+      "input": "Dinner 450",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 665.1895828545094,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 450,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "Dinner"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 450,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "Dinner"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 450,
+            "category": "Food",
+            "description": "dinner"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 450,
+            "category": "Food",
+            "description": "dinner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_02",
+      "group": "basic_add",
+      "input": "Uber to airport 650",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 717.4153747037053,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 650,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "Uber to airport"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 650,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "Uber to airport"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 650,
+            "category": "Transport",
+            "description": "uber to airport"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 650,
+            "category": "Transport",
+            "description": "uber to airport"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_03",
+      "group": "basic_add",
+      "input": "Bought milk and bread 95",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 750.1025418750942,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 95,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "milk and bread"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 95,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "milk and bread"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 95,
+            "category": "Shopping",
+            "description": "milk and bread"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 95,
+            "category": "Shopping",
+            "description": "milk and bread"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_04",
+      "group": "basic_add",
+      "input": "Amazon order 1299",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 818.4282500296831,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1299,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "Amazon order"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1299,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "Amazon order"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1299,
+            "category": "Shopping",
+            "description": "amazon order"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1299,
+            "category": "Shopping",
+            "description": "amazon order"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_05",
+      "group": "basic_add",
+      "input": "Electricity 1450",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 716.5583749301732,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1450,
+            "direction": null,
+            "contact": null,
+            "category": "Bills",
+            "date": null,
+            "description": "Electricity"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1450,
+            "direction": null,
+            "contact": null,
+            "category": "Bills",
+            "date": null,
+            "description": "Electricity"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1450,
+            "category": "Bills",
+            "description": "electricity"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1450,
+            "category": "Bills",
+            "description": "electricity"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_06",
+      "group": "income",
+      "input": "Salary credited 85000",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 539.8895838297904,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 85000,
+            "direction": null,
+            "contact": null,
+            "category": "Salary",
+            "date": null,
+            "description": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 85000,
+            "direction": null,
+            "contact": null,
+            "category": "Salary",
+            "date": null,
+            "description": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 85000,
+            "category": "Salary",
+            "description": "salary"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 85000,
+            "category": "Salary",
+            "description": "salary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_07",
+      "group": "income",
+      "input": "Freelance design work 12000",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 581.6661668941379,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 12000,
+            "direction": null,
+            "contact": null,
+            "category": "Salary",
+            "date": null,
+            "description": "Freelance design work"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 12000,
+            "direction": null,
+            "contact": null,
+            "category": "Salary",
+            "date": null,
+            "description": "Freelance design work"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 12000,
+            "category": "Salary",
+            "description": "freelance design work"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 12000,
+            "category": "Salary",
+            "description": "freelance design work"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_08",
+      "group": "income",
+      "input": "Cashback received 250",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 595.044540707022,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Other",
+            "date": null,
+            "description": "Cashback received"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Other",
+            "date": null,
+            "description": "Cashback received"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 250,
+            "category": "Other",
+            "description": "cashback"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 250,
+            "category": "Other",
+            "description": "cashback"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_09",
+      "group": "person_txns",
+      "input": "Sent 1200 to Pooja for movies",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 862.9331663250923,
+      "token_count": 45,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 1200,
+            "direction": "sent",
+            "contact": "Pooja",
+            "category": "Entertainment",
+            "date": null,
+            "description": "movies"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 1200,
+            "direction": "sent",
+            "contact": "Pooja",
+            "category": "Entertainment",
+            "date": null,
+            "description": "movies"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 1200,
+            "contact": "Pooja",
+            "description": "movies"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 1200,
+            "contact": "Pooja",
+            "description": "movies"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_10",
+      "group": "person_txns",
+      "input": "Gave Rahul 350",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 695.914916228503,
+      "token_count": 45,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 350,
+            "direction": "sent",
+            "contact": "Rahul",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 350,
+            "direction": "sent",
+            "contact": "Rahul",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 350,
+            "contact": "Rahul"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 350,
+            "contact": "Rahul"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_11",
+      "group": "person_txns",
+      "input": "Sneha sent 500",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 637.856874614954,
+      "token_count": 45,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 500,
+            "direction": "received",
+            "contact": "Sneha",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 500,
+            "direction": "received",
+            "contact": "Sneha",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "received",
+            "amount": 500,
+            "contact": "Sneha"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "received",
+            "amount": 500,
+            "contact": "Sneha"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_12",
+      "group": "person_txns",
+      "input": "Lent Vivek 2000",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 903.8614155724645,
+      "token_count": 45,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 2000,
+            "direction": "sent",
+            "contact": "Vivek",
+            "category": null,
+            "date": null,
+            "description": "lent money"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 2000,
+            "direction": "sent",
+            "contact": "Vivek",
+            "category": null,
+            "date": null,
+            "description": "lent money"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 2000,
+            "contact": "Vivek",
+            "description": "lent money"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 2000,
+            "contact": "Vivek",
+            "description": "lent money"
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_13",
+      "group": "queries",
+      "input": "How much did I spend this week?",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 717.8292078897357,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "this_week",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "this_week",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "period": "this_week"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "period": "this_week"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_14",
+      "group": "queries",
+      "input": "Food spending today",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 514.4281247630715,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "today",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "today",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "category": "Food",
+              "period": "today"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "category": "Food",
+              "period": "today"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_15",
+      "group": "queries",
+      "input": "Show transactions above 1000",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 618.3320842683315,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "list",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": 1000,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "list",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": 1000,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "list",
+            "selector": {
+              "amount_min": 1000
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "list",
+            "selector": {
+              "amount_min": 1000
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_16",
+      "group": "queries",
+      "input": "Who owes me money?",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 483.30220906063914,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": "owed_to_me"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": "owed_to_me"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "balance_side": "owed_to_me",
+            "selector": {}
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "balance_side": "owed_to_me",
+            "selector": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_17",
+      "group": "queries",
+      "input": "What is my biggest expense this month",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 635.368250310421,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "biggest",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "this_month",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "biggest",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "this_month",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "biggest",
+            "selector": {
+              "period": "this_month"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "biggest",
+            "selector": {
+              "period": "this_month"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_18",
+      "group": "queries",
+      "input": "Spending yesterday",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 681.1157083138824,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "yesterday",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "yesterday",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "period": "yesterday"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "period": "yesterday"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_19",
+      "group": "delete",
+      "input": "Delete my last coffee transaction",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 525.5246669985354,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "text": "coffee",
+              "recency": "latest"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "text": "coffee",
+              "recency": "latest"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed_20",
+      "group": "edit",
+      "input": "Change it to 500",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 748.6608331091702,
+      "token_count": 60,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "edit",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": "last_touched",
+              "text": null,
+              "limit": null
+            },
+            "patch": {
+              "amount": 500
+            }
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "edit",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": "last_touched",
+              "text": null,
+              "limit": null
+            },
+            "patch": {
+              "amount": 500
+            }
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "edit",
+            "selector": {
+              "ref": "last_touched"
+            },
+            "patch": {
+              "amount": 500
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "edit",
+            "selector": {
+              "ref": "last_touched"
+            },
+            "patch": {
+              "amount": 500
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_01",
+      "group": "basic_add",
+      "input": "spent. 350 rupees. on groceries",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 594.2392498254776,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 350,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "groceries"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 350,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "groceries"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 350,
+            "category": "Shopping",
+            "description": "groceries"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 350,
+            "category": "Shopping",
+            "description": "groceries"
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_02",
+      "group": "person_txns",
+      "input": "paid rahul, 500 back",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 773.9477083086967,
+      "token_count": 45,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 500,
+            "direction": "sent",
+            "contact": "Rahul",
+            "category": null,
+            "date": null,
+            "description": "back"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 500,
+            "direction": "sent",
+            "contact": "Rahul",
+            "category": null,
+            "date": null,
+            "description": "back"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 500,
+            "contact": "Rahul",
+            "description": "paid back"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 500,
+            "contact": "Rahul",
+            "description": "paid back"
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_03",
+      "group": "basic_add",
+      "input": "dinner at hotel, 850",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 587.6212082803249,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "dinner at hotel"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "dinner at hotel"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "category": "Food",
+            "description": "dinner at hotel"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "category": "Food",
+            "description": "dinner at hotel"
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_04",
+      "group": "queries",
+      "input": "how much did i spend on food, this week",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 733.4538749419153,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "this_week",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": "this_week",
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "category": "Food",
+              "period": "this_week"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "sum",
+            "selector": {
+              "category": "Food",
+              "period": "this_week"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_05",
+      "group": "person_txns",
+      "input": "sent. pooja 400",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 705.2804590202868,
+      "token_count": 45,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 400,
+            "direction": "sent",
+            "contact": "Pooja",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 400,
+            "direction": "sent",
+            "contact": "Pooja",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 400,
+            "contact": "Pooja"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 400,
+            "contact": "Pooja"
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_06",
+      "group": "basic_add",
+      "input": "auto fare 60, to office",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 712.3818332329392,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 60,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "auto fare, to office"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 60,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "auto fare, to office"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 60,
+            "category": "Transport",
+            "description": "auto fare"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 60,
+            "category": "Transport",
+            "description": "auto fare"
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_07",
+      "group": "queries",
+      "input": "who owes me money.",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 590.0771669112146,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": "owed_to_me"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null,
+            "balance_side": "owed_to_me"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "balance_side": "owed_to_me",
+            "selector": {}
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "balance_side": "owed_to_me",
+            "selector": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_08",
+      "group": "delete",
+      "input": "delete last transaction, to rahul",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 1078.315292019397,
+      "token_count": 45,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Rahul",
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Rahul",
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "period": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Rahul",
+              "recency": "latest"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Rahul",
+              "recency": "latest"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_09",
+      "group": "income",
+      "input": "received 50000, salary",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 575.479082763195,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 50000,
+            "direction": "received",
+            "contact": null,
+            "category": "Salary",
+            "date": null,
+            "description": "salary"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 50000,
+            "direction": "received",
+            "contact": null,
+            "category": "Salary",
+            "date": null,
+            "description": "salary"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 50000,
+            "category": "Salary",
+            "description": "salary"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "income",
+            "amount": 50000,
+            "category": "Salary",
+            "description": "salary"
+          }
+        ]
+      }
+    },
+    {
+      "id": "voice_10",
+      "group": "basic_add",
+      "input": "spent 150. for coffee today.",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 616.2283327430487,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": "2026-10-14",
+            "description": "coffee"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": "2026-10-14",
+            "description": "coffee"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "category": "Food",
+            "date": "2026-10-14",
+            "description": "coffee"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "category": "Food",
+            "date": "2026-10-14",
+            "description": "coffee"
+          }
+        ]
+      }
+    }
+  ]
+}

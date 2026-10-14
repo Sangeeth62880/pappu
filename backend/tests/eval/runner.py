@@ -463,10 +463,14 @@ def run_evaluation(
 
     cases: List[Dict[str, Any]] = []
     with open(cases_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                cases.append(json.loads(line))
+        content = f.read().strip()
+        if content.startswith("["):
+            cases = json.loads(content)
+        else:
+            for line in content.splitlines():
+                line = line.strip()
+                if line:
+                    cases.append(json.loads(line))
 
     mode_str = "Execution and End State Mode" if execute else "Plan Only Mode"
     print(f"\n=======================================================")
