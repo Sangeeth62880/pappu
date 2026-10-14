@@ -66,7 +66,17 @@ def test_db_session():
 def _add_person_txn(client, token, amount, contact_name, description="test", direction="sent"):
     plan = Plan(ops=[AddAction(op="add", kind="person", direction=direction, amount=amount, contact=contact_name, description=description)])
     with patch("app.assistant.planner.AssistantPlanner.plan", return_value=plan):
-        return client.post("/assistant/message", headers={"Authorization": f"Bearer {token}"}, json={"text": f"{direction} {amount} to {contact_name}"})
+        res = client.post("/assistant/message", headers={"Authorization": f"Bearer {token}"}, json={"text": f"{direction} {amount} to {contact_name}"})
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("pending") and data["pending"].get("kind") == "contact_confirm":
+                pending_id = data["pending"]["id"]
+                return client.post(
+                    f"/assistant/pending/{pending_id}/answer",
+                    headers={"Authorization": f"Bearer {token}"},
+                    json={"answer": "yes"},
+                )
+        return res
 
 
 def test_contact_creation_and_case_insensitive_reuse(test_db_session):

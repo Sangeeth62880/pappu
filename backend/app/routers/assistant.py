@@ -245,10 +245,7 @@ def handle_assistant_message(
 
                 if op_name == "add":
                     batch_id = uuid.uuid4()
-                    ask_new = False
-                    if action.contact:
-                        if body.input == "voice" or any(ord(c) > 127 for c in action.contact):
-                            ask_new = True
+                    ask_new = bool(action.contact)
                     res = execute_add(db, user_id, action, batch_id, confirmed=False, ask_new_contact=ask_new)
 
                     if res.needs_confirmation:

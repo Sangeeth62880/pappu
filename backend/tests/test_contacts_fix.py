@@ -296,3 +296,67 @@ def test_new_spoken_contact_cancelled_flow(test_db_session, test_setup):
         assert created is None
     finally:
         app.dependency_overrides.pop(get_current_user_id, None)
+
+
+def test_new_latin_typed_contact_confirmation_flow(test_db_session, test_setup):
+    """
+    Verify that new contact confirmation applies to every new name, including typed Latin names.
+    """
+    user_id = test_setup["user_id"]
+    client = TestClient(app)
+    from app.auth import get_current_user_id
+    app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    contact_name = "Vijay"
+
+    init_res = resolve_contact(test_db_session, user_id, contact_name)
+    assert init_res.status == "new"
+
+    mock_plan = Plan(
+        actions=[
+            AddAction(
+                op="add",
+                kind="person",
+                direction="sent",
+                amount=750.0,
+                contact=contact_name,
+            )
+        ]
+    )
+
+    try:
+        with patch.object(AssistantPlanner, "plan", return_value=mock_plan):
+            response = client.post(
+                "/assistant/message",
+                json={"text": f"Paid {contact_name} 750", "input": "typed"},
+            )
+            assert response.status_code == 200
+            data = response.json()
+
+            expected_question = f"New contact: {contact_name}. Add them?"
+            assert data["pending"] is not None
+            assert data["pending"]["kind"] == "contact_confirm"
+            assert data["pending"]["question"] == expected_question
+            assert data["reply_text"] == expected_question
+
+            # Verify contact is not yet created
+            c_check = test_db_session.query(Contact).filter(Contact.user_id == user_id, Contact.name == contact_name).first()
+            assert c_check is None
+
+            pending_id = uuid.UUID(data["pending"]["id"])
+
+        ans_resp = client.post(
+            f"/assistant/pending/{pending_id}/answer",
+            json={"answer": "yes"},
+        )
+        assert ans_resp.status_code == 200
+        ans_data = ans_resp.json()
+        assert ans_data["changed"] is True
+        assert f"Created contact {contact_name}" in ans_data["reply_text"]
+
+        created = test_db_session.query(Contact).filter(Contact.user_id == user_id, Contact.name == contact_name).first()
+        assert created is not None
+        assert created.name == contact_name
+    finally:
+        app.dependency_overrides.pop(get_current_user_id, None)
+
