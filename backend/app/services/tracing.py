@@ -34,12 +34,14 @@ class AssistantTracer:
         message_text: str = "",
         input_type: str = "text",
         context_json: Optional[Dict[str, Any]] = None,
+        auto_save: bool = True,
     ):
         self.db = db
         self.user_id = user_id
         self.message_text = message_text
         self.input_type = input_type
         self.context_json = context_json
+        self.auto_save = auto_save
         self.raw_llm_output: Optional[str] = None
         self.plan_json: Optional[Dict[str, Any]] = None
         self.resolver_filters_json: Optional[Dict[str, Any]] = None
@@ -60,7 +62,8 @@ class AssistantTracer:
                 self.result_json = {}
             self.result_json["error"] = str(exc_val)
             self.result_json["error_type"] = exc_type.__name__
-        self.save()
+        if self.auto_save:
+            self.save()
 
     @contextmanager
     def time_stage(self, stage_name: str):
@@ -160,3 +163,77 @@ class AssistantTracer:
             self.db.rollback()
             logger.error("Failed to save assistant trace for user %s: %s", self.user_id, e)
             raise
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert trace attributes to a serializable dictionary for background saving."""
+        def _clean_json(obj):
+            if obj is None:
+                return None
+            return json.loads(json.dumps(obj, default=str))
+
+        return {
+            "user_id": self.user_id,
+            "message_text": self.message_text,
+            "input_type": self.input_type,
+            "context_json": _clean_json(self.context_json),
+            "raw_llm_output": self.raw_llm_output,
+            "plan_json": _clean_json(self.plan_json),
+            "resolver_filters_json": _clean_json(self.resolver_filters_json),
+            "result_json": _clean_json(self.result_json),
+            "latency_ms_per_stage": self.latency_ms_per_stage,
+            "schema_valid": self.schema_valid,
+            "reply_text": self.reply_text,
+            "spoken_text": self.spoken_text,
+        }
+
+
+def save_trace_background(trace_dict: Dict[str, Any], db_override: Optional[Session] = None) -> None:
+    """
+    Persist assistant trace asynchronously in background task, off the request path.
+    Uses an isolated DB session so the request response is never blocked by trace writes.
+    """
+    from app.database import SessionLocal, get_db
+    from app.main import app
+
+    if db_override is not None:
+        bg_db = db_override
+        should_close = False
+    elif get_db in app.dependency_overrides:
+        gen = app.dependency_overrides[get_db]()
+        bg_db = next(gen)
+        should_close = True
+    else:
+        bg_db = SessionLocal()
+        should_close = True
+
+    try:
+        def _clean_json(obj):
+            if obj is None:
+                return None
+            return json.loads(json.dumps(obj, default=str))
+
+        trace = AssistantTrace(
+            user_id=trace_dict["user_id"],
+            message_text=trace_dict.get("message_text", ""),
+            input_type=trace_dict.get("input_type", "text"),
+            context_json=_clean_json(trace_dict.get("context_json")),
+            raw_llm_output=trace_dict.get("raw_llm_output"),
+            plan_json=_clean_json(trace_dict.get("plan_json")),
+            resolver_filters_json=_clean_json(trace_dict.get("resolver_filters_json")),
+            result_json=_clean_json(trace_dict.get("result_json")),
+            latency_ms_per_stage=trace_dict.get("latency_ms_per_stage", {}),
+            schema_valid=trace_dict.get("schema_valid", True),
+            reply_text=trace_dict.get("reply_text"),
+            spoken_text=trace_dict.get("spoken_text"),
+        )
+        bg_db.add(trace)
+        bg_db.commit()
+    except Exception as e:
+        bg_db.rollback()
+        logger.error("Failed to save assistant trace in background for user %s: %s", trace_dict.get("user_id"), e)
+    finally:
+        if should_close:
+            try:
+                bg_db.close()
+            except Exception:
+                pass

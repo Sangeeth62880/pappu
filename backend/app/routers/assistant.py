@@ -10,7 +10,7 @@ import uuid
 import json
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,7 +18,7 @@ from app.auth import get_current_user_id
 from app.models.profile import Profile
 from app.models.chat_message import ChatMessage
 from app.models.idempotency import AssistantIdempotency
-from app.services.tracing import AssistantTracer
+from app.services.tracing import AssistantTracer, save_trace_background
 from app.assistant.schemas import (
     AssistantMessageRequest,
     AssistantResponse,
@@ -149,6 +149,7 @@ def get_active_pending_endpoint(
 @router.post("/message", response_model=AssistantResponse)
 def handle_assistant_message(
     body: AssistantMessageRequest,
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
     plan_override: Optional[Plan] = Depends(lambda: None),
@@ -174,12 +175,13 @@ def handle_assistant_message(
         if existing_record:
             return AssistantResponse.model_validate(existing_record.response_json)
 
-    # 2. Start Tracer
+    # 2. Start Tracer (auto_save=False: trace saving is off the request path)
     with AssistantTracer(
         db=db,
         user_id=user_id,
         message_text=body.text,
         input_type=body.input,
+        auto_save=False,
     ) as tracer:
         with tracer.time_stage("connection_acquisition"):
             try:
@@ -459,6 +461,10 @@ def handle_assistant_message(
                                 db.commit()
 
                             tracer.set_reply(reply_text=ans_res.reply_text, spoken_text=ans_res.spoken_text)
+                            if background_tasks is not None:
+                                background_tasks.add_task(save_trace_background, tracer.to_dict())
+                            else:
+                                save_trace_background(tracer.to_dict(), db_override=db)
                             return ans_res
 
                     results.append({
@@ -546,5 +552,10 @@ def handle_assistant_message(
 
         with tracer.time_stage("commit"):
             db.commit()
+
+        if background_tasks is not None:
+            background_tasks.add_task(save_trace_background, tracer.to_dict())
+        else:
+            save_trace_background(tracer.to_dict(), db_override=db)
 
         return response_obj
