@@ -9,7 +9,7 @@ import uuid
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.schemas.plan_v2 import PlanV2, OpType, AddOp, EditOp, DeleteOp, QueryOp, UndoOp
+from app.assistant.schemas import PlanV2, OpType, AddOp, EditOp, DeleteOp, QueryOp, UndoOp
 from app.assistant.executors.base import ActionResult
 from app.assistant.executors.add import execute_add
 from app.assistant.executors.edit import execute_edit

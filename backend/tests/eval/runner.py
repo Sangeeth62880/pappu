@@ -3,7 +3,8 @@ Evaluation harness runner for Pappu Assistant v2.
 
 Loads test cases from cases.jsonl, invokes a pluggable planner,
 validates schema conformance strictly, compares against expected plans,
-outputs per-group and overall accuracy, and writes results to eval_results/<timestamp>.json.
+outputs per-group and overall accuracy, reports p50/p95 latency and schema failure rate,
+tracks the 7 critical regression cases, and writes results to eval_results/<timestamp>.json.
 """
 
 import sys
@@ -16,10 +17,25 @@ from pathlib import Path
 from typing import Callable, Dict, Any, List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Ensure backend root is on sys.path
+backend_root = str(Path(__file__).resolve().parent.parent.parent)
+if backend_root not in sys.path:
+    sys.path.insert(0, backend_root)
+
 from pydantic import ValidationError
 
-from app.schemas.plan_v2 import PlanV2
+from app.assistant.schemas import PlanV2
 from tests.eval.baseline_adapter import is_case_expressible, old_intent_to_v2_plan
+
+REGRESSION_CASES = [
+    "regression_query_who_owes_me",
+    "regression_edit_change_to_300",
+    "regression_delete_last_pooja",
+    "regression_delete_last_food",
+    "regression_multi_lunch_pooja",
+    "regression_multi_lunch_auto",
+    "regression_delete_manglish_yesterday_food",
+]
 
 
 def validate_plan_schema(plan_dict: Any) -> PlanV2:
@@ -102,7 +118,7 @@ def compare_plans(actual: PlanV2, expected: PlanV2) -> Tuple[bool, str]:
                 return False, f"Op[{idx}] query query_kind mismatch: expected {exp_op.query_kind}, got {act_op.query_kind}"
             exp_sel = exp_op.selector
             act_sel = act_op.selector
-            for field in ["contact", "category", "amount_min", "amount_max"]:
+            for field in ["contact", "category", "direction", "amount_min", "amount_max"]:
                 exp_val = getattr(exp_sel, field, None)
                 if exp_val is not None:
                     act_val = getattr(act_sel, field, None)
@@ -130,39 +146,71 @@ def compare_plans(actual: PlanV2, expected: PlanV2) -> Tuple[bool, str]:
     return True, "Match"
 
 
-def create_baseline_planner() -> Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool]]:
+def create_baseline_planner() -> Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool, float, int]]:
     """
     Creates a baseline planner that runs the legacy SarvamLLMClient
-    adapted to the PlanV2 shape. Returns (plan_dict, expressible).
+    adapted to the PlanV2 shape. Returns (plan_dict, expressible, latency_ms, tokens).
     """
     from app.llm.client import SarvamLLMClient
 
     llm_client = SarvamLLMClient()
 
-    def baseline_planner(text: str, context: Dict[str, Any], case: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], bool]:
+    def baseline_planner(text: str, context: Dict[str, Any], case: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], bool, float, int]:
         if not is_case_expressible(case):
-            return None, False
+            return None, False, 0.0, 0
 
         for attempt in range(3):
             try:
-                time.sleep(0.2)
+                time.sleep(0.1)
+                t0 = time.perf_counter()
                 intent = llm_client.parse_intent(text)
+                latency_ms = (time.perf_counter() - t0) * 1000.0
                 plan = old_intent_to_v2_plan(intent)
-                return plan.model_dump(), True
+                return plan.model_dump(), True, latency_ms, 0
             except Exception as e:
                 if "429" in str(e) or "Rate limit" in str(e):
                     time.sleep(2.0 * (attempt + 1))
                     continue
-                # If parsing failed or threw, return None, expressible
-                return None, True
-        return None, True
+                return None, True, 0.0, 0
+        return None, True, 0.0, 0
 
     return baseline_planner
 
 
+def create_v2_planner(include_reasoning: bool = False) -> Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool, float, int]]:
+    """
+    Creates a v2 planner that runs AssistantPlanner with dynamic AssistantContext.
+    Returns (plan_dict, expressible, latency_ms, tokens).
+    """
+    from app.assistant.planner import AssistantPlanner
+    from app.assistant.context import AssistantContext
+
+    planner = AssistantPlanner()
+
+    def v2_planner(text: str, context: Dict[str, Any], case: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], bool, float, int]:
+        ctx = AssistantContext.from_dict(context)
+        tokens = ctx.token_estimate
+
+        for attempt in range(5):
+            try:
+                time.sleep(0.2)
+                t0 = time.perf_counter()
+                plan = planner.plan(text, ctx, include_reasoning=include_reasoning)
+                latency_ms = (time.perf_counter() - t0) * 1000.0
+                return plan.model_dump(), True, latency_ms, tokens
+            except Exception as e:
+                if "429" in str(e) or "Rate limit" in str(e):
+                    time.sleep(2.5 * (attempt + 1))
+                    continue
+                return None, True, 0.0, tokens
+        return None, True, 0.0, tokens
+
+    return v2_planner
+
+
 def run_evaluation(
     cases_file: str,
-    planner_fn: Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool]],
+    planner_fn: Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool, float, int]],
     planner_name: str = "baseline",
     max_workers: int = 4,
     output_dir: Optional[str] = None,
@@ -197,7 +245,8 @@ def run_evaluation(
         expected_plan_dict = case["expected_plan"]
 
         expected_plan = PlanV2.model_validate(expected_plan_dict)
-        plan_dict, expressible = planner_fn(input_text, context, case)
+
+        plan_dict, expressible, latency_ms, token_count = planner_fn(input_text, context, case)
 
         if not expressible:
             return {
@@ -206,6 +255,9 @@ def run_evaluation(
                 "input": input_text,
                 "expressible": False,
                 "passed": False,
+                "schema_valid": True,
+                "latency_ms": latency_ms,
+                "token_count": token_count,
                 "reason": "Not expressible in legacy schema",
                 "actual_plan": None,
                 "expected_plan": expected_plan_dict,
@@ -218,13 +270,33 @@ def run_evaluation(
                 "input": input_text,
                 "expressible": True,
                 "passed": False,
+                "schema_valid": False,
+                "latency_ms": latency_ms,
+                "token_count": token_count,
                 "reason": "Planner failed to produce an output",
                 "actual_plan": None,
                 "expected_plan": expected_plan_dict,
             }
 
-        # Validate strictly against PlanV2 schema (fails loudly on error)
-        actual_plan = validate_plan_schema(plan_dict)
+        schema_valid = True
+        actual_plan = None
+        try:
+            actual_plan = validate_plan_schema(plan_dict)
+        except Exception as e:
+            schema_valid = False
+            return {
+                "id": case_id,
+                "group": group,
+                "input": input_text,
+                "expressible": True,
+                "passed": False,
+                "schema_valid": False,
+                "latency_ms": latency_ms,
+                "token_count": token_count,
+                "reason": f"Schema validation error: {e}",
+                "actual_plan": plan_dict,
+                "expected_plan": expected_plan_dict,
+            }
 
         # Compare with expected plan
         passed, reason = compare_plans(actual_plan, expected_plan)
@@ -235,6 +307,9 @@ def run_evaluation(
             "input": input_text,
             "expressible": True,
             "passed": passed,
+            "schema_valid": schema_valid,
+            "latency_ms": latency_ms,
+            "token_count": token_count,
             "reason": reason,
             "actual_plan": actual_plan.model_dump(),
             "expected_plan": expected_plan_dict,
@@ -260,6 +335,17 @@ def run_evaluation(
     total_passed = sum(1 for r in results if r["passed"])
     total_expressible = sum(1 for r in results if r["expressible"])
     total_inexpressible = total_cases - total_expressible
+    schema_failures = sum(1 for r in results if not r.get("schema_valid", True))
+    schema_failure_rate = round((schema_failures / total_cases) * 100.0, 2)
+
+    # Latencies
+    latencies = sorted([r["latency_ms"] for r in results if r.get("latency_ms") and r["latency_ms"] > 0])
+    p50_latency = round(latencies[int(len(latencies) * 0.50)], 1) if latencies else 0.0
+    p95_latency = round(latencies[int(len(latencies) * 0.95)], 1) if latencies else 0.0
+
+    # Token counts
+    tokens_list = [r.get("token_count", 0) for r in results if r.get("token_count", 0) > 0]
+    avg_tokens = round(sum(tokens_list) / len(tokens_list), 1) if tokens_list else 0
 
     for grp in groups:
         grp_results = [r for r in results if r["group"] == grp]
@@ -278,6 +364,12 @@ def run_evaluation(
     overall_accuracy = round((total_passed / total_cases) * 100.0, 1)
     expressible_accuracy = round((total_passed / total_expressible) * 100.0, 1) if total_expressible > 0 else 0.0
 
+    # Regression cases breakdown
+    regression_summary = {}
+    for r in results:
+        if r["id"] in REGRESSION_CASES:
+            regression_summary[r["id"]] = "PASS" if r["passed"] else f"FAIL ({r['reason']})"
+
     print("\n" + "=" * 80)
     print(f"EVALUATION RESULTS SUMMARY: {planner_name}")
     print("=" * 80)
@@ -287,7 +379,15 @@ def run_evaluation(
         print(f"{grp:<26} | {stats['total']:<6} | {stats['passed']:<6} | {stats['not_expressible']:<9} | {stats['accuracy']:>7.1f}% | {stats['expressible_accuracy']:>7.1f}%")
     print("-" * 80)
     print(f"{'OVERALL':<26} | {total_cases:<6} | {total_passed:<6} | {total_inexpressible:<9} | {overall_accuracy:>7.1f}% | {expressible_accuracy:>7.1f}%")
-    print(f"Time taken: {elapsed_time}s")
+    print(f"Schema Failure Rate: {schema_failure_rate}% ({schema_failures}/{total_cases})")
+    print(f"Parse Latency: p50={p50_latency}ms, p95={p95_latency}ms")
+    print(f"Average Input Tokens: {avg_tokens}")
+    print(f"Total Time: {elapsed_time}s")
+    print("-" * 80)
+    print("REGRESSION CASES STATUS:")
+    for reg_id in REGRESSION_CASES:
+        status_text = regression_summary.get(reg_id, "NOT_FOUND")
+        print(f"  {reg_id}: {status_text}")
     print("=" * 80 + "\n")
 
     timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -303,7 +403,12 @@ def run_evaluation(
         "total_inexpressible": total_inexpressible,
         "overall_accuracy": overall_accuracy,
         "expressible_accuracy": expressible_accuracy,
+        "schema_failure_rate": schema_failure_rate,
+        "p50_latency_ms": p50_latency,
+        "p95_latency_ms": p95_latency,
+        "avg_input_tokens": avg_tokens,
         "elapsed_seconds": elapsed_time,
+        "regression_cases": regression_summary,
         "group_stats": group_stats,
         "results": sorted(results, key=lambda x: x["id"]),
     }
@@ -312,7 +417,6 @@ def run_evaluation(
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(result_payload, f, indent=2, ensure_ascii=False)
 
-    # Also save a pointer or symlink to baseline.json if planner is baseline
     if planner_name == "baseline":
         baseline_file = out_dir / "baseline.json"
         with open(baseline_file, "w", encoding="utf-8") as f:
@@ -327,7 +431,7 @@ def run_evaluation(
 def main():
     parser = argparse.ArgumentParser(description="Pappu Assistant v2 Evaluation Runner")
     parser.add_argument("--cases", default=str(Path(__file__).parent / "cases.jsonl"), help="Path to cases.jsonl")
-    parser.add_argument("--planner", default="baseline", help="Planner name: 'baseline'")
+    parser.add_argument("--planner", default="baseline", help="Planner name: 'baseline', 'v2', 'v2_reasoning'")
     parser.add_argument("--workers", type=int, default=5, help="Number of concurrent worker threads")
     parser.add_argument("--output-dir", default=None, help="Directory to save evaluation results")
 
@@ -335,6 +439,10 @@ def main():
 
     if args.planner == "baseline":
         planner_fn = create_baseline_planner()
+    elif args.planner == "v2":
+        planner_fn = create_v2_planner(include_reasoning=False)
+    elif args.planner == "v2_reasoning":
+        planner_fn = create_v2_planner(include_reasoning=True)
     else:
         raise ValueError(f"Unknown planner: {args.planner}")
 

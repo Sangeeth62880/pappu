@@ -10,11 +10,13 @@ import time
 import uuid
 import logging
 from contextlib import contextmanager
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from app.models.assistant_trace import AssistantTrace
-from app.schemas.plan_v2 import PlanV2
+
+if TYPE_CHECKING:
+    from app.assistant.schemas import PlanV2
 
 logger = logging.getLogger(__name__)
 
@@ -86,11 +88,11 @@ class AssistantTracer:
         self.raw_llm_output = raw_output
         self.schema_valid = schema_valid
 
-    def set_plan(self, plan: Union[Dict[str, Any], PlanV2, None]) -> None:
+    def set_plan(self, plan: Union[Dict[str, Any], "PlanV2", None]) -> None:
         """Record the structured plan object."""
         if plan is None:
             self.plan_json = None
-        elif isinstance(plan, PlanV2):
+        elif hasattr(plan, "model_dump"):
             self.plan_json = plan.model_dump()
         elif isinstance(plan, dict):
             self.plan_json = plan

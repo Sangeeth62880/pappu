@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.transaction import Transaction
 from app.models.undo_action import UndoAction
-from app.schemas.plan_v2 import DeleteOp
+from app.assistant.schemas import DeleteOp
 from app.assistant.resolver import resolve
 from app.assistant.executors.base import ActionResult, serialize_transaction
 

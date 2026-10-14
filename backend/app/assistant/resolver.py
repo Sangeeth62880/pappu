@@ -16,7 +16,7 @@ from sqlalchemy import func
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.contact import Contact
-from app.schemas.plan_v2 import Selector
+from app.assistant.schemas import Selector
 
 
 @dataclass

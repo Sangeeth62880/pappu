@@ -753,7 +753,7 @@ def test_failure_isolation_across_actions(db_session, seed_users):
     # 3. Valid Add
     ops = [
         AddOp(kind="expense", amount=150.0, category="Food"),
-        AddOp(kind="expense", amount=-500.0, category="Transport"),
+        AddOp.model_construct(op="add", kind="expense", amount=-500.0, category="Transport"),
         AddOp(kind="expense", amount=350.0, category="Shopping"),
     ]
 

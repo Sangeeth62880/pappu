@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.schemas.plan_v2 import QueryOp, Selector
+from app.assistant.schemas import QueryOp, Selector
 from app.services.balances import balances
 from app.assistant.resolver import resolve
 from app.assistant.executors.base import ActionResult, serialize_transaction

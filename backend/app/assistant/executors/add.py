@@ -14,7 +14,7 @@ from sqlalchemy import func
 from app.models.transaction import Transaction
 from app.models.contact import Contact
 from app.models.undo_action import UndoAction
-from app.schemas.plan_v2 import AddOp, direction_to_type
+from app.assistant.schemas import AddOp, direction_to_type
 from app.assistant.validation import (
     validate_amount,
     validate_and_parse_date,
