@@ -112,7 +112,7 @@ class AssistantPlanner:
         fast_plan = check_fast_path(text, context)
         if fast_plan:
             if tracer:
-                tracer.set_raw_llm_output("[FAST_PATH_PRE_LLM]")
+                tracer.set_llm_output("[FAST_PATH_PRE_LLM]")
                 tracer.set_plan(fast_plan.model_dump())
             return fast_plan
 
@@ -128,7 +128,7 @@ class AssistantPlanner:
         t_first = (time.perf_counter() - t0) * 1000.0
 
         if tracer:
-            tracer.set_raw_llm_output(raw_output)
+            tracer.set_llm_output(raw_output)
             tracer.latency_ms_per_stage["planner"] = t_first
 
         first_error: Optional[str] = None
@@ -160,7 +160,7 @@ class AssistantPlanner:
         t_second = (time.perf_counter() - t1) * 1000.0
 
         if tracer:
-            tracer.set_raw_llm_output(f"First:\n{raw_output}\n\nRetry:\n{retry_output}")
+            tracer.set_llm_output(f"First:\n{raw_output}\n\nRetry:\n{retry_output}")
             tracer.latency_ms_per_stage["planner"] = t_first + t_second
 
         try:

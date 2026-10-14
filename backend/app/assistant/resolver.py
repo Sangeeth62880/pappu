@@ -17,6 +17,7 @@ from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.contact import Contact
 from app.assistant.schemas import Selector
+from app.services.date_utils import resolve_period_to_dates
 
 
 @dataclass
@@ -37,6 +38,7 @@ def resolve(
     user_id: uuid.UUID,
     selector: Optional[Union[Selector, dict]] = None,
     last_touched_id: Optional[uuid.UUID] = None,
+    ref_date: Optional[Union[date, str]] = None,
 ) -> ResolveResult:
     """
     Resolve transactions strictly matching selector criteria for user_id.
@@ -121,26 +123,36 @@ def resolve(
         filters_used["amount_max"] = amount_max_val
         query = query.filter(Transaction.amount <= Decimal(str(amount_max_val)))
 
-    # 7. Date range (inclusive)
-    date_from_val = _get_val(selector, "date_from")
-    if date_from_val:
-        filters_used["date_from"] = date_from_val
-        d_from = (
-            date_from_val
-            if isinstance(date_from_val, date)
-            else date.fromisoformat(str(date_from_val).strip())
-        )
-        query = query.filter(Transaction.txn_date >= d_from)
+    # 7. Period and Date range (inclusive)
+    period_val = _get_val(selector, "period")
+    if period_val:
+        filters_used["period"] = str(period_val)
+        p_from, p_to = resolve_period_to_dates(str(period_val), ref_date=ref_date)
+        filters_used["resolved_date_from"] = p_from.isoformat()
+        filters_used["resolved_date_to"] = p_to.isoformat()
+        query = query.filter(Transaction.txn_date >= p_from, Transaction.txn_date <= p_to)
+    else:
+        date_from_val = _get_val(selector, "date_from")
+        if date_from_val:
+            filters_used["date_from"] = date_from_val
+            d_from = (
+                date_from_val
+                if isinstance(date_from_val, date)
+                else date.fromisoformat(str(date_from_val).strip())
+            )
+            filters_used["resolved_date_from"] = d_from.isoformat()
+            query = query.filter(Transaction.txn_date >= d_from)
 
-    date_to_val = _get_val(selector, "date_to")
-    if date_to_val:
-        filters_used["date_to"] = date_to_val
-        d_to = (
-            date_to_val
-            if isinstance(date_to_val, date)
-            else date.fromisoformat(str(date_to_val).strip())
-        )
-        query = query.filter(Transaction.txn_date <= d_to)
+        date_to_val = _get_val(selector, "date_to")
+        if date_to_val:
+            filters_used["date_to"] = date_to_val
+            d_to = (
+                date_to_val
+                if isinstance(date_to_val, date)
+                else date.fromisoformat(str(date_to_val).strip())
+            )
+            filters_used["resolved_date_to"] = d_to.isoformat()
+            query = query.filter(Transaction.txn_date <= d_to)
 
     # 8. Text search on description (ILIKE only when set)
     text_val = _get_val(selector, "text")

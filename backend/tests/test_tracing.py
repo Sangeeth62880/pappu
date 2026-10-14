@@ -106,3 +106,30 @@ def test_tracer_user_isolation(test_db_session):
     )
     assert len(traces_for_a) == 1
     assert traces_for_a[0].message_text == "User A prompt"
+
+
+def test_tracer_set_raw_llm_output_and_reply(test_db_session):
+    user_id = uuid.uuid4()
+    profile = Profile(id=user_id, name="Reply User", preferred_language="en")
+    test_db_session.add(profile)
+    test_db_session.commit()
+
+    with AssistantTracer(
+        db=test_db_session,
+        user_id=user_id,
+        message_text="How much did I spend last week?",
+    ) as tracer:
+        # Confirm set_raw_llm_output does not raise AttributeError
+        tracer.set_raw_llm_output('{"ops": [{"op": "query", "query_kind": "sum"}]}', schema_valid=True)
+        tracer.set_reply(reply_text="Spent ₹350 from 5 to 11 Oct.", spoken_text="Spent ₹350 from 5 to 11 Oct.")
+
+    trace = (
+        test_db_session.query(AssistantTrace)
+        .filter(AssistantTrace.user_id == user_id)
+        .first()
+    )
+    assert trace is not None
+    assert trace.raw_llm_output == '{"ops": [{"op": "query", "query_kind": "sum"}]}'
+    assert trace.schema_valid is True
+    assert trace.reply_text == "Spent ₹350 from 5 to 11 Oct."
+    assert trace.spoken_text == "Spent ₹350 from 5 to 11 Oct."

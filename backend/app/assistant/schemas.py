@@ -22,6 +22,19 @@ def direction_to_type(direction: str) -> str:
     raise ValueError(f"Invalid direction: {direction}. Expected 'sent' or 'received'.")
 
 
+PeriodLiteral = Literal[
+    "today",
+    "yesterday",
+    "this_week",
+    "last_week",
+    "this_month",
+    "last_month",
+    "last_7_days",
+    "last_30_days",
+    "this_year",
+]
+
+
 class Selector(BaseModel):
     """
     Criteria used by edit, delete, and query operations to identify target transactions.
@@ -32,6 +45,7 @@ class Selector(BaseModel):
     amount: Optional[Union[float, int]] = None
     amount_min: Optional[Union[float, int]] = None
     amount_max: Optional[Union[float, int]] = None
+    period: Optional[PeriodLiteral] = None
     date_from: Optional[str] = None
     date_to: Optional[str] = None
     recency: Optional[Literal["latest", "earliest"]] = None
@@ -180,7 +194,7 @@ class PendingAnswerRequest(BaseModel):
     """
     Request body for POST /assistant/pending/{id}/answer.
     """
-    answer: Literal["yes", "no", "pick", "cancel"]
+    answer: str
     index: Optional[int] = None
 
 

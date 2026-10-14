@@ -179,6 +179,7 @@ def handle_assistant_message(
 
         # 6. Deterministic Execution and Pending State Management
         with tracer.time_stage("execution"):
+            ref_date = getattr(ctx, "today", None)
             last_touched_id = get_last_touched_id(db, user_id)
             results: List[Dict[str, Any]] = []
             created_pending = None
@@ -234,7 +235,7 @@ def handle_assistant_message(
                         results.append(res.model_dump())
 
                 elif op_name == "edit":
-                    resolve_res = resolve(db, user_id, action.selector, last_touched_id)
+                    resolve_res = resolve(db, user_id, action.selector, last_touched_id, ref_date=ref_date)
                     last_filters_used = resolve_res.filters_used
 
                     if resolve_res.outcome == "none":
@@ -271,7 +272,7 @@ def handle_assistant_message(
                         results.append(res.model_dump())
 
                 elif op_name == "delete":
-                    resolve_res = resolve(db, user_id, action.selector, last_touched_id)
+                    resolve_res = resolve(db, user_id, action.selector, last_touched_id, ref_date=ref_date)
                     last_filters_used = resolve_res.filters_used
 
                     if resolve_res.outcome == "none":
@@ -317,7 +318,7 @@ def handle_assistant_message(
                             multi_action_pending_dropped = True
 
                 elif op_name == "query":
-                    res = execute_query(db, user_id, action, last_touched_id)
+                    res = execute_query(db, user_id, action, last_touched_id, ref_date=ref_date)
                     results.append(res.model_dump())
 
                 elif op_name == "undo":
@@ -362,6 +363,7 @@ def handle_assistant_message(
                                 db.add(idemp)
                                 db.commit()
 
+                            tracer.set_reply(reply_text=ans_res.reply_text, spoken_text=ans_res.spoken_text)
                             return ans_res
 
                     results.append({
@@ -420,6 +422,7 @@ def handle_assistant_message(
         # 10. Record Trace & Results
         tracer.set_resolver_filters(last_filters_used)
         tracer.set_result({"results": results, "changed": changed})
+        tracer.set_reply(reply_text=reply_text, spoken_text=spoken_text)
 
         response_obj = AssistantResponse(
             reply_text=reply_text,

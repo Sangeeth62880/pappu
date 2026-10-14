@@ -46,6 +46,8 @@ class AssistantTracer:
         self.result_json: Optional[Dict[str, Any]] = None
         self.latency_ms_per_stage: Dict[str, float] = {}
         self.schema_valid: bool = True
+        self.reply_text: Optional[str] = None
+        self.spoken_text: Optional[str] = None
         self.trace_record: Optional[AssistantTrace] = None
         self._stage_starts: Dict[str, float] = {}
 
@@ -89,6 +91,10 @@ class AssistantTracer:
         self.raw_llm_output = raw_output
         self.schema_valid = schema_valid
 
+    def set_raw_llm_output(self, raw_output: str, schema_valid: bool = True) -> None:
+        """Record the raw LLM response text and schema validity flag (alias)."""
+        self.set_llm_output(raw_output, schema_valid=schema_valid)
+
     def set_plan(self, plan: Union[Dict[str, Any], "PlanV2", None]) -> None:
         """Record the structured plan object."""
         if plan is None:
@@ -107,6 +113,11 @@ class AssistantTracer:
     def set_result(self, result: Optional[Dict[str, Any]]) -> None:
         """Record the final execution or response result."""
         self.result_json = result
+
+    def set_reply(self, reply_text: Optional[str] = None, spoken_text: Optional[str] = None) -> None:
+        """Record the final user-facing reply_text and spoken_text."""
+        self.reply_text = reply_text
+        self.spoken_text = spoken_text
 
     def save(self) -> Optional[AssistantTrace]:
         """
@@ -135,6 +146,8 @@ class AssistantTracer:
             result_json=_clean_json(self.result_json),
             latency_ms_per_stage=self.latency_ms_per_stage,
             schema_valid=self.schema_valid,
+            reply_text=self.reply_text,
+            spoken_text=self.spoken_text,
         )
 
         try:

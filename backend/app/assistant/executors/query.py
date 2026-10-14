@@ -12,7 +12,8 @@ Supports:
 
 import uuid
 from decimal import Decimal
-from typing import Optional
+from datetime import date
+from typing import Optional, Union
 from sqlalchemy.orm import Session
 
 from app.assistant.schemas import QueryOp, Selector
@@ -26,6 +27,7 @@ def execute_query(
     user_id: uuid.UUID,
     op: QueryOp,
     last_touched_id: Optional[uuid.UUID] = None,
+    ref_date: Optional[Union[date, str]] = None,
 ) -> ActionResult:
     """
     Executes a Query operation for user_id.
@@ -47,7 +49,7 @@ def execute_query(
             )
 
         elif kind == "sum":
-            res = resolve(db, user_id, op.selector, last_touched_id)
+            res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
             total = sum((Decimal(str(r.amount)) for r in res.rows), Decimal("0.00"))
             return ActionResult(
                 ok=True,
@@ -62,7 +64,7 @@ def execute_query(
             )
 
         elif kind == "list":
-            res = resolve(db, user_id, op.selector, last_touched_id)
+            res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
             return ActionResult(
                 ok=True,
                 action="query",
@@ -76,7 +78,7 @@ def execute_query(
             )
 
         elif kind == "count":
-            res = resolve(db, user_id, op.selector, last_touched_id)
+            res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
             return ActionResult(
                 ok=True,
                 action="query",
@@ -89,7 +91,7 @@ def execute_query(
             )
 
         elif kind == "biggest":
-            res = resolve(db, user_id, op.selector, last_touched_id)
+            res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
             if not res.rows:
                 return ActionResult(
                     ok=True,
@@ -118,8 +120,8 @@ def execute_query(
             selector_1 = op.selector or Selector()
             selector_2 = op.compare_to or Selector()
 
-            res_1 = resolve(db, user_id, selector_1, last_touched_id)
-            res_2 = resolve(db, user_id, selector_2, last_touched_id)
+            res_1 = resolve(db, user_id, selector_1, last_touched_id, ref_date=ref_date)
+            res_2 = resolve(db, user_id, selector_2, last_touched_id, ref_date=ref_date)
 
             sum_1 = sum((Decimal(str(r.amount)) for r in res_1.rows), Decimal("0.00"))
             sum_2 = sum((Decimal(str(r.amount)) for r in res_2.rows), Decimal("0.00"))
@@ -130,6 +132,9 @@ def execute_query(
                 if sum_2 > Decimal("0.00")
                 else None
             )
+
+            p1_lbl = selector_1.period.replace("_", " ").capitalize() if getattr(selector_1, "period", None) else "Period 1"
+            p2_lbl = selector_2.period.replace("_", " ") if getattr(selector_2, "period", None) else "period 2"
 
             return ActionResult(
                 ok=True,
@@ -142,6 +147,10 @@ def execute_query(
                     "delta_percentage": delta_pct,
                     "count_1": len(res_1.rows),
                     "count_2": len(res_2.rows),
+                    "period1_label": p1_lbl,
+                    "period2_label": p2_lbl,
+                    "filters_used_1": res_1.filters_used,
+                    "filters_used_2": res_2.filters_used,
                 },
             )
 

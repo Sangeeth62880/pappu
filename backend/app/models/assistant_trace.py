@@ -21,6 +21,8 @@ class AssistantTrace(Base):
     result_json = Column(JSONB().with_variant(JSON, "sqlite"), nullable=True)
     latency_ms_per_stage = Column(JSONB().with_variant(JSON, "sqlite"), nullable=True)
     schema_valid = Column(Boolean, nullable=False, default=True)
+    reply_text = Column(Text, nullable=True)
+    spoken_text = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     profile = relationship("Profile", back_populates="assistant_traces")

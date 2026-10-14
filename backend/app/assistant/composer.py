@@ -78,6 +78,48 @@ def format_date_short(d_val: Union[str, date, datetime, None]) -> str:
     return f"{dt.day} {dt.strftime('%b')}"
 
 
+def format_range_from_dates(
+    d_from: Union[str, date, datetime, None],
+    d_to: Union[str, date, datetime, None],
+) -> str:
+    """
+    Formats a date range into a clean human string without hyphens as punctuation (Rule 9).
+    Examples:
+    - Same date: ' on 14 Oct'
+    - Same month: ' from 5 to 11 Oct'
+    - Different month: ' from 25 Sep to 5 Oct'
+    - Lower bound only: ' since 5 Oct'
+    - Upper bound only: ' until 11 Oct'
+    """
+    if not d_from and not d_to:
+        return ""
+
+    def _parse(val):
+        if not val:
+            return None
+        if isinstance(val, (date, datetime)):
+            return val.date() if isinstance(val, datetime) else val
+        try:
+            return date.fromisoformat(str(val).split("T")[0].strip())
+        except Exception:
+            return None
+
+    dt_from = _parse(d_from)
+    dt_to = _parse(d_to)
+
+    if dt_from and dt_to:
+        if dt_from == dt_to:
+            return f" on {dt_from.day} {dt_from.strftime('%b')}"
+        if dt_from.year == dt_to.year and dt_from.month == dt_to.month:
+            return f" from {dt_from.day} to {dt_to.day} {dt_from.strftime('%b')}"
+        return f" from {dt_from.day} {dt_from.strftime('%b')} to {dt_to.day} {dt_to.strftime('%b')}"
+    elif dt_from:
+        return f" since {dt_from.day} {dt_from.strftime('%b')}"
+    elif dt_to:
+        return f" until {dt_to.day} {dt_to.strftime('%b')}"
+    return ""
+
+
 def _compose_single_add(res: Dict[str, Any], lang: str) -> str:
     data = res.get("data") or {}
     kind = data.get("kind") or data.get("type") or "expense"
@@ -169,21 +211,48 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
         total = format_inr(total_val)
         filters = data.get("filters_used") or {}
         cat = data.get("category") or filters.get("category")
-        if cat:
-            txt = f"Total {cat} spending is {total}."
+        direction = filters.get("direction")
+        range_str = format_range_from_dates(
+            filters.get("resolved_date_from") or filters.get("date_from"),
+            filters.get("resolved_date_to") or filters.get("date_to"),
+        )
+        if direction == "received":
+            if cat:
+                txt = f"Total {cat} income is {total}{range_str}."
+            elif range_str:
+                txt = f"Received {total}{range_str}."
+            else:
+                txt = f"Total received is {total}."
         else:
-            txt = f"Total is {total}."
+            if cat:
+                txt = f"Total {cat} spending is {total}{range_str}."
+            elif range_str:
+                txt = f"Spent {total}{range_str}."
+            else:
+                txt = f"Total is {total}."
         return txt, txt
 
     elif q_kind == "count":
         cnt = data.get("count", 0)
-        txt = f"Found {cnt} transactions." if cnt != 1 else "Found 1 transaction."
+        filters = data.get("filters_used") or {}
+        range_str = format_range_from_dates(
+            filters.get("resolved_date_from") or filters.get("date_from"),
+            filters.get("resolved_date_to") or filters.get("date_to"),
+        )
+        noun = "transaction" if cnt == 1 else "transactions"
+        txt = f"Found {cnt} {noun}{range_str}."
         return txt, txt
 
     elif q_kind == "biggest":
         row = data.get("biggest") or data.get("transaction")
+        filters = data.get("filters_used") or {}
+        range_str = format_range_from_dates(
+            filters.get("resolved_date_from") or filters.get("date_from"),
+            filters.get("resolved_date_to") or filters.get("date_to"),
+        )
         if not row:
-            return "No transactions found.", "No transactions found."
+            msg = f"No transactions found{range_str}."
+            return msg, msg
         amt = format_inr(row.get("amount", 0))
         cat = row.get("category_name") or row.get("category") or "Food"
         dt = format_date_short(row.get("txn_date"))
@@ -201,13 +270,24 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
 
         p1_lbl = data.get("period1_label", "This month")
         p2_lbl = data.get("period2_label", "last month")
-        txt = f"{p1_lbl} {p1_total}, {p2_lbl} {p2_total}, {direction} {diff_str}."
+        f1 = data.get("filters_used_1") or {}
+        f2 = data.get("filters_used_2") or {}
+        r1 = format_range_from_dates(f1.get("resolved_date_from"), f1.get("resolved_date_to"))
+        r2 = format_range_from_dates(f2.get("resolved_date_from"), f2.get("resolved_date_to"))
+
+        txt = f"{p1_lbl}{r1} {p1_total}, {p2_lbl}{r2} {p2_total}, {direction} {diff_str}."
         return txt, txt
 
     elif q_kind == "list":
         rows = data.get("transactions") or []
+        filters = data.get("filters_used") or {}
+        range_str = format_range_from_dates(
+            filters.get("resolved_date_from") or filters.get("date_from"),
+            filters.get("resolved_date_to") or filters.get("date_to"),
+        )
         if not rows:
-            return "No transactions found.", "No transactions found."
+            msg = f"No transactions found{range_str}."
+            return msg, msg
 
         items = []
         for r in rows:
@@ -216,10 +296,10 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
             dt = format_date_short(r.get("txn_date"))
             items.append(f"{amt} {cat} on {dt}".strip())
 
-        full_reply = "Found: " + ", ".join(items) + "."
+        full_reply = f"Found {len(rows)} transactions{range_str}: " + ", ".join(items) + "."
         # Spoken text speaks the top 3 only
         top3 = items[:3]
-        spoken_reply = "Top transactions: " + ", ".join(top3) + "."
+        spoken_reply = f"Top transactions{range_str}: " + ", ".join(top3) + "."
         return full_reply, spoken_reply
 
     return "Query completed.", "Query completed."

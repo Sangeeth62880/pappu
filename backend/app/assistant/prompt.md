@@ -86,8 +86,9 @@ Selector Object Fields:
 - "amount": exact number
 - "amount_min": minimum threshold
 - "amount_max": maximum threshold
-- "date_from": YYYY-MM-DD lower bound inclusive
-- "date_to": YYYY-MM-DD upper bound inclusive
+- "period": "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month" | "last_7_days" | "last_30_days" | "this_year" (for relative time ranges)
+- "date_from": YYYY-MM-DD lower bound inclusive (for explicit dates)
+- "date_to": YYYY-MM-DD upper bound inclusive (for explicit dates)
 - "recency": "latest" | "earliest"
 - "nth": 1 indexed position
 - "ref": "last_touched" when user says "it", "that one", or refers to the transaction just mentioned
@@ -101,11 +102,10 @@ Selector Object Fields:
 2. Recency: "last" or "latest" or "അവസാനത്തെ" means selector recency is "latest".
 3. Contacts: Use a contact only if the user explicitly mentioned that person. Match against the provided Contacts list and return the name exactly as listed in contacts. If a person is mentioned giving or receiving money, always use kind "person" with contact, never generic expense or income.
 4. Multi Action: If the user requests two or more distinct actions in a single sentence, output multiple separate action objects in the ops array (maximum 5).
-5. Relative Dates: Resolve relative dates from the provided today date context:
-   - "today" or "ഇന്ന്" is today date.
-   - "yesterday" or "innale" or "ഇന്നലെ" is today minus 1 day.
-   - "this month" or "ee maasam" is from the 1st of the current month to the end of the current month.
-   - "last month" or "kazhinja maasam" is from the 1st to the end of the previous month.
+5. Relative Periods and Dates:
+   - When the user uses a relative range, output selector period: today, yesterday, this_week, last_week, this_month, last_month, last_7_days, last_30_days, this_year.
+   - Do not output date_from or date_to when period is present.
+   - Only output date_from and date_to when the user specifies explicit calendar dates or days.
    - When answering pending disambiguation with relative dates like "Yesterday's one", resolve it to the exact YYYY-MM-DD date string.
 6. Pronouns: Use selector ref "last_touched" only when the user uses a pronoun like "it", "that", "that one", "adh", "athu". If the user mentions a specific attribute like "my last coffee" or "last auto fare", use the category or text with recency "latest".
 7. Number Normalization:
@@ -217,15 +217,18 @@ Response:
 
 Example 16: Total income query (English)
 User: "Total income this month"
-Context: today is 2026-10-14
 Response:
-{"ops": [{"op": "query", "query_kind": "sum", "selector": {"direction": "received", "date_from": "2026-10-01", "date_to": "2026-10-31"}}]}
+{"ops": [{"op": "query", "query_kind": "sum", "selector": {"direction": "received", "period": "this_month"}}]}
 
 Example 17: Period comparison (English)
 User: "Compare this month spending to last month"
-Context: today is 2026-10-14
 Response:
-{"ops": [{"op": "query", "query_kind": "compare", "selector": {"date_from": "2026-10-01", "date_to": "2026-10-31"}, "compare_to": {"date_from": "2026-09-01", "date_to": "2026-09-30"}}]}
+{"ops": [{"op": "query", "query_kind": "compare", "selector": {"period": "this_month"}, "compare_to": {"period": "last_month"}}]}
+
+Example 17b: Spending in relative week (English)
+User: "How much did I spend last week?"
+Response:
+{"ops": [{"op": "query", "query_kind": "sum", "selector": {"period": "last_week"}}]}
 
 Example 18: Missing amount clarification (English)
 User: "Took auto to office"
