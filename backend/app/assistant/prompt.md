@@ -87,7 +87,7 @@ Selector Object Fields:
 - "amount": exact number
 - "amount_min": minimum threshold
 - "amount_max": maximum threshold
-- "period": "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month" | "last_7_days" | "last_30_days" | "this_year" (for relative time ranges)
+- "period": "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month" | "last_7_days" | "last_30_days" | "this_year" | "all_time" (for relative time ranges; use "all_time" when user says "ever" or "overall")
 - "date_from": YYYY-MM-DD lower bound inclusive (for explicit dates)
 - "date_to": YYYY-MM-DD upper bound inclusive (for explicit dates)
 - "recency": "latest" | "earliest"
@@ -105,10 +105,11 @@ Selector Object Fields:
    - For list queries requesting the last N items (e.g. "show my last 5 transactions", "last 3 expenses"), output selector limit: N with recency "latest". Do not use nth for list queries.
    - Use selector nth ONLY for delete and edit when targeting a specific numbered item (e.g. "delete the 2nd one", "change the 3rd transaction").
    - "last transaction", "latest transaction", or "അവസാനത്തെ transaction" means selector recency is "latest".
-3. Contacts: Use a contact only if the user explicitly mentioned that person. Match against the provided Contacts list and return the name exactly as listed in contacts. If the person is not in the contacts list, return the exact name spoken by the user in the exact script they spoke or typed (e.g. Malayalam script 'റോണിക്ക്'). NEVER transliterate, anglicize, or translate contact names into Latin characters if spoken in Malayalam or another Indic script. If a person is mentioned giving or receiving money, always use kind "person" with contact, never generic expense or income.
+3. Contacts: Use a contact only if the user explicitly mentioned that person. Match against the provided Contacts list and return the name exactly as listed in contacts. If the spoken name sounds like a listed contact in another script, return the listed contact name exactly. If the person is not in the contacts list, return the exact name spoken by the user in the exact script they spoke or typed (e.g. Malayalam script 'റോണിക്ക്'). NEVER transliterate, anglicize, or translate contact names into Latin characters if spoken in Malayalam or another Indic script. If a person is mentioned giving or receiving money, always use kind "person" with contact, never generic expense or income.
 4. Multi Action: If the user requests two or more distinct actions in a single sentence, output multiple separate action objects in the ops array (maximum 5).
 5. Relative Periods and Dates:
-   - When the user uses a relative range, output selector period: today, yesterday, this_week, last_week, this_month, last_month, last_7_days, last_30_days, this_year.
+   - When the user uses a relative range, output selector period: today, yesterday, this_week, last_week, this_month, last_month, last_7_days, last_30_days, this_year, all_time.
+   - If the user says "ever" or "overall" (e.g. "where did I spend the most ever?", "highest expense overall"), output selector period: "all_time".
    - Do not output date_from or date_to when period is present.
    - Only output date_from and date_to when the user specifies explicit calendar dates or days.
    - When answering pending disambiguation with relative dates like "Yesterday's one", resolve it to the exact YYYY-MM-DD date string.
@@ -264,6 +265,11 @@ Example 17d: List last N transactions (English)
 User: "Show my last five transactions"
 Response:
 {"ops": [{"op": "query", "query_kind": "list", "selector": {"limit": 5, "recency": "latest"}}]}
+
+Example 17e: Category breakdown all time (English)
+User: "Where did I spend the most ever?"
+Response:
+{"ops": [{"op": "query", "query_kind": "category_breakdown", "selector": {"period": "all_time"}}]}
 
 Example 18: Missing amount clarification (English)
 User: "Took auto to office"

@@ -86,6 +86,7 @@ def resolve(
             query = query.filter(Transaction.contact_id.in_(matched_contact_ids))
         else:
             # Contact not found for this user
+            filters_used["unknown_contact"] = clean_contact
             query = query.filter(Transaction.contact_id == None, False)
 
     # 3. Category filter
@@ -129,11 +130,15 @@ def resolve(
     # 7. Period and Date range (inclusive)
     period_val = _get_val(selector, "period")
     if period_val:
-        filters_used["period"] = str(period_val)
-        p_from, p_to = resolve_period_to_dates(str(period_val), ref_date=ref_date)
-        filters_used["resolved_date_from"] = p_from.isoformat()
-        filters_used["resolved_date_to"] = p_to.isoformat()
-        query = query.filter(Transaction.txn_date >= p_from, Transaction.txn_date <= p_to)
+        clean_period = str(period_val).strip().lower()
+        filters_used["period"] = clean_period
+        if clean_period == "all_time":
+            filters_used["is_all_time"] = True
+        else:
+            p_from, p_to = resolve_period_to_dates(clean_period, ref_date=ref_date)
+            filters_used["resolved_date_from"] = p_from.isoformat()
+            filters_used["resolved_date_to"] = p_to.isoformat()
+            query = query.filter(Transaction.txn_date >= p_from, Transaction.txn_date <= p_to)
     else:
         date_from_val = _get_val(selector, "date_from")
         if date_from_val:

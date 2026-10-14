@@ -36,6 +36,14 @@ def execute_edit(
     try:
         resolve_res = resolve(db, user_id, op.selector, last_touched_id, for_mutation=True)
 
+        if resolve_res.filters_used.get("unknown_contact"):
+            return ActionResult(
+                ok=False,
+                action="edit",
+                error="Unknown contact",
+                filters_used=resolve_res.filters_used,
+            )
+
         if resolve_res.outcome == "none":
             return ActionResult(
                 ok=False,

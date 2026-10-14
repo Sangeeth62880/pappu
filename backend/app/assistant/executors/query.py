@@ -39,6 +39,22 @@ def execute_query(
         if kind == "balances":
             # The balances executor must ignore a stray direction field.
             contact_needle = op.selector.contact if op.selector else None
+            if contact_needle:
+                from app.models.contact import Contact
+                user_contacts = db.query(Contact).filter(Contact.user_id == user_id).all()
+                needle = contact_needle.strip().lower()
+                matched = any(
+                    c.name.strip().lower() == needle or (c.aliases and any(a.strip().lower() == needle for a in c.aliases))
+                    for c in user_contacts
+                )
+                if not matched:
+                    return ActionResult(
+                        ok=False,
+                        action="query",
+                        error="Unknown contact",
+                        filters_used={"contact": contact_needle, "unknown_contact": contact_needle},
+                    )
+
             res_balances = balances(db, user_id, contact=contact_needle)
 
             # Filter by balance_side: "owed_to_me", "i_owe", "all"
@@ -62,8 +78,27 @@ def execute_query(
             )
 
         elif kind == "category_breakdown":
-            res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
-            allow_people = should_allow_people(op.selector)
+            sel = op.selector
+            # Default period this month when none is given
+            has_time_filter = bool(
+                sel and (sel.period or sel.date_from or sel.date_to)
+            )
+            if not has_time_filter:
+                if sel is None:
+                    sel = Selector(period="this_month")
+                else:
+                    sel.period = "this_month"
+
+            res = resolve(db, user_id, sel, last_touched_id, ref_date=ref_date)
+            if res.filters_used.get("unknown_contact"):
+                return ActionResult(
+                    ok=False,
+                    action="query",
+                    error="Unknown contact",
+                    filters_used=res.filters_used,
+                )
+
+            allow_people = should_allow_people(sel)
             rows = [r for r in res.rows if is_spending_txn(r, allow_people=allow_people)]
 
             groups: Dict[str, Decimal] = {}
@@ -90,6 +125,14 @@ def execute_query(
 
         elif kind == "sum":
             res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
+            if res.filters_used.get("unknown_contact"):
+                return ActionResult(
+                    ok=False,
+                    action="query",
+                    error="Unknown contact",
+                    filters_used=res.filters_used,
+                )
+
             direction = res.filters_used.get("direction")
             allow_people = should_allow_people(op.selector)
             if direction == "received":
@@ -111,6 +154,14 @@ def execute_query(
 
         elif kind == "list":
             res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
+            if res.filters_used.get("unknown_contact"):
+                return ActionResult(
+                    ok=False,
+                    action="query",
+                    error="Unknown contact",
+                    filters_used=res.filters_used,
+                )
+
             return ActionResult(
                 ok=True,
                 action="query",
@@ -125,6 +176,14 @@ def execute_query(
 
         elif kind == "count":
             res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
+            if res.filters_used.get("unknown_contact"):
+                return ActionResult(
+                    ok=False,
+                    action="query",
+                    error="Unknown contact",
+                    filters_used=res.filters_used,
+                )
+
             direction = res.filters_used.get("direction")
             allow_people = should_allow_people(op.selector)
             if direction == "received":
@@ -146,6 +205,13 @@ def execute_query(
 
         elif kind == "biggest":
             res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
+            if res.filters_used.get("unknown_contact"):
+                return ActionResult(
+                    ok=False,
+                    action="query",
+                    error="Unknown contact",
+                    filters_used=res.filters_used,
+                )
             direction = res.filters_used.get("direction")
             allow_people = should_allow_people(op.selector)
             if direction == "received":

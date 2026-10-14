@@ -32,6 +32,7 @@ PeriodLiteral = Literal[
     "last_7_days",
     "last_30_days",
     "this_year",
+    "all_time",
 ]
 
 

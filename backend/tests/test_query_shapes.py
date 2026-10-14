@@ -93,12 +93,12 @@ def test_category_breakdown_query(test_shapes_db):
     assert "People" not in categories_found
     assert categories_found == ["Food", "Shopping", "Transport", "Bills"]
 
-    # Top 3 spoken
-    assert "Top spending: Food ₹1,200, Shopping ₹800, Transport ₹400." in data["spoken_text"]
+    # Top 3 spoken (Item 5: states the range)
+    assert "Top spending from 1 to 31 Oct: Food ₹1,200, Shopping ₹800, Transport ₹400." in data["spoken_text"]
     assert "Bills" not in data["spoken_text"]
 
-    # Full list in reply card
-    assert "Spending by category: Food ₹1,200, Shopping ₹800, Transport ₹400, Bills ₹200." in data["reply_text"]
+    # Full list in reply card (Item 5: states the range)
+    assert "Spending by category from 1 to 31 Oct: Food ₹1,200, Shopping ₹800, Transport ₹400, Bills ₹200." in data["reply_text"]
 
 
 def test_balances_balance_side_and_empty_replies(test_shapes_db):

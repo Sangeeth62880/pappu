@@ -268,10 +268,14 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
     elif q_kind == "category_breakdown":
         cats = data.get("categories") or []
         filters = data.get("filters_used") or {}
-        range_str = format_range_from_dates(
-            filters.get("resolved_date_from") or filters.get("date_from"),
-            filters.get("resolved_date_to") or filters.get("date_to"),
-        )
+        is_all_time = filters.get("is_all_time") or filters.get("period") == "all_time"
+        if is_all_time:
+            range_str = " all time"
+        else:
+            range_str = format_range_from_dates(
+                filters.get("resolved_date_from") or filters.get("date_from"),
+                filters.get("resolved_date_to") or filters.get("date_to"),
+            )
         if not cats:
             msg = f"No spending found{range_str}."
             return msg, msg
@@ -284,8 +288,19 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
 
     elif q_kind == "sum":
         total_val = data.get("sum", data.get("total", 0))
-        total = format_inr(total_val)
+        count_val = data.get("count", 0)
         filters = data.get("filters_used") or {}
+        # If user queried for a specific amount/threshold and no match was found
+        has_amt_filter = (
+            filters.get("amount") is not None
+            or filters.get("amount_min") is not None
+            or filters.get("amount_max") is not None
+        )
+        if count_val == 0 and total_val == 0 and has_amt_filter:
+            msg = _compose_resolver_none(filters, lang)
+            return msg, msg
+
+        total = format_inr(total_val)
         cat = data.get("category") or filters.get("category")
         direction = filters.get("direction")
         range_str = format_range_from_dates(
@@ -357,14 +372,14 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
     elif q_kind == "list":
         rows = data.get("transactions") or []
         filters = data.get("filters_used") or {}
+        if not rows:
+            msg = _compose_resolver_none(filters, lang)
+            return msg, msg
+
         range_str = format_range_from_dates(
             filters.get("resolved_date_from") or filters.get("date_from"),
             filters.get("resolved_date_to") or filters.get("date_to"),
         )
-        if not rows:
-            msg = f"No transactions found{range_str}."
-            return msg, msg
-
         items = []
         for r in rows:
             amt = format_inr(r.get("amount", 0))
@@ -395,35 +410,57 @@ def _compose_resolver_none(filters: Optional[Dict[str, Any]], lang: str) -> str:
     if not filters:
         return "Transaction not found."
 
+    unknown_c = filters.get("unknown_contact")
+    if unknown_c:
+        if lang == "ml":
+            return f"{unknown_c} എന്ന പേരിൽ ഒരു കോൺടാക്റ്റ് എനിക്കറിയില്ല."
+        elif lang == "mixed":
+            return f"{unknown_c} enna peril oru contact enikkariyilla."
+        return f"I don't know a contact named {unknown_c}."
+
     # Edge case: "it" or "last_touched" with no previous transaction
     if filters.get("ref") == "last_touched":
         return "I don't know which transaction you mean."
 
     cat = filters.get("category")
     amt = filters.get("amount")
-    dt_val = filters.get("date") or filters.get("date_from")
     contact = filters.get("contact")
+    direction = filters.get("direction")
+    is_income = direction == "received" or filters.get("type") == "income"
+    is_all_time = filters.get("is_all_time") or filters.get("period") == "all_time"
+
+    if is_all_time:
+        range_str = " all time"
+    else:
+        d_from = filters.get("resolved_date_from") or filters.get("date_from") or filters.get("date")
+        d_to = filters.get("resolved_date_to") or filters.get("date_to") or filters.get("date")
+        range_str = format_range_from_dates(d_from, d_to)
 
     parts = []
     if cat:
-        parts.append(str(cat))
-    if amt is not None:
-        amt_str = format_inr(amt)
-        if cat:
-            parts.append(f"expense of {amt_str}")
-        else:
-            parts.append(f"transaction of {amt_str}")
-    elif cat:
-        parts.append("expense")
+        type_word = "income" if is_income else "expense"
+        parts.append(f"{cat} {type_word}")
+    elif contact:
+        parts.append(f"{contact} transaction")
+    elif amt is not None:
+        type_word = "income" if is_income else "expense"
+        parts.append(f"{type_word}")
     else:
-        parts.append("transaction")
+        parts.append("transactions")
 
-    if dt_val:
-        parts.append(f"on {format_date_short(dt_val)}")
-    if contact:
+    if amt is not None:
+        parts.append(f"of {format_inr(amt)}")
+
+    if cat and contact:
         parts.append(f"with {contact}")
 
     desc = " ".join(parts)
+
+    if range_str:
+        return f"No {desc}{range_str}."
+
+    if desc == "transactions":
+        return "No transactions found."
     return f"No {desc} found."
 
 
@@ -542,7 +579,10 @@ def compose_reply(
         else:
             err = r.get("error") or "Failed to process"
             filters = r.get("filters_used") or filters_used
-            if "not found" in err.lower():
+            if (filters and filters.get("unknown_contact")) or "unknown contact" in err.lower():
+                sent = _compose_resolver_none(filters, lang)
+                failure_sentences.append(sent)
+            elif "not found" in err.lower():
                 sent = _compose_resolver_none(filters, lang)
                 failure_sentences.append(sent)
             elif "disambiguation" in err.lower():
