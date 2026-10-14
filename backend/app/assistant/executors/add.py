@@ -7,6 +7,7 @@ Writes undo action with the shared batch_id.
 """
 
 import uuid
+from decimal import Decimal
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -86,6 +87,30 @@ def execute_add(
 
             category = resolve_category(db, "People", default_type=txn_type)
 
+            # Determine person flow from prior balance and direction
+            prev_txns = (
+                db.query(Transaction)
+                .filter(Transaction.user_id == user_id, Transaction.contact_id == contact.id)
+                .all()
+            )
+            prev_sent = sum((t.amount for t in prev_txns if t.type == "expense"), Decimal("0.00"))
+            prev_received = sum((t.amount for t in prev_txns if t.type == "income"), Decimal("0.00"))
+            prev_net = prev_sent - prev_received
+
+            desc = (op.description or "").lower()
+            if op.direction == "received":
+                if prev_net > Decimal("0.00"):
+                    person_flow = "repayment"
+                else:
+                    person_flow = "i_owe"
+            else:
+                if "owe" in desc or "lent" in desc or "lend" in desc:
+                    person_flow = "they_owe"
+                elif prev_net < Decimal("0.00"):
+                    person_flow = "repayment"
+                else:
+                    person_flow = None
+
         elif op.kind in ("expense", "income"):
             txn_type = op.kind
             category = resolve_category(db, op.category, default_type=txn_type)
@@ -142,11 +167,15 @@ def execute_add(
         db.commit()
         db.refresh(txn)
 
+        serialized = serialize_transaction(txn)
+        if op.kind == "person" and person_flow:
+            serialized["person_flow"] = person_flow
+
         return ActionResult(
             ok=True,
             action="add",
             transaction_id=str(txn.id),
-            data=serialize_transaction(txn),
+            data=serialized,
             needs_confirmation=needs_confirmation,
         )
 

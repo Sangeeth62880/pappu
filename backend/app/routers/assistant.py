@@ -42,6 +42,7 @@ from app.assistant.pending import (
     get_pending_by_id,
     handle_answer_pending,
     format_pending_summary,
+    format_delete_confirmation_question,
 )
 from app.assistant.executors.add import execute_add
 from app.assistant.executors.edit import execute_edit
@@ -298,10 +299,7 @@ def handle_assistant_message(
                         # Exactly one row matched: always create a pending confirm
                         if not created_pending:
                             target_row = resolve_res.rows[0]
-                            amt_str = format_inr(target_row.amount)
-                            cat_str = target_row.contact.name if target_row.contact else (target_row.category.name if target_row.category else "Food")
-                            dt_str = format_date_short(target_row.txn_date)
-                            q = f"Delete {cat_str} {amt_str} on {dt_str}?"
+                            q = format_delete_confirmation_question(target_row)
                             created_pending, _ = create_pending(
                                 db=db,
                                 user_id=user_id,

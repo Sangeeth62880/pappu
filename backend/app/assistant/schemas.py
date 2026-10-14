@@ -134,7 +134,7 @@ class ClarifyAction(BaseModel):
 
 class ChatAction(BaseModel):
     op: Literal["chat"] = "chat"
-    kind: Literal["greeting", "help", "off_topic", "unsupported"] = "off_topic"
+    kind: Literal["greeting", "help", "off_topic", "unsupported", "unsupported_bulk"] = "off_topic"
     message: Optional[str] = None
 
 

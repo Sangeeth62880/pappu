@@ -128,15 +128,28 @@ def _compose_single_add(res: Dict[str, Any], lang: str) -> str:
     contact = data.get("contact_name") or data.get("contact")
 
     if contact or kind == "person" or cat == "People":
-        # Sent vs Received
+        person_flow = data.get("person_flow")
         direction = data.get("direction")
         is_received = direction == "received" or data.get("type") == "income"
-        if is_received:
+
+        if person_flow == "repayment":
             if lang == "ml":
                 return f"{contact} നിങ്ങൾക്ക് {amt} നൽകി എന്ന് രേഖപ്പെടുത്തി."
             elif lang == "mixed":
-                return f"{contact} enikku {amt} thannu എന്ന് രേഖപ്പെടുത്തി."
-            return f"{contact} sent you {amt}."
+                return f"{contact} {amt} thannu എന്ന് രേഖപ്പെടുത്തി."
+            return f"{contact} paid you {amt}."
+        elif person_flow == "i_owe" or is_received:
+            if lang == "ml":
+                return f"{contact}ന് നൽകാനുള്ള {amt} ചേർത്തു."
+            elif lang == "mixed":
+                return f"{contact} nu kodukkaamulla {amt} add ചെയ്തു."
+            return f"Added {amt} you owe {contact}."
+        elif person_flow == "they_owe":
+            if lang == "ml":
+                return f"{contact} നൽകാനുള്ള {amt} ചേർത്തു."
+            elif lang == "mixed":
+                return f"{contact} tharaanulla {amt} add ചെയ്തു."
+            return f"Added {amt} {contact} owes you."
         else:
             if lang == "ml":
                 return f"{contact}ന് {amt} നൽകി എന്ന് രേഖപ്പെടുത്തി."
@@ -451,6 +464,13 @@ def compose_reply(
             elif kind == "unsupported":
                 u = "Budgets are not available yet."
                 return u, u
+            elif kind == "unsupported_bulk":
+                ub = "I can't delete everything at once. Tell me which transaction to delete."
+                if lang == "ml":
+                    ub = "എല്ലാം ഒരുമിച്ച് ഒഴിവാക്കാൻ കഴിയില്ല. ഏത് ഇടപാടാണ് ഒഴിവാക്കേണ്ടത് എന്ന് പറയൂ."
+                elif lang == "mixed":
+                    ub = "Ellaam orumichu ozhivaakkaan kazhiyilla. Ethe idapaadaanu ozhivaakkendathu ennu parayu."
+                return ub, ub
 
     # 3. Process Execution Results
     if not results:

@@ -654,5 +654,5 @@ def test_endpoint_answer_pending_synonyms(test_db_session):
         headers=headers,
     )
     assert res2.status_code == 200
-    assert "Delete ₹100 Food" in res2.json()["reply_text"]
+    assert "Delete Food ₹100 on 14 Oct?" in res2.json()["reply_text"]
 

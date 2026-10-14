@@ -29,8 +29,52 @@ from app.assistant.schemas import (
 from app.assistant.executors.coordinator import execute_ops
 from app.assistant.executors.base import ActionResult
 from app.assistant.contacts import add_alias_to_contact, create_contact, normalize_name
+from app.assistant.composer import format_inr, format_date_short
 
 DEFAULT_EXPIRY_SECONDS = 300  # 5 minutes
+
+
+def format_delete_confirmation_question(row_or_candidate: Any) -> str:
+    """
+    Unified single formatter for every pending delete question and confirmation:
+    contact name or category, amount in Indian format without .0,
+    and date like 14 Oct, with income or expense stated correctly from the row.
+    """
+    amt_val = getattr(row_or_candidate, "amount", None)
+    if amt_val is None and isinstance(row_or_candidate, dict):
+        amt_val = row_or_candidate.get("amount")
+    amt_str = format_inr(amt_val or 0)
+
+    dt_val = getattr(row_or_candidate, "txn_date", None)
+    if dt_val is None and isinstance(row_or_candidate, dict):
+        dt_val = row_or_candidate.get("date") or row_or_candidate.get("txn_date")
+    dt_str = format_date_short(dt_val)
+
+    txn_type = getattr(row_or_candidate, "type", None)
+    if txn_type is None and isinstance(row_or_candidate, dict):
+        txn_type = row_or_candidate.get("type") or row_or_candidate.get("kind")
+    is_income = str(txn_type or "").strip().lower() == "income"
+
+    contact_name = None
+    if hasattr(row_or_candidate, "contact") and row_or_candidate.contact:
+        contact_name = getattr(row_or_candidate.contact, "name", None)
+    elif isinstance(row_or_candidate, dict):
+        contact_name = row_or_candidate.get("contact_name") or row_or_candidate.get("contact")
+
+    category_name = None
+    if hasattr(row_or_candidate, "category") and row_or_candidate.category:
+        category_name = getattr(row_or_candidate.category, "name", None)
+    elif isinstance(row_or_candidate, dict):
+        category_name = row_or_candidate.get("category_name") or row_or_candidate.get("category")
+
+    if contact_name and str(contact_name).strip():
+        label = str(contact_name).strip()
+    elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
+        label = str(category_name).strip()
+    else:
+        label = "income" if is_income else "expense"
+
+    return f"Delete {label} {amt_str} on {dt_str}?"
 
 
 def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -383,10 +427,7 @@ def handle_answer_pending(
 
         if op_type == "delete":
             # Select candidate then move to confirm for delete
-            amt = chosen.get("amount")
-            cat = chosen.get("category") or "expense"
-            dt = chosen.get("date") or chosen.get("txn_date") or ""
-            question = f"Delete ₹{amt} {cat} on {dt}?"
+            question = format_delete_confirmation_question(chosen)
 
             del_action = {
                 "op": "delete",

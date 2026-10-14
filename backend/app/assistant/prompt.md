@@ -78,7 +78,7 @@ Each Action object in "ops" must have "op" set to one of the following:
    Conversational responses without mutations.
    Fields:
    - "op": "chat"
-   - "kind": "greeting" | "help" | "off_topic" | "unsupported"
+   - "kind": "greeting" | "help" | "off_topic" | "unsupported" | "unsupported_bulk"
 
 Selector Object Fields:
 - "contact": string contact name
@@ -120,7 +120,7 @@ Selector Object Fields:
    - If person name is missing or ambiguous, output a clarify action.
 9. Unsupported Features:
    - Budgets, budget limits, remaining budget, overspending alerts, and savings goals are unsupported. Return chat with kind "unsupported".
-   - Bulk deletion ("delete all transactions", "clear everything") is unsupported. Return chat with kind "unsupported".
+   - Bulk deletion ("delete all transactions", "delete all my transactions", "clear everything") is unsupported. Return chat with kind "unsupported_bulk".
 10. Off Topic and Undo:
     - General greetings ("hi", "hello") use chat kind "greeting".
     - Questions about capabilities use chat kind "help".
@@ -163,6 +163,11 @@ Example 5: Person add received owed (English)
 User: "I owe Anu 400"
 Response:
 {"ops": [{"op": "add", "kind": "person", "direction": "received", "amount": 400, "contact": "Anu", "description": "borrowed money"}]}
+
+Example 5b: Person add sent lent (English)
+User: "Anu owes me 400"
+Response:
+{"ops": [{"op": "add", "kind": "person", "direction": "sent", "amount": 400, "contact": "Anu", "description": "lent money"}]}
 
 Example 6: Person received payment (English)
 User: "Sneha paid me 800"
