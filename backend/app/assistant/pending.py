@@ -206,6 +206,26 @@ def handle_answer_pending(
 
     clean_answer = (answer or "").strip().lower()
 
+    # Normalize answer synonyms
+    if clean_answer in ("confirm", "ok", "aam", "ഉവ്വ്", "sure", "yes"):
+        clean_answer = "yes"
+    elif clean_answer in ("new", "+ add new", "add new", "add_new"):
+        clean_answer = "no"  # For contact_confirm, creates new contact
+    elif clean_answer in ("choose", "select"):
+        clean_answer = "pick"
+    else:
+        # Check if clean_answer directly matches a candidate id, category, or name
+        candidates = item.candidates_json or []
+        for i, c in enumerate(candidates):
+            if isinstance(c, dict):
+                c_id = str(c.get("id") or "").lower()
+                c_name = str(c.get("name") or "").lower()
+                c_cat = str(c.get("category") or "").lower()
+                if clean_answer in (c_id, c_name, c_cat):
+                    clean_answer = "pick"
+                    index = i + 1
+                    break
+
     # 3. Answer: NO or CANCEL
     if clean_answer in ("no", "cancel"):
         if item.kind == "contact_confirm":
@@ -341,6 +361,8 @@ def handle_answer_pending(
     # 5. Answer: PICK (with candidate index)
     if clean_answer == "pick":
         candidates = item.candidates_json or []
+        if index == 0 and len(candidates) > 0:
+            index = 1
         if index is None or index < 1 or index > len(candidates):
             summary = format_pending_summary(item)
             reply = f"Please choose a valid number between 1 and {len(candidates)}."

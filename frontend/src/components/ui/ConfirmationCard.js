@@ -139,7 +139,7 @@ export default function ConfirmationCard({
       )}
 
       {/* Disambiguation / candidate list */}
-      {(type === 'disambiguation' || (candidates && candidates.length > 0)) && (
+      {type === 'disambiguation' && (
         <View style={styles.candidatesList}>
           {isHistorical ? (
             <View testID="resolved-badge" style={[styles.resolvedBadge, { marginTop: spacing.xs }]}>

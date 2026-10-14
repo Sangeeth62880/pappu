@@ -239,7 +239,7 @@ export default function ConversationLog({
         client_msg_id: clientMsgId,
       });
 
-      const replyText = res.display_text || res.spoken_text || 'Done';
+      const replyText = res.display_text || res.reply_text || res.spoken_text || 'Done';
       const spokenText = res.spoken_text || '';
       const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
@@ -307,7 +307,7 @@ export default function ConversationLog({
     try {
       setLoading(true);
       const res = await answerPending(token, pendingId, answer, index);
-      const replyText = res.display_text || res.spoken_text || 'Action confirmed.';
+      const replyText = res.display_text || res.reply_text || res.spoken_text || 'Action confirmed.';
       const spokenText = res.spoken_text || '';
       const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
@@ -400,12 +400,16 @@ export default function ConversationLog({
 
   const renderPendingCard = (pending, isHistorical = false, defaultPrompt = '') => {
     if (!pending) return null;
-    const promptText = pending.summary || defaultPrompt;
+    const promptText = pending.question || pending.summary || defaultPrompt;
+    const kind = pending.kind || pending.action_type;
 
-    if (
-      pending.action_type === 'disambiguate' ||
-      (pending.candidates && pending.candidates.length > 0 && pending.action_type !== 'contact_confirm')
-    ) {
+    // Disambiguation branch
+    const isDisambiguate =
+      kind === 'disambiguate' ||
+      (!kind && pending.candidates && pending.candidates.length > 1) ||
+      (kind !== 'confirm' && kind !== 'contact_confirm' && pending.candidates && pending.candidates.length > 1);
+
+    if (isDisambiguate) {
       return (
         <ConfirmationCard
           prompt={promptText}
@@ -422,12 +426,12 @@ export default function ConversationLog({
                     idx
                   )
           }
-          actionLabel={pending.action_type || 'choose'}
+          actionLabel={kind || 'choose'}
         />
       );
     }
 
-    if (pending.action_type === 'contact_confirm') {
+    if (kind === 'contact_confirm') {
       const suggestedContact = pending.candidates?.[0] || pending.target_transaction;
       const contactName = typeof suggestedContact === 'object' && suggestedContact !== null
         ? (suggestedContact.name || 'contact')
@@ -451,16 +455,22 @@ export default function ConversationLog({
       );
     }
 
-    // Default confirmation card (Delete red, Cancel secondary, or edit)
-    const isDelete = pending.action_type === 'delete';
+    // Default confirmation card (Delete red, Cancel secondary, or generic confirm)
+    const isDelete =
+      kind === 'delete' ||
+      (promptText || '').toLowerCase().includes('delete');
+    const targetTxn =
+      pending.target_transaction ||
+      (pending.candidates && pending.candidates.length === 1 ? pending.candidates[0] : null);
+
     return (
       <ConfirmationCard
         prompt={promptText}
         type="confirmation"
         isHistorical={isHistorical}
-        targetTransaction={pending.target_transaction}
+        targetTransaction={targetTxn}
         onConfirm={isHistorical ? null : () => handleAnswerPending(pending.id, 'confirm')}
-        actionLabel={isHistorical ? 'Resolved' : (isDelete ? 'delete' : (pending.action_type || 'confirm'))}
+        actionLabel={isHistorical ? 'Resolved' : (isDelete ? 'delete' : (kind || 'confirm'))}
         secondaryAction={!isHistorical}
         secondaryLabel="Cancel"
         onSecondaryAction={() => handleAnswerPending(pending.id, 'cancel')}

@@ -119,6 +119,61 @@ describe('Assistant V2 UI and Endpoints', () => {
     });
   });
 
+  test('renders delete confirmation card with kind confirm and candidate transaction', async () => {
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      spoken_text: 'Delete Food ₹150 on Oct 14?',
+      reply_text: 'Delete Food ₹150 on Oct 14?',
+      results: [],
+      pending: {
+        id: 'pend-v2-del',
+        kind: 'confirm',
+        question: 'Delete Food ₹150 on Oct 14?',
+        candidates: [
+          {
+            id: 'txn-150',
+            amount: 150,
+            category_name: 'Food',
+            txn_date: '14 Oct',
+          },
+        ],
+        expires_at: new Date(Date.now() + 60000).toISOString(),
+      },
+      changed: false,
+    });
+
+    client.answerPending.mockResolvedValueOnce({
+      spoken_text: 'Deleted transaction.',
+      reply_text: 'Deleted transaction.',
+      results: [],
+      pending: null,
+      changed: true,
+    });
+
+    const { findByTestId, findByText } = await render(
+      <ConversationLog token={mockToken} assistantV2={true} onTransactionMutated={jest.fn()} />
+    );
+
+    const input = await findByTestId('conversation-input');
+    fireEvent.changeText(input, 'delete food 150');
+    fireEvent.press(await findByTestId('conversation-send-button'));
+
+    expect(await findByText('Delete Food ₹150 on Oct 14?')).toBeTruthy();
+    expect(await findByText('✓ Confirm delete')).toBeTruthy();
+    expect(await findByText('Cancel')).toBeTruthy();
+
+    const confirmBtn = await findByText('✓ Confirm delete');
+    fireEvent.press(confirmBtn);
+
+    await waitFor(() => {
+      expect(client.answerPending).toHaveBeenCalledWith(
+        mockToken,
+        'pend-v2-del',
+        'confirm',
+        null
+      );
+    });
+  });
+
   test('disambiguation list renders at most 5 tappable candidate rows', async () => {
     const candidates = [
       { id: 'c1', amount: 100, category_name: 'Food', txn_date: 'Today' },

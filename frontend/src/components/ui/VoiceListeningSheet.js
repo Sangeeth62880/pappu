@@ -118,7 +118,7 @@ export default function VoiceListeningSheet({
         client_msg_id: clientMsgId,
       });
 
-      const reply = res.display_text || res.spoken_text || 'Done';
+      const reply = res.display_text || res.reply_text || res.spoken_text || 'Done';
       setResultMessage(reply);
       setStatusText('Done');
 
@@ -188,7 +188,7 @@ export default function VoiceListeningSheet({
     try {
       setLoading(true);
       const res = await answerPending(token, pendingId, answer, index);
-      const reply = res.display_text || res.spoken_text || 'Action confirmed.';
+      const reply = res.display_text || res.reply_text || res.spoken_text || 'Action confirmed.';
       setResultMessage(reply);
       setStatusText('Done');
       setV2Pending(res.pending || null);
@@ -310,46 +310,76 @@ export default function VoiceListeningSheet({
         )}
 
         {/* v2 Pending Card */}
-        {v2Pending && (
-          <View style={styles.cardContainer}>
-            {v2Pending.action_type === 'disambiguate' || (v2Pending.candidates && v2Pending.candidates.length > 0 && v2Pending.action_type !== 'contact_confirm') ? (
+        {v2Pending && (() => {
+          const promptText = v2Pending.question || v2Pending.summary || 'Confirmation required';
+          const kind = v2Pending.kind || v2Pending.action_type;
+          const isDisambiguate =
+            kind === 'disambiguate' ||
+            (!kind && v2Pending.candidates && v2Pending.candidates.length > 1) ||
+            (kind !== 'confirm' && kind !== 'contact_confirm' && v2Pending.candidates && v2Pending.candidates.length > 1);
+
+          if (isDisambiguate) {
+            return (
+              <View style={styles.cardContainer}>
+                <ConfirmationCard
+                  prompt={promptText}
+                  type="disambiguation"
+                  candidates={v2Pending.candidates}
+                  onSelect={(cand, idx) =>
+                    handleV2Answer(
+                      v2Pending.id,
+                      typeof cand === 'string' ? cand : (cand.id || cand.name || 'choose'),
+                      idx
+                    )
+                  }
+                  actionLabel={kind || 'choose'}
+                />
+              </View>
+            );
+          }
+
+          if (kind === 'contact_confirm') {
+            const suggestedContact = v2Pending.candidates?.[0] || v2Pending.target_transaction;
+            const contactName = typeof suggestedContact === 'object' && suggestedContact !== null
+              ? (suggestedContact.name || 'confirm')
+              : 'confirm';
+            return (
+              <View style={styles.cardContainer}>
+                <ConfirmationCard
+                  prompt={promptText}
+                  type="confirmation"
+                  actionLabel={`Yes, ${contactName}`}
+                  onConfirm={() => handleV2Answer(v2Pending.id, 'yes', 0)}
+                  secondaryAction={true}
+                  secondaryLabel="+ Add new"
+                  onSecondaryAction={() => handleV2Answer(v2Pending.id, 'new')}
+                />
+              </View>
+            );
+          }
+
+          const isDelete =
+            kind === 'delete' ||
+            (promptText || '').toLowerCase().includes('delete');
+          const targetTxn =
+            v2Pending.target_transaction ||
+            (v2Pending.candidates && v2Pending.candidates.length === 1 ? v2Pending.candidates[0] : null);
+
+          return (
+            <View style={styles.cardContainer}>
               <ConfirmationCard
-                prompt={v2Pending.summary}
-                type="disambiguation"
-                candidates={v2Pending.candidates}
-                onSelect={(cand, idx) =>
-                  handleV2Answer(
-                    v2Pending.id,
-                    typeof cand === 'string' ? cand : (cand.id || cand.name || 'choose'),
-                    idx
-                  )
-                }
-                actionLabel={v2Pending.action_type || 'choose'}
-              />
-            ) : v2Pending.action_type === 'contact_confirm' ? (
-              <ConfirmationCard
-                prompt={v2Pending.summary}
+                prompt={promptText}
                 type="confirmation"
-                actionLabel={`Yes, ${v2Pending.candidates?.[0]?.name || 'confirm'}`}
-                onConfirm={() => handleV2Answer(v2Pending.id, 'yes', 0)}
-                secondaryAction={true}
-                secondaryLabel="+ Add new"
-                onSecondaryAction={() => handleV2Answer(v2Pending.id, 'new')}
-              />
-            ) : (
-              <ConfirmationCard
-                prompt={v2Pending.summary}
-                type="confirmation"
-                targetTransaction={v2Pending.target_transaction}
-                actionLabel={v2Pending.action_type === 'delete' ? 'delete' : (v2Pending.action_type || 'confirm')}
+                targetTransaction={targetTxn}
+                actionLabel={isDelete ? 'delete' : (kind || 'confirm')}
                 onConfirm={() => handleV2Answer(v2Pending.id, 'confirm')}
                 secondaryAction={true}
                 secondaryLabel="Cancel"
                 onSecondaryAction={() => handleV2Answer(v2Pending.id, 'cancel')}
               />
-            )}
-          </View>
-        )}
+            </View>
+          );
+        })()}
 
 
         {/* Result Success Message */}

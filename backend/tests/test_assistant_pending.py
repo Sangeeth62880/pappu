@@ -612,3 +612,47 @@ def test_endpoint_answer_pending_success(test_db_session):
     assert data["changed"] is False
     assert data["pending"] is None
     assert isinstance(data["results"], list)
+
+
+def test_endpoint_answer_pending_synonyms(test_db_session):
+    user_id = str(uuid.uuid4())
+    profile = Profile(id=uuid.UUID(user_id), name="Synonym User")
+    test_db_session.add(profile)
+    test_db_session.commit()
+
+    token = create_test_es256_jwt(user_id=user_id)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Test answering with 'confirm' synonym for confirm item
+    p1, _ = create_pending(
+        db=test_db_session,
+        user_id=uuid.UUID(user_id),
+        kind="confirm",
+        plan_json={"action": {"op": "add", "kind": "expense", "amount": 250, "category": "Food"}},
+        question="Confirm ₹250 Food?",
+    )
+    res = client.post(
+        f"/assistant/pending/{p1.id}/answer",
+        json={"answer": "confirm"},
+        headers=headers,
+    )
+    assert res.status_code == 200
+    assert res.json()["changed"] is True
+
+    # Test answering disambiguation with 0-based index
+    p2, _ = create_pending(
+        db=test_db_session,
+        user_id=uuid.UUID(user_id),
+        kind="disambiguate",
+        plan_json={"action": {"op": "delete"}},
+        candidates=[{"id": str(uuid.uuid4()), "amount": 100, "category": "Food", "date": "2026-10-14"}],
+        question="Which one?",
+    )
+    res2 = client.post(
+        f"/assistant/pending/{p2.id}/answer",
+        json={"answer": "pick", "index": 0},
+        headers=headers,
+    )
+    assert res2.status_code == 200
+    assert "Delete ₹100 Food" in res2.json()["reply_text"]
+
