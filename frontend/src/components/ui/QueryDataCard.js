@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import AmountText from './AmountText';
 
 const CATEGORY_ICONS = {
@@ -43,7 +43,7 @@ export default function QueryDataCard({ result }) {
       : `Total ${category === 'All' ? 'Spending' : category}`;
 
   return (
-    <View testID="query-data-card" style={[styles.card, shadows.sm]}>
+    <View testID="query-data-card" style={[styles.card.sm]}>
       {/* Header Badge & Period */}
       <View style={styles.headerRow}>
         <View style={styles.badge}>

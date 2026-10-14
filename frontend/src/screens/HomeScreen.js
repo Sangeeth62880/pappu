@@ -20,10 +20,9 @@ import BottomSheet from '../components/ui/BottomSheet';
 import Toast from '../components/ui/Toast';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
-import GlassCard from '../components/ui/GlassCard';
 import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors, radius, shadows, spacing } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
 import { undoTransaction, clearChatHistory } from '../api/client';
 
@@ -372,7 +371,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
       {/* ── 3. Floating Frosted Bottom Navigation Bar ── */}
       {!keyboardVisible && (
         <View style={styles.floatingNavContainer} pointerEvents="box-none">
-          <GlassCard style={styles.navGlassCard} padding="none">
+          <View style={styles.navGlassCard}>
             <View style={styles.navRow}>
               {TABS.map((tab) => {
                 const isActive = activeTab === tab.key;
@@ -418,7 +417,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
                 );
               })}
             </View>
-          </GlassCard>
+          </View>
         </View>
       )}
 
@@ -522,7 +521,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,
-    ...shadows.sm,
   },
   headerTitleBox: {
     flexDirection: 'column',
@@ -588,9 +586,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
-    ...shadows.floatingNav,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   navRow: {
     flexDirection: 'row',

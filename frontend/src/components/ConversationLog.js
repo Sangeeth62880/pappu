@@ -21,7 +21,7 @@ import {
 } from '../api/client';
 import { generateUUID } from '../utils/uuid';
 import { playAudioBase64 } from '../utils/audioPlayer';
-import { colors, radius, shadows, spacing } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import MicButton from './MicButton';
 import MessageBubble from './ui/MessageBubble';
 import ConfirmationCard from './ui/ConfirmationCard';
@@ -508,7 +508,7 @@ export default function ConversationLog({
 
           ) : isAddCard ? (
             /* Add Result Card with heard amount & Undo button */
-            <View style={[styles.assistantCard, shadows.sm]} testID="add-result-card">
+            <View style={[styles.assistantCard.sm]} testID="add-result-card">
               <View style={styles.addSuccessRow}>
                 <View style={styles.checkCircleBadge}>
                   <MaterialIcons name="check" size={13} color={colors.semantic.income} />
@@ -697,7 +697,7 @@ export default function ConversationLog({
             <View style={styles.assistantAvatarCircle}>
               <MaterialIcons name="smart-toy" size={16} color={colors.brand.default} />
             </View>
-            <View style={[styles.thinkingBubble, shadows.sm]}>
+            <View style={[styles.thinkingBubble.sm]}>
               <View style={[styles.bouncingDot, styles.dot1]} />
               <View style={[styles.bouncingDot, styles.dot2]} />
               <View style={[styles.bouncingDot, styles.dot3]} />
@@ -735,7 +735,7 @@ export default function ConversationLog({
         </ScrollView>
 
         {/* Composer Row */}
-        <View style={[styles.composerContainer, shadows.md]}>
+        <View style={[styles.composerContainer.md]}>
           <View style={styles.keyboardIconBtn}>
             <MaterialIcons name="keyboard" size={20} color={colors.text.tertiary} />
           </View>
@@ -909,12 +909,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: radius.xs,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    shadowColor: colors.brand.default,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
+                      },
   userBubbleText: {
     color: colors.text.inverse,
     fontSize: 14,

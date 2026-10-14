@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, radius, spacing, shadows } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 
 export default function SegmentedControl({
-  segments = [], // e.g. [{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, ...]
+  segments = [], // e.g. [{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'year', label: 'Year' }]
   selectedKey,
   onSelect,
   style,
@@ -49,8 +49,10 @@ export default function SegmentedControl({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#EEF2F6', // Soft slate tint
-    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderColor: colors.border,
     padding: 3,
     minHeight: 44,
   },
@@ -58,24 +60,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    minHeight: 38,
+    minHeight: 36,
   },
   selectedSegment: {
-    backgroundColor: colors.surface,
-    ...shadows.sm,
+    backgroundColor: colors.gold,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
     includeFontPadding: false,
   },
   selectedLabel: {
-    color: colors.brand.default,
+    fontFamily: 'BalooChettan2_700Bold',
+    fontWeight: '700',
+    color: colors.ink,
   },
   unselectedLabel: {
-    color: colors.text.secondary,
+    fontFamily: 'Nunito_600SemiBold',
+    fontWeight: '600',
+    color: colors.ink_muted,
   },
 });

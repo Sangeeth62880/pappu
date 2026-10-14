@@ -13,7 +13,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import BottomSheet from './BottomSheet';
 import Button from './Button';
 import SegmentedControl from './SegmentedControl';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import { updateTransaction, deleteTransaction } from '../../api/client';
 
 const CATEGORIES = [

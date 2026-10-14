@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { signIn, signUp } from '../api/supabase';
-import { colors, radius, shadows, spacing } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 
@@ -385,7 +385,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
   },
   brandContainer: {
     alignItems: 'center',
@@ -399,7 +398,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
-    ...shadows.md,
     position: 'relative',
   },
   micSubBadge: {
@@ -455,7 +453,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadows.md,
   },
   headerBlock: {
     marginBottom: spacing.md,

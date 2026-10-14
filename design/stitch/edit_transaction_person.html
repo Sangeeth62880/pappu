@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pappu - Edit Transaction Bottom Sheet</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@600;700;800&amp;family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #FFF8E7;
+      margin: 0;
+      padding: 32px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #1F2937;
+    }
+    .font-baloo {
+      font-family: 'Baloo Chettan 2', cursive, sans-serif;
+    }
+    .font-num {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Touch / tactile press edge states */
+    .tactile-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 0 0 #D99A00 !important;
+    }
+    .tactile-destructive:active {
+      transform: translateY(4px);
+      box-shadow: 0 0 0 #E5484D !important;
+    }
+    .tactile-chip:active {
+      transform: translateY(2px);
+      box-shadow: 0 0 0 #D99A00 !important;
+    }
+    /* Custom scrollbar hiding */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-[#FFF8E7]">
+<!-- Mobile Screen Frame (390 x 844) -->
+<div class="relative w-[390px] h-[844px] bg-[#FFF8E7] rounded-[44px] border-[8px] border-[#1F2937] overflow-hidden shadow-2xl flex flex-col justify-between select-none">
+<!-- ==================== BACKGROUND: HISTORY SCREEN ==================== -->
+<div class="absolute inset-0 w-full h-full bg-[#FFF8E7] flex flex-col pointer-events-none">
+<!-- iOS Status Bar -->
+<div class="w-full h-11 pt-3 px-7 flex justify-between items-center text-xs font-bold text-[#1F2937]">
+<span>9:41</span>
+<div class="flex items-center space-x-1.5">
+<svg class="w-4 h-3.5 fill-current" viewbox="0 0 16 12">
+<path d="M1 9h2v3H1V9zm4-3h2v6H5V6zm4-3h2v9H9V3zm4-3h2v12h-2V0z"></path>
+</svg>
+<svg class="w-3.5 h-3 fill-current" viewbox="0 0 14 10">
+<path d="M7 2c2.2 0 4.2.8 5.7 2.1l-1.3 1.3C10.3 4.5 8.7 4 7 4c-1.7 0-3.3.5-4.4 1.4L1.3 4.1C2.8 2.8 4.8 2 7 2zm0 4c1.1 0 2.1.4 2.8 1.1L7 10 4.2 7.1C4.9 6.4 5.9 6 7 6z"></path>
+</svg>
+<div class="w-5 h-2.5 border border-[#1F2937] rounded-sm p-0.5 flex items-center">
+<div class="w-full h-full bg-[#1F2937] rounded-2xs"></div>
+</div>
+</div>
+</div>
+<!-- App Header -->
+<div class="px-5 py-2 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<!-- Mascot Coin Icon -->
+<div class="w-8 h-8 rounded-full bg-[#FFC83D] border-2 border-[#1F2937] flex items-center justify-center relative">
+<div class="w-6 h-6 rounded-full border border-[#D99A00] flex items-center justify-center">
+<span class="font-baloo font-bold text-xs text-[#1F2937] leading-none">P</span>
+</div>
+</div>
+<span class="font-baloo font-bold text-xl text-[#1F2937]">Pappu</span>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-[#F0E4C8] bg-white flex items-center justify-center text-[#1F2937]">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="11" cy="11" r="7"></circle>
+<path d="M21 21l-4.35-4.35" stroke-linecap="round"></path>
+</svg>
+</div>
+</div>
+<!-- History Filter Chips -->
+<div class="px-5 mt-2 flex gap-2">
+<div class="px-4 py-1.5 rounded-full bg-[#FFC83D] border border-[#1F2937] shadow-[0_3px_0_#D99A00] text-xs font-baloo font-bold text-[#1F2937]">All</div>
+<div class="px-4 py-1.5 rounded-full bg-white border-2 border-[#F0E4C8] text-xs font-baloo font-bold text-[#6B7280]">Expenses</div>
+<div class="px-4 py-1.5 rounded-full bg-white border-2 border-[#F0E4C8] text-xs font-baloo font-bold text-[#6B7280]">Income</div>
+<div class="px-4 py-1.5 rounded-full bg-white border-2 border-[#F0E4C8] text-xs font-baloo font-bold text-[#6B7280]">People</div>
+</div>
+<!-- History Total Banner -->
+<div class="px-5 mt-4 text-xs font-bold text-[#6B7280]">
+        You've spent <span class="text-[#1F2937] font-extrabold font-num">₹21,539</span> this month
+      </div>
+<!-- History Items (Dim Background Content) -->
+<div class="px-5 mt-3 space-y-2">
+<div class="text-[11px] font-bold text-[#6B7280] tracking-wide">Today, 14 Oct</div>
+<!-- Transaction Row 1: Rahul -->
+<div class="bg-white rounded-2xl p-3 border-2 border-[#F0E4C8] flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-[#F0E4C8]/50 flex items-center justify-center text-[#1F2937]">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div>
+<div class="font-bold text-sm text-[#1F2937]">രാഹുൽ</div>
+<div class="text-xs text-[#6B7280]">Received</div>
+</div>
+</div>
+<span class="font-baloo font-bold text-base text-[#1F8A5B] font-num">+₹300</span>
+</div>
+<!-- Transaction Row 2: Salary -->
+<div class="bg-white rounded-2xl p-3 border-2 border-[#F0E4C8] flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-[#E8F8F0] text-[#1F8A5B] flex items-center justify-center">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<rect height="14" rx="2" width="20" x="2" y="7"></rect>
+<path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"></path>
+</svg>
+</div>
+<div>
+<div class="font-bold text-sm text-[#1F2937]">Salary</div>
+<div class="text-xs text-[#6B7280]">Income</div>
+</div>
+</div>
+<span class="font-baloo font-bold text-base text-[#1F8A5B] font-num">+₹15,000</span>
+</div>
+<!-- Transaction Row 3: Auto -->
+<div class="bg-white rounded-2xl p-3 border-2 border-[#F0E4C8] flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="7" cy="17" r="2"></circle>
+<circle cx="17" cy="17" r="2"></circle>
+<path d="M5 17H3v-4l2-5h10l2 5v4h-2"></path>
+</svg>
+</div>
+<div>
+<div class="font-bold text-sm text-[#1F2937]">auto</div>
+<div class="text-xs text-[#6B7280]">Transport</div>
+</div>
+</div>
+<span class="font-baloo font-bold text-base text-[#E5484D] font-num">₹500</span>
+</div>
+</div>
+<!-- Bottom Tab Bar (Home, History, Center Mic, People, Me) -->
+<div class="absolute bottom-0 left-0 right-0 h-20 bg-white border-t-2 border-[#F0E4C8] px-4 flex items-center justify-between z-0">
+<div class="flex flex-col items-center justify-center w-12 text-[#6B7280]">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-bold mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center w-12 text-[#1F2937]">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="9"></circle>
+<path d="M12 7v5l3 3" stroke-linecap="round"></path>
+</svg>
+<span class="text-[10px] font-bold mt-1">History</span>
+<div class="w-1.5 h-1.5 rounded-full bg-[#FFC83D] mt-0.5"></div>
+</div>
+<!-- Center Raised 72px Coin Button -->
+<div class="relative w-16 flex justify-center">
+<div class="absolute -top-7 w-[72px] h-[72px] rounded-full bg-[#FFC83D] border-4 border-[#1F2937] shadow-[0_4px_0_#D99A00] flex flex-col items-center justify-center">
+<!-- Concentric Rim Ring -->
+<div class="absolute inset-[4px] rounded-full border border-[#D99A00] pointer-events-none"></div>
+<!-- Embossed Rupee Mark -->
+<span class="text-[11px] font-extrabold text-[#D99A00] leading-none mb-0.5 select-none">₹</span>
+<!-- Eyes & Smile -->
+<div class="flex items-center gap-1.5 mb-0.5">
+<div class="w-2.5 h-3.5 bg-white rounded-full border border-[#1F2937] relative overflow-hidden flex items-center justify-center">
+<div class="w-1.5 h-2 bg-[#1F2937] rounded-full absolute bottom-0.5"></div>
+</div>
+<div class="w-2.5 h-3.5 bg-white rounded-full border border-[#1F2937] relative overflow-hidden flex items-center justify-center">
+<div class="w-1.5 h-2 bg-[#1F2937] rounded-full absolute bottom-0.5"></div>
+</div>
+</div>
+<div class="w-2.5 h-1 border-b-2 border-[#1F2937] rounded-full mb-0.5"></div>
+<!-- Mic Icon -->
+<svg class="w-3.5 h-3.5 text-[#1F2937]" fill="currentColor" viewbox="0 0 24 24">
+<path d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-3.08A7 7 0 0019 11h-2z"></path>
+</svg>
+</div>
+</div>
+<div class="flex flex-col items-center justify-center w-12 text-[#6B7280]">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span class="text-[10px] font-bold mt-1">People</span>
+</div>
+<div class="flex flex-col items-center justify-center w-12 text-[#6B7280]">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="3"></circle>
+<path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke-linecap="round"></path>
+</svg>
+<span class="text-[10px] font-bold mt-1">Me</span>
+</div>
+</div>
+</div>
+<!-- ==================== OVERLAY: FLAT #1F2937 AT 40% (NO BLUR) ==================== -->
+<div class="absolute inset-0 bg-[#1F2937]/40 z-10 pointer-events-auto"></div>
+<!-- ==================== BOTTOM SHEET ==================== -->
+<!-- Covers ~78% height (approx 658px of 844px), white fill, 2px #F0E4C8 top/side border, 28px top radius, no shadow -->
+<div class="absolute bottom-0 left-0 right-0 h-[658px] bg-white rounded-t-[28px] border-t-2 border-x-2 border-[#F0E4C8] z-20 flex flex-col justify-between overflow-hidden shadow-none">
+<!-- Top Section (Drag handle + Header + Form Inputs) -->
+<div class="w-full flex flex-col pt-3 px-5 overflow-y-auto no-scrollbar">
+<!-- 1. Drag Handle: 40 x 4, #F0E4C8, centered, 12px from top -->
+<div class="w-full flex justify-center">
+<div class="w-10 h-1 bg-[#F0E4C8] rounded-full"></div>
+</div>
+<!-- 2. Title Row: H1 "Edit transaction" (Baloo Chettan 2, 24/28, 700, #1F2937) + 40px circle close button -->
+<div class="flex items-center justify-between mt-3 mb-4">
+<h1 class="font-baloo font-bold text-[24px] leading-[28px] text-[#1F2937] tracking-tight">Edit transaction</h1>
+<button aria-label="Close" class="w-10 h-10 rounded-full bg-white border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937] hover:bg-[#FFF8E7] active:scale-95 transition-transform" type="button">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M18 6L6 18M6 6l12 12"></path>
+</svg>
+</button>
+</div>
+<!-- Form Elements Container -->
+<div class="flex flex-col space-y-3.5">
+<!-- 3. Amount Block -->
+<div class="flex flex-col space-y-1.5">
+<label class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Amount</label>
+<div class="h-16 w-full bg-white border-2 border-[#F0E4C8] rounded-[16px] px-4 flex items-center">
+<span class="font-baloo font-extrabold text-[32px] leading-[36px] text-[#E5484D] font-num tracking-tight">₹500</span>
+</div>
+</div>
+<!-- 4. Type Segmented Control: "Expense | Income" -->
+<div class="flex flex-col space-y-1.5">
+<label class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Direction</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="h-11 rounded-[14px] bg-[#FFC83D] border border-[#1F2937] shadow-[0_3px_0_#D99A00] flex items-center justify-center tactile-btn" type="button">
+<span class="font-baloo font-bold text-base text-[#1F2937]">You paid</span>
+</button>
+<button class="h-11 rounded-[14px] bg-white border-2 border-[#F0E4C8] flex items-center justify-center" type="button">
+<span class="font-baloo font-bold text-base text-[#1F2937]">They paid</span>
+</button>
+</div>
+</div>
+<!-- 5. Field "Description": 52px input with value "Lunch" -->
+<div class="flex flex-col space-y-1.5">
+<label class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Description</label>
+<div class="h-[52px] w-full bg-white border-2 border-[#F0E4C8] rounded-[16px] px-4 flex items-center">
+<span class="text-[15px] font-bold text-[#1F2937]">Sent to Pooja</span>
+</div>
+</div>
+<!-- 6. Field "Category": Horizontally wrapping row of chips (40px high, 999 radius) -->
+<div class="flex flex-col space-y-1.5">
+<label class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Person</label>
+<div class="h-[52px] w-full bg-white border-2 border-[#F0E4C8] rounded-[16px] px-4 flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#FFC83D] border border-[#1F2937] flex items-center justify-center">
+<span class="font-baloo font-bold text-sm text-[#1F2937] leading-none">P</span>
+</div>
+<span class="font-baloo font-bold text-base text-[#1F2937]">Pooja</span>
+</div>
+<svg class="w-6 h-6 text-[#1F2937]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M9 18l6-6-6-6"></path>
+</svg>
+</div>
+</div>
+<!-- 7. Field "Date": 52px input with calendar icon, "14 Oct 2026", and chevron -->
+<div class="flex flex-col space-y-1.5">
+<label class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Date</label>
+<div class="h-[52px] w-full bg-white border-2 border-[#F0E4C8] rounded-[16px] px-4 flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2.5">
+<!-- Rounded Outline Calendar Icon: 24px, 2px stroke, #1F2937 -->
+<svg class="w-6 h-6 text-[#1F2937]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<rect height="18" rx="3" width="18" x="3" y="4"></rect>
+<path d="M16 2v4M8 2v4M3 10h18"></path>
+</svg>
+<span class="text-[15px] font-bold text-[#1F2937]">14 Oct 2026</span>
+</div>
+<!-- Rounded Chevron Icon: 24px, 2px stroke, #1F2937 -->
+<svg class="w-6 h-6 text-[#1F2937]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M9 18l6-6-6-6"></path>
+</svg>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Action Buttons Section (Safe Area 24px) -->
+<div class="w-full px-5 pt-3 pb-6 flex flex-col bg-white">
+<!-- 8. Primary Button "Save": 52px high, full width, gold fill, ink text Baloo 700 17px, 4px #D99A00 bottom edge, 16px radius -->
+<button class="w-full h-[52px] bg-[#FFC83D] border border-[#1F2937] rounded-[16px] shadow-[0_4px_0_#D99A00] flex items-center justify-center tactile-btn" type="button">
+<span class="font-baloo font-bold text-[17px] text-[#1F2937] leading-none">Save</span>
+</button>
+<!-- 9. Destructive Button "Delete": 12px below, 52px high, full width, white fill, 2px #E5484D border, 4px #E5484D bottom edge, coral text, trash icon -->
+<button class="w-full h-[52px] mt-3 bg-white border-2 border-[#E5484D] rounded-[16px] shadow-[0_4px_0_#E5484D] flex items-center justify-center gap-2 tactile-destructive" type="button">
+<!-- Rounded Outline Trash Icon: 24px, 2px stroke, #E5484D -->
+<svg class="w-6 h-6 text-[#E5484D]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path>
+</svg>
+<span class="font-baloo font-bold text-[17px] text-[#E5484D] leading-none">Delete</span>
+</button>
+</div>
+</div>
+</div>
+</body>
+</html>

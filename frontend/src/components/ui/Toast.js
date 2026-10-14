@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 
 export default function Toast({
   visible,
@@ -99,7 +99,7 @@ export default function Toast({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 80, // Positioned safely above bottom tab bar
+    bottom: 96,
     left: spacing.lg,
     right: spacing.lg,
     zIndex: 999,
@@ -109,18 +109,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0F172A', // Dark slate surface for contrast
+    backgroundColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.border,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     width: '100%',
-    ...shadows.lg,
   },
   message: {
     flex: 1,
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Nunito_600SemiBold',
     marginRight: spacing.md,
   },
   actionBtn: {
@@ -128,8 +129,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   actionText: {
-    color: '#60A5FA', // Light blue
+    color: colors.gold,
     fontSize: 14,
+    fontFamily: 'BalooChettan2_700Bold',
     fontWeight: '700',
   },
 });

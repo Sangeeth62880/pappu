@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import Button from './Button';
 import AmountText from './AmountText';
 
@@ -40,7 +40,7 @@ export default function ConfirmationCard({
     : 'receipt';
 
   return (
-    <View testID={`${type}-card`} style={[styles.card, shadows.md]}>
+    <View testID={`${type}-card`} style={[styles.card.md]}>
       {/* Bot Header + Prompt */}
       <View style={styles.headerRow}>
         <View style={styles.botIconCircle}>

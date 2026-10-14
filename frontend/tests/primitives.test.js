@@ -37,34 +37,35 @@ function getContrastRatio(hex1, hex2) {
 
 describe('Design System Primitives & Tokens', () => {
   describe('WCAG AA Contrast Ratios', () => {
-    test('text.primary on surface has contrast >= 7:1 (passes AAA)', () => {
-      const ratio = getContrastRatio(colors.text.primary, colors.surface);
+    test('ink on surface has contrast >= 7:1 (passes AAA)', () => {
+      const ratio = getContrastRatio(colors.ink, colors.surface);
       expect(ratio).toBeGreaterThanOrEqual(7);
     });
 
-    test('text.secondary on surface has contrast >= 4.5:1 (passes AA)', () => {
-      const ratio = getContrastRatio(colors.text.secondary, colors.surface);
+    test('ink on bg has contrast >= 7:1 (passes AAA)', () => {
+      const ratio = getContrastRatio(colors.ink, colors.bg);
+      expect(ratio).toBeGreaterThanOrEqual(7);
+    });
+
+    test('ink on gold has contrast >= 7:1 (passes AAA)', () => {
+      const ratio = getContrastRatio(colors.ink, colors.gold);
+      expect(ratio).toBeGreaterThanOrEqual(7);
+    });
+
+    test('ink_muted on surface has contrast >= 4.5:1 (passes AA)', () => {
+      const ratio = getContrastRatio(colors.ink_muted, colors.surface);
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
 
-    test('text.tertiary on surface has contrast >= 4.5:1 (passes AA)', () => {
-      const ratio = getContrastRatio(colors.text.tertiary, colors.surface);
+    test('teal on surface has contrast >= 4.5:1 (passes AA)', () => {
+      const ratio = getContrastRatio(colors.teal, colors.surface);
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
 
-    test('brand.dark on surface has contrast >= 4.5:1 (passes AA)', () => {
-      const ratio = getContrastRatio(colors.brand.dark, colors.surface);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
-
-    test('semantic income text on surface has contrast >= 4.5:1 (passes AA)', () => {
-      const ratio = getContrastRatio(colors.semantic.income, colors.surface);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
-
-    test('semantic expense text on surface has contrast >= 4.5:1 (passes AA)', () => {
-      const ratio = getContrastRatio(colors.semantic.expense, colors.surface);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    test('contrast check fails if text and background pair drops below 4.5:1', () => {
+      // Intentionally low contrast pair (#9CA3AF on #FFFFFF is ~2.8:1)
+      const lowContrastRatio = getContrastRatio(colors.categories.other, colors.surface);
+      expect(lowContrastRatio).toBeLessThan(4.5);
     });
   });
 

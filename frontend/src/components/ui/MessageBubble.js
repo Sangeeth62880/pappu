@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 
 /**
  * Stitch-inspired message bubble.
  * User: Royal brand blue with white text, double-check indicator, timestamp.
- * Assistant: Pure white card with subtle shadow, slate text, replay button, timestamp.
+ * Assistant: Pure white card with border, ink text, replay button, timestamp.
  */
 export default function MessageBubble({
   text,
@@ -112,18 +112,12 @@ const styles = StyleSheet.create({
   userBubble: {
     backgroundColor: colors.brand.default,
     borderBottomRightRadius: radius.xs,
-    shadowColor: colors.brand.default,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
+                      },
   assistantBubble: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderBottomLeftRadius: radius.xs,
-    ...shadows.sm,
   },
   errorBubble: {
     backgroundColor: colors.semantic.expenseBg,

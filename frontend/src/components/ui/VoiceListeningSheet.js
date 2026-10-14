@@ -14,7 +14,7 @@ import MicButton from '../MicButton';
 import ConfirmationCard from './ConfirmationCard';
 import QueryDataCard from './QueryDataCard';
 import Button from './Button';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import {
   synthesizeSpeech,
   sendAssistantMessage,

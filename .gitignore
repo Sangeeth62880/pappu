@@ -11,6 +11,7 @@ __pycache__/
 env/
 venv/
 .pytest_cache/
+backend/tests/eval/eval_results/
 
 # Node / React Native / Expo
 node_modules/

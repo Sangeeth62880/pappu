@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fetchPeopleSummary, fetchContactDetail } from '../api/client';
-import { colors, radius, shadows, spacing } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import Card from './ui/Card';
 import TransactionEditSheet from './ui/TransactionEditSheet';
 
@@ -616,7 +616,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radius.full,
-    ...shadows.sm,
   },
   addContactText: {
     color: '#FFFFFF',
@@ -633,7 +632,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 44,
     marginBottom: spacing.md,
-    ...shadows.sm,
   },
   searchInput: {
     flex: 1,
@@ -647,7 +645,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.8)',
     padding: spacing.md,
     marginBottom: spacing.md,
-    ...shadows.hero,
   },
   splitCardHeader: {
     flexDirection: 'row',
@@ -799,7 +796,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius['2xl'],
     padding: spacing.md,
-    ...shadows.md,
   },
   contactCardLeft: {
     flexDirection: 'row',
@@ -878,7 +874,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     padding: spacing.xl,
-    ...shadows.md,
   },
   emptyTitle: {
     fontSize: 15,
@@ -949,7 +944,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: colors.surface,
-    ...shadows.md,
   },
   largeAvatarInitial: {
     fontSize: 32,
@@ -1030,7 +1024,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: spacing.md,
-    ...shadows.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1122,7 +1115,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
   },
   settleBtnText: {
     fontSize: 14,

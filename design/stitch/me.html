@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pappu Me Screens &amp; Dialog States</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@500;600;700;800&amp;family=Noto+Sans+Malayalam:wght@500;600;700&amp;family=Nunito:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style>
+    body {
+      background-color: #F5EEDB;
+      font-family: 'Nunito', sans-serif;
+      color: #1F2937;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .font-baloo {
+      font-family: 'Baloo Chettan 2', cursive, sans-serif;
+    }
+    .font-malayalam {
+      font-family: 'Noto Sans Malayalam', sans-serif;
+    }
+    .phone-frame {
+      width: 390px;
+      height: 844px;
+      background-color: #FFF8E7;
+      border: 4px solid #1F2937;
+      border-radius: 44px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 36px rgba(31, 41, 55, 0.12);
+      flex-shrink: 0;
+    }
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Buttons */
+    .btn-primary {
+      height: 52px;
+      background-color: #FFC83D;
+      border-bottom: 4px solid #D99A00;
+      border-radius: 16px;
+      color: #1F2937;
+      font-family: 'Baloo Chettan 2', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .btn-secondary {
+      height: 52px;
+      background-color: #FFFFFF;
+      border: 2px solid #F0E4C8;
+      border-bottom: 4px solid #F0E4C8;
+      border-radius: 16px;
+      color: #1F2937;
+      font-family: 'Baloo Chettan 2', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .btn-destructive {
+      height: 52px;
+      background-color: #E5484D;
+      border-bottom: 4px solid #B4232A;
+      border-radius: 16px;
+      color: #FFFFFF;
+      font-family: 'Baloo Chettan 2', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .btn-destructive-outline {
+      height: 52px;
+      background-color: #FFFFFF;
+      border: 2px solid #E5484D;
+      border-bottom: 4px solid #E5484D;
+      border-radius: 16px;
+      color: #E5484D;
+      font-family: 'Baloo Chettan 2', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      width: 100%;
+    }
+    .card-white {
+      background: #FFFFFF;
+      border: 2px solid #F0E4C8;
+      border-radius: 20px;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-start min-h-screen">
+<!-- Header Banner -->
+<div class="text-center mb-8 max-w-2xl">
+<div class="inline-block px-4 py-1.5 bg-[#FFF8E7] border border-[#F0E4C8] rounded-full text-xs font-bold tracking-wider text-[#6B7280] uppercase mb-2">
+      Strict Design Lock • Character Sheet Compliant
+    </div>
+<h1 class="text-3xl font-baloo font-extrabold text-[#1F2937]">Pappu Me (Profile &amp; Settings) Screens</h1>
+<p class="text-sm text-[#6B7280] font-semibold">1. Me (Default Settings) • 2. "Clear chat history?" Dialog • 3. "Sign out?" Dialog</p>
+</div>
+<!-- Showcase Row of Frames -->
+<div class="flex flex-wrap items-start justify-center gap-10">
+<!-- ========================================== -->
+<!-- FRAME 1: SCREEN: Me (Default) -->
+<!-- ========================================== -->
+<div class="flex flex-col items-center">
+<div class="phone-frame flex flex-col justify-between">
+<!-- Top Status Bar (47px) -->
+<div class="h-[47px] px-6 pt-3 flex items-center justify-between text-[#1F2937] text-xs font-bold select-none z-10">
+<span class="">9:41</span>
+<div class="flex items-center space-x-1.5">
+<!-- Cellular -->
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24">
+<path d="M2 17h3v4H2v-4zm5-4h3v8H7v-8zm5-4h3v12h-3V9zm5-4h3v16h-3V5z"></path>
+</svg>
+<!-- Wifi -->
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path>
+</svg>
+<!-- Battery -->
+<div class="w-5 h-2.5 border-2 border-[#1F2937] rounded-sm p-[1px] flex items-center">
+<div class="h-full w-3 bg-[#1F2937] rounded-2xs"></div>
+</div>
+</div>
+</div>
+<!-- APP HEADER (height 64, white-less, no right icon) -->
+<div class="h-[64px] px-5 flex items-center justify-between select-none">
+<div class="flex items-center space-x-2">
+<!-- Pappu coin-P mark 32px -->
+<div class="w-8 h-8 rounded-full bg-[#FFC83D] border-2 border-[#1F2937] relative flex items-center justify-center">
+<div class="absolute inset-[2px] rounded-full border border-[#D99A00]"></div>
+<span class="font-baloo font-extrabold text-sm text-[#1F2937] leading-none z-10">P</span>
+</div>
+<span class="font-baloo font-extrabold text-[22px] text-[#1F2937] tracking-tight">Pappu</span>
+</div>
+<!-- No right icon button per lock -->
+<div></div>
+</div>
+<!-- Scrollable Content Area -->
+<div class="flex-1 px-5 overflow-y-auto space-y-4 pb-6">
+<!-- 1. Profile card (white) -->
+<div class="card-white p-4 flex items-center space-x-4">
+<!-- Pappu Happy at 72px -->
+<div class="w-[72px] h-[72px] relative flex-shrink-0 flex items-center justify-center">
+<svg fill="none" height="72" viewbox="0 0 72 72" width="72" xmlns="http://www.w3.org/2000/svg">
+<!-- Short ink legs -->
+<line stroke="#1F2937" stroke-linecap="round" stroke-width="4" x1="28" x2="28" y1="58" y2="68"></line>
+<ellipse cx="26" cy="68" fill="#1F2937" rx="4" ry="2.5"></ellipse>
+<line stroke="#1F2937" stroke-linecap="round" stroke-width="4" x1="44" x2="44" y1="58" y2="68"></line>
+<ellipse cx="46" cy="68" fill="#1F2937" rx="4" ry="2.5"></ellipse>
+<!-- Thin ink noodle arms in Happy raised posture -->
+<path d="M12 36 C 4 28, 6 20, 10 16" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="4"></path>
+<circle cx="10" cy="15" fill="#1F2937" r="3.5"></circle>
+<path d="M60 36 C 68 28, 66 20, 62 16" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="4"></path>
+<circle cx="62" cy="15" fill="#1F2937" r="3.5"></circle>
+<!-- Coin Body -->
+<circle cx="36" cy="36" fill="#FFC83D" r="26" stroke="#1F2937" stroke-width="4"></circle>
+<circle cx="36" cy="36" fill="none" r="21" stroke="#D99A00" stroke-width="1.5"></circle>
+<!-- Embossed Rupee on Forehead -->
+<text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="10" font-weight="800" text-anchor="middle" x="36" y="22">₹</text>
+<!-- Happy Eyes (curved arched happy crescents) -->
+<path d="M26 31 C 26 27, 31 27, 31 31" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="3"></path>
+<path d="M41 31 C 41 27, 46 27, 46 31" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="3"></path>
+<!-- Big Open Happy Smile with Rosy Cheeks -->
+<path d="M30 38 Q 36 46 42 38 Z" fill="#1F2937"></path>
+<circle cx="23" cy="38" fill="#F0E4C8" r="2.5"></circle>
+<circle cx="49" cy="38" fill="#F0E4C8" r="2.5"></circle>
+</svg>
+</div>
+<!-- Name & Email -->
+<div class="flex-1 min-w-0">
+<h2 class="font-baloo font-bold text-[24px] leading-7 text-[#1F2937] truncate">Sangeeth</h2>
+<p class="text-[13px] font-bold text-[#6B7280] leading-5 truncate mt-0.5">test@pappu.dev</p>
+</div>
+</div>
+<!-- 2. Settings card 1: rows 56px high with 1px dividers -->
+<div class="card-white overflow-hidden divide-y divide-[#F0E4C8]">
+<!-- Row 1: Language -->
+<div class="h-[56px] px-4 flex items-center justify-between">
+<span class="text-[16px] font-semibold text-[#1F2937]">Language</span>
+<!-- Segmented control: English | മലയാളം -->
+<div class="h-[36px] bg-[#FFF8E7] p-[3px] border border-[#F0E4C8] rounded-full flex items-center space-x-1">
+<button class="h-[28px] px-3 bg-[#FFC83D] border-b-2 border-[#D99A00] rounded-full text-[13px] font-bold text-[#1F2937] flex items-center justify-center font-baloo">
+                  English
+                </button>
+<button class="h-[28px] px-3 text-[13px] font-bold text-[#6B7280] flex items-center justify-center font-malayalam">
+                  മലയാളം
+                </button>
+</div>
+</div>
+<!-- Row 2: Dialect -->
+<div class="h-[56px] px-4 flex items-center justify-between">
+<span class="text-[16px] font-semibold text-[#1F2937]">Dialect</span>
+<div class="flex items-center space-x-1.5 text-[#6B7280]">
+<span class="text-[16px] font-semibold text-[#1F2937]">Manglish</span>
+<svg class="w-5 h-5 text-[#6B7280]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="9 18 15 12 9 6"></polyline>
+</svg>
+</div>
+</div>
+<!-- Row 3: Voice replies -->
+<div class="h-[56px] px-4 flex items-center justify-between">
+<span class="text-[16px] font-semibold text-[#1F2937]">Voice replies</span>
+<!-- Toggle (on = gold track, ink thumb) -->
+<div class="w-12 h-7 bg-[#FFC83D] border-2 border-[#D99A00] rounded-full flex items-center p-0.5 justify-end">
+<div class="w-5 h-5 bg-[#1F2937] rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- 3. Settings card 2: Clear chat history -->
+<div class="card-white overflow-hidden">
+<div class="h-[56px] px-4 flex items-center justify-between">
+<span class="text-[16px] font-semibold text-[#1F2937]">Clear chat history</span>
+<svg class="w-6 h-6 text-[#1F2937]" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="3 6 5 6 21 6"></polyline>
+<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+<line x1="10" x2="10" y1="11" y2="17"></line>
+<line x1="14" x2="14" y1="11" y2="17"></line>
+</svg>
+</div>
+</div>
+<!-- 4. 32px space, then Destructive-outline button: Sign out -->
+<div class="pt-4">
+<button class="btn-destructive-outline">
+              Sign out
+            </button>
+</div>
+</div>
+<!-- TAB BAR (height 84, Me active) -->
+<div class="h-[84px] bg-white border-t-2 border-[#F0E4C8] px-4 flex items-center justify-between select-none relative z-10">
+<!-- Home -->
+<div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+<polyline points="9 22 9 12 15 12 15 22"></polyline>
+</svg>
+<span class="text-[13px] font-bold mt-0.5">Home</span>
+</div>
+<!-- History -->
+<div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+<span class="text-[13px] font-bold mt-0.5">History</span>
+</div>
+<!-- Center Raised Coin Button 72px -->
+<div class="flex-1 flex flex-col items-center justify-center relative"><button class="w-[72px] h-[72px] rounded-full bg-[#FFC83D] border-4 border-[#1F2937] shadow-[0_4px_0_#D99A00] absolute -top-6 left-1/2 -translate-x-1/2 flex items-center justify-center cursor-pointer select-none p-0 focus:outline-none"><svg fill="none" height="64" viewbox="0 0 64 64" width="64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" fill="#FFC83D" r="26"></circle><circle cx="32" cy="32" fill="none" r="22" stroke="#D99A00" stroke-width="1.5"></circle><text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="9" font-weight="800" text-anchor="middle" x="32" y="19">₹</text><ellipse cx="25" cy="28" fill="white" rx="3" ry="4.5" stroke="#1F2937" stroke-width="1.5"></ellipse><circle cx="25" cy="28" fill="#1F2937" r="2"></circle><circle cx="26" cy="27" fill="white" r="0.75"></circle><ellipse cx="39" cy="28" fill="white" rx="3" ry="4.5" stroke="#1F2937" stroke-width="1.5"></ellipse><circle cx="39" cy="28" fill="#1F2937" r="2"></circle><circle cx="40" cy="27" fill="white" r="0.75"></circle><path d="M27 36 Q 32 40 37 36" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="2"></path><g transform="translate(25.5, 41)"><rect fill="#1F2937" height="7" rx="2.5" width="5" x="4" y="1"></rect><path d="M2 4.5 C2 7.5 4.5 9 6.5 9 C8.5 9 11 7.5 11 4.5" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="1.5"></path><line stroke="#1F2937" stroke-linecap="round" stroke-width="1.5" x1="6.5" x2="6.5" y1="9" y2="11.5"></line><line stroke="#1F2937" stroke-linecap="round" stroke-width="1.5" x1="4" x2="9" y1="11.5" y2="11.5"></line></g></svg></button></div>
+<!-- People -->
+<div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+<circle cx="9" cy="7" r="4"></circle>
+<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+</svg>
+<span class="text-[13px] font-bold mt-0.5">People</span>
+</div>
+<!-- Me (ACTIVE) -->
+<div class="flex-1 flex flex-col items-center justify-center text-[#1F2937] relative">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="3"></circle>
+<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+</svg>
+<span class="text-[13px] font-bold mt-0.5">Me</span>
+<!-- 6px gold dot under label -->
+<div class="w-1.5 h-1.5 rounded-full bg-[#FFC83D] mt-0.5"></div>
+</div>
+</div>
+</div>
+<span class="mt-3 text-xs font-bold text-[#6B7280]">1. Me Screen (Default View)</span>
+</div>
+<!-- ========================================== -->
+<!-- FRAME 2: SCREEN: "Clear chat history?" Dialog -->
+<!-- ========================================== -->
+<div class="flex flex-col items-center">
+<div class="phone-frame flex flex-col justify-between relative">
+<!-- Background Screen (Rendered dimmed) -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none select-none">
+<!-- Top Status Bar -->
+<div class="h-[47px] px-6 pt-3 flex items-center justify-between text-[#1F2937] text-xs font-bold">
+<span class="">9:41</span>
+<div class="flex items-center space-x-1.5">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><path d="M2 17h3v4H2v-4zm5-4h3v8H7v-8zm5-4h3v12h-3V9zm5-4h3v16h-3V5z"></path></svg>
+<div class="w-5 h-2.5 border-2 border-[#1F2937] rounded-sm p-[1px]"><div class="h-full w-3 bg-[#1F2937]"></div></div>
+</div>
+</div>
+<!-- Header -->
+<div class="h-[64px] px-5 flex items-center">
+<span class="font-baloo font-extrabold text-[22px] text-[#1F2937]">Pappu</span>
+</div>
+<!-- Content preview -->
+<div class="px-5 space-y-4">
+<div class="card-white p-4 flex items-center space-x-4 h-24"></div>
+<div class="card-white h-36"></div>
+</div>
+<!-- Tab Bar -->
+<div class="h-[84px] bg-white border-t-2 border-[#F0E4C8]"></div>
+</div>
+<!-- Dim Overlay: flat #1F2937 at 40% opacity, no blur -->
+<div class="absolute inset-0 bg-[#1F2937]/40 flex items-center justify-center p-5 z-20">
+<!-- Dialog Card (white fill + 2px border, radius 20, padding 20) -->
+<div class="w-full bg-white border-2 border-[#F0E4C8] rounded-[20px] p-5 flex flex-col items-center text-center">
+<!-- Pappu Concerned 72px -->
+<div class="w-[72px] h-[72px] relative flex-shrink-0 flex items-center justify-center mb-3">
+<svg fill="none" height="72" viewbox="0 0 72 72" width="72" xmlns="http://www.w3.org/2000/svg">
+<!-- Short ink legs -->
+<line stroke="#1F2937" stroke-linecap="round" stroke-width="4" x1="28" x2="28" y1="58" y2="68"></line>
+<ellipse cx="26" cy="68" fill="#1F2937" rx="4" ry="2.5"></ellipse>
+<line stroke="#1F2937" stroke-linecap="round" stroke-width="4" x1="44" x2="44" y1="58" y2="68"></line>
+<ellipse cx="46" cy="68" fill="#1F2937" rx="4" ry="2.5"></ellipse>
+<!-- Thin ink noodle arms in Concerned / Outstretched posture -->
+<path d="M14 36 C 6 42, 4 48, 8 52" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="4"></path>
+<circle cx="9" cy="53" fill="#1F2937" r="3.5"></circle>
+<path d="M58 36 C 66 42, 68 48, 64 52" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="4"></path>
+<circle cx="63" cy="53" fill="#1F2937" r="3.5"></circle>
+<!-- Coin Body -->
+<circle cx="36" cy="36" fill="#FFC83D" r="26" stroke="#1F2937" stroke-width="4"></circle>
+<circle cx="36" cy="36" fill="none" r="21" stroke="#D99A00" stroke-width="1.5"></circle>
+<!-- Forehead ₹ -->
+<text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="10" font-weight="800" text-anchor="middle" x="36" y="22">₹</text>
+<!-- Inward tilted brows -->
+<path d="M26 25 L 32 28" stroke="#1F2937" stroke-linecap="round" stroke-width="2.5"></path>
+<path d="M46 25 L 40 28" stroke="#1F2937" stroke-linecap="round" stroke-width="2.5"></path>
+<!-- Big oval eyes -->
+<ellipse cx="28" cy="33" fill="white" rx="3.5" ry="5" stroke="#1F2937" stroke-width="2"></ellipse>
+<circle cx="28" cy="33" fill="#1F2937" r="2"></circle>
+<ellipse cx="44" cy="33" fill="white" rx="3.5" ry="5" stroke="#1F2937" stroke-width="2"></ellipse>
+<circle cx="44" cy="33" fill="#1F2937" r="2"></circle>
+<!-- Small concerned / wavy mouth -->
+<path d="M31 43 Q 36 41 41 43" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="2.5"></path>
+</svg>
+</div>
+<!-- Dialog Title -->
+<h2 class="font-baloo font-bold text-[22px] leading-6 text-[#1F2937] mb-2">
+              Clear chat history?
+            </h2>
+<!-- Dialog Body -->
+<p class="text-[16px] font-semibold text-[#1F2937] leading-[22px] mb-6">
+              This removes all your messages with Pappu. Your transactions stay.
+            </p>
+<!-- Buttons: Secondary "Cancel" + Destructive "Clear" (equal width, 12px gap) -->
+<div class="flex items-center w-full space-x-3">
+<button class="btn-secondary flex-1">
+                Cancel
+              </button>
+<button class="btn-destructive flex-1">
+                Clear
+              </button>
+</div>
+</div>
+</div>
+</div>
+<span class="mt-3 text-xs font-bold text-[#6B7280]">2. "Clear chat history?" Dialog State</span>
+</div>
+<!-- ========================================== -->
+<!-- FRAME 3: SCREEN: "Sign out?" Dialog -->
+<!-- ========================================== -->
+<div class="flex flex-col items-center">
+<div class="phone-frame flex flex-col justify-between relative">
+<!-- Background Screen (Rendered dimmed) -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none select-none">
+<!-- Top Status Bar -->
+<div class="h-[47px] px-6 pt-3 flex items-center justify-between text-[#1F2937] text-xs font-bold">
+<span class="">9:41</span>
+<div class="flex items-center space-x-1.5">
+<svg class="w-4 h-4" fill="currentColor" viewbox="0 0 24 24"><path d="M2 17h3v4H2v-4zm5-4h3v8H7v-8zm5-4h3v12h-3V9zm5-4h3v16h-3V5z"></path></svg>
+<div class="w-5 h-2.5 border-2 border-[#1F2937] rounded-sm p-[1px]"><div class="h-full w-3 bg-[#1F2937]"></div></div>
+</div>
+</div>
+<!-- Header -->
+<div class="h-[64px] px-5 flex items-center">
+<span class="font-baloo font-extrabold text-[22px] text-[#1F2937]">Pappu</span>
+</div>
+<!-- Content preview -->
+<div class="px-5 space-y-4">
+<div class="card-white p-4 flex items-center space-x-4 h-24"></div>
+<div class="card-white h-36"></div>
+</div>
+<!-- Tab Bar -->
+<div class="h-[84px] bg-white border-t-2 border-[#F0E4C8]"></div>
+</div>
+<!-- Dim Overlay: flat #1F2937 at 40% opacity, no blur -->
+<div class="absolute inset-0 bg-[#1F2937]/40 flex items-center justify-center p-5 z-20">
+<!-- Dialog Card (white fill + 2px border, radius 20, padding 20) -->
+<div class="w-full bg-white border-2 border-[#F0E4C8] rounded-[20px] p-5 flex flex-col items-center text-center">
+<!-- Pappu Waving at 72px -->
+<div class="w-[72px] h-[72px] relative flex-shrink-0 flex items-center justify-center mb-3">
+<svg fill="none" height="72" viewbox="0 0 72 72" width="72" xmlns="http://www.w3.org/2000/svg">
+<!-- Short ink legs -->
+<line stroke="#1F2937" stroke-linecap="round" stroke-width="4" x1="28" x2="28" y1="58" y2="68"></line>
+<ellipse cx="26" cy="68" fill="#1F2937" rx="4" ry="2.5"></ellipse>
+<line stroke="#1F2937" stroke-linecap="round" stroke-width="4" x1="44" x2="44" y1="58" y2="68"></line>
+<ellipse cx="46" cy="68" fill="#1F2937" rx="4" ry="2.5"></ellipse>
+<!-- Left arm resting -->
+<path d="M12 36 C 8 44, 10 50, 14 52" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="4"></path>
+<circle cx="15" cy="52" fill="#1F2937" r="3.5"></circle>
+<!-- Right arm waving up -->
+<path d="M60 36 C 66 28, 66 18, 62 14" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="4"></path>
+<circle cx="62" cy="13" fill="#1F2937" r="3.5"></circle>
+<!-- Motion wave marks -->
+<path d="M67 11 C 69 13, 69 16, 67 18" stroke="#D99A00" stroke-linecap="round" stroke-width="2"></path>
+<!-- Coin Body -->
+<circle cx="36" cy="36" fill="#FFC83D" r="26" stroke="#1F2937" stroke-width="4"></circle>
+<circle cx="36" cy="36" fill="none" r="21" stroke="#D99A00" stroke-width="1.5"></circle>
+<!-- Forehead ₹ -->
+<text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="10" font-weight="800" text-anchor="middle" x="36" y="22">₹</text>
+<!-- Eyes looking at user -->
+<ellipse cx="29" cy="32" fill="white" rx="3.5" ry="5" stroke="#1F2937" stroke-width="2"></ellipse>
+<circle cx="29" cy="32" fill="#1F2937" r="2"></circle>
+<ellipse cx="43" cy="32" fill="white" rx="3.5" ry="5" stroke="#1F2937" stroke-width="2"></ellipse>
+<circle cx="43" cy="32" fill="#1F2937" r="2"></circle>
+<!-- Friendly smile -->
+<path d="M31 40 Q 36 45 41 40" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="2.5"></path>
+</svg>
+</div>
+<!-- Dialog Title -->
+<h2 class="font-baloo font-bold text-[22px] leading-6 text-[#1F2937] mb-2">
+              Sign out?
+            </h2>
+<!-- Body spacing -->
+<p class="text-[16px] font-semibold text-[#6B7280] leading-[22px] mb-6">
+              You can sign back in anytime with your email.
+            </p>
+<!-- Buttons: Secondary "Stay" + Destructive "Sign out" (equal width, 12px gap) -->
+<div class="flex items-center w-full space-x-3">
+<button class="btn-secondary flex-1">
+                Stay
+              </button>
+<button class="btn-destructive flex-1">
+                Sign out
+              </button>
+</div>
+</div>
+</div>
+</div>
+<span class="mt-3 text-xs font-bold text-[#6B7280]">3. "Sign out?" Dialog State</span>
+</div>
+</div>
+</body></html>

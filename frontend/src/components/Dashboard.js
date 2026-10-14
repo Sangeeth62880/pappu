@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fetchSummary, fetchTransactions } from '../api/client';
-import { colors, radius, shadows, spacing } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import Balance from './ui/Balance';
 import Card from './ui/Card';
 import SegmentedControl from './ui/SegmentedControl';
@@ -590,7 +590,6 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     backgroundColor: colors.surface,
     marginBottom: spacing.lg,
-    ...shadows.md,
   },
   chartEmpty: {
     paddingVertical: spacing.xl,
@@ -622,11 +621,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radius.sm,
-    shadowColor: colors.brand.default,
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
+                  },
   peakBadgeText: {
     fontSize: 10,
     fontWeight: '700',
@@ -663,7 +658,6 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     backgroundColor: colors.surface,
     marginBottom: spacing.lg,
-    ...shadows.md,
   },
   peopleTotalsRow: {
     flexDirection: 'row',
@@ -777,7 +771,6 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     backgroundColor: colors.surface,
     marginBottom: spacing.lg,
-    ...shadows.md,
   },
   multiSegmentBar: {
     height: 8,
@@ -853,13 +846,11 @@ const styles = StyleSheet.create({
   emptyRecentCard: {
     borderRadius: radius['2xl'],
     backgroundColor: colors.surface,
-    ...shadows.md,
   },
   recentListCard: {
     borderRadius: radius['2xl'],
     backgroundColor: colors.surface,
     padding: spacing.xs,
-    ...shadows.md,
   },
   txnRow: {
     flexDirection: 'row',

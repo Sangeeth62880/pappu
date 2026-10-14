@@ -1,37 +1,21 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { colors, radius } from '../../theme/tokens';
 
+/**
+ * Skeleton Primitive.
+ * Strictly flat blocks filled with border #F0E4C8.
+ * Shimmer animations, gradients, and blurs are completely banned.
+ */
 export default function Skeleton({
   width = '100%',
   height = 20,
-  borderRadius = radius.md,
+  borderRadius = radius.small,
   style,
   testID = 'skeleton',
 }) {
-  const opacity = useRef(new Animated.Value(0.35)).current;
-
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 0.75,
-          duration: 750,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.35,
-          duration: 750,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [opacity]);
-
   return (
-    <Animated.View
+    <View
       testID={testID}
       style={[
         styles.skeleton,
@@ -39,7 +23,6 @@ export default function Skeleton({
           width,
           height,
           borderRadius,
-          opacity,
         },
         style,
       ]}
@@ -49,6 +32,6 @@ export default function Skeleton({
 
 const styles = StyleSheet.create({
   skeleton: {
-    backgroundColor: '#E2E8F0', // Faint slate placeholder
+    backgroundColor: colors.border,
   },
 });

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { fetchTransactions } from '../api/client';
-import { colors, radius, shadows, spacing } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 import Card from './ui/Card';
 import TransactionEditSheet from './ui/TransactionEditSheet';
 
@@ -462,7 +462,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
-    ...shadows.sm,
   },
   titleCol: {
     flex: 1,
@@ -508,7 +507,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadows.sm,
   },
   searchBarWrap: {
     flexDirection: 'row',
@@ -520,7 +518,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     height: 44,
     marginBottom: spacing.md,
-    ...shadows.sm,
   },
   searchInput: {
     flex: 1,
@@ -541,11 +538,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 32,
     borderRadius: radius.full,
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
+                  },
   chipSelected: {
     backgroundColor: colors.brand.default,
   },
@@ -594,7 +587,6 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     padding: spacing.md,
     marginBottom: spacing.lg,
-    ...shadows.md,
   },
   summaryStripLeft: {
     flexDirection: 'row',
@@ -652,7 +644,6 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     alignItems: 'center',
     backgroundColor: colors.surface,
-    ...shadows.md,
   },
   emptyText: {
     color: colors.text.muted,
@@ -684,7 +675,6 @@ const styles = StyleSheet.create({
     borderRadius: radius['2xl'],
     backgroundColor: colors.surface,
     padding: spacing.xs,
-    ...shadows.md,
   },
   rowWrapper: {
     flexDirection: 'row',

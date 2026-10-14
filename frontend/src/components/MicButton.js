@@ -18,7 +18,7 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import { transcribeAudio } from '../api/client';
-import { colors, radius, shadows, spacing } from '../theme/tokens';
+import { colors, radius, spacing } from '../theme/tokens';
 
 export default function MicButton({
   token,
@@ -380,12 +380,10 @@ const styles = StyleSheet.create({
   buttonIdle: {
     backgroundColor: colors.surface,
     borderColor: colors.borderSubtle,
-    ...shadows.sm,
   },
   buttonRecording: {
     backgroundColor: colors.semantic.expense,
     borderColor: colors.semantic.expense,
-    ...shadows.md,
   },
   buttonTranscribing: {
     backgroundColor: colors.brand.tint,

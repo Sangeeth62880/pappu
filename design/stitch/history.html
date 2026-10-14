@@ -1,0 +1,661 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pappu History Screens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@500;600;700;800&amp;family=Noto+Sans+Malayalam:wght@500;600;700&amp;family=Nunito:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #F4EEDD;
+      font-family: 'Nunito', sans-serif;
+      color: #1F2937;
+      margin: 0;
+      padding: 40px 24px;
+    }
+    .font-baloo {
+      font-family: 'Baloo Chettan 2', sans-serif;
+    }
+    .font-malayalam {
+      font-family: 'Noto Sans Malayalam', sans-serif;
+    }
+    .tabular {
+      font-variant-numeric: tabular-nums;
+    }
+    .mobile-frame {
+      width: 390px;
+      height: 844px;
+      background-color: #FFF8E7;
+      border-radius: 44px;
+      border: 8px solid #1F2937;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 36px rgba(31, 41, 55, 0.12);
+      flex-shrink: 0;
+    }
+    /* Hide scrollbar for clean UI view */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center gap-10">
+
+  <!-- Header Banner -->
+  <div class="text-center">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] text-xs font-bold text-[#1F2937] uppercase tracking-wider mb-2">
+      Strict Design Lock • Character Sheet Compliant
+    </div>
+    <h1 class="font-baloo text-3xl font-extrabold text-[#1F2937]">Pappu History Screens</h1>
+    <p class="text-sm font-semibold text-[#6B7280]">Default View • Swiped Delete State • Empty State (Sleepy Pose)</p>
+  </div>
+
+  <!-- Screens Row -->
+  <div class="flex flex-wrap items-center justify-center gap-10 max-w-[1360px]">
+
+    <!-- FRAME 1: Main History Screen -->
+    <div class="flex flex-col items-center">
+      <div class="mobile-frame">
+        <!-- Status Bar (47px) -->
+        <div class="h-[47px] w-full px-6 flex justify-between items-center text-xs font-bold text-[#1F2937] flex-shrink-0 z-20">
+          <span class="">9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path></svg>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18 20V10M14 20V6M10 20v-8M6 20v-4"></path></svg>
+            <div class="w-5 h-2.5 border-2 border-[#1F2937] rounded-sm p-0.5 flex items-center">
+              <div class="w-full h-full bg-[#1F2937] rounded-2xs"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- App Header (64px) with Search Button -->
+        <div class="h-[64px] px-5 flex items-center justify-between flex-shrink-0 z-20">
+          <div class="flex items-center gap-2">
+            <!-- 32px Coin-P logo -->
+            <svg width="32" height="32" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="32" fill="#FFC83D" stroke="#1F2937" stroke-width="4"></circle>
+              <circle cx="36" cy="36" r="26" fill="none" stroke="#D99A00" stroke-width="2"></circle>
+              <text x="36" y="44" font-family="'Baloo Chettan 2', sans-serif" font-size="28" font-weight="800" fill="#1F2937" text-anchor="middle">P</text>
+            </svg>
+            <span class="font-baloo text-[22px] font-extrabold text-[#1F2937] leading-none pt-0.5">Pappu</span>
+          </div>
+          <!-- 40px circle search button (2px border, white) -->
+          <div class="w-10 h-10 rounded-full bg-white border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <div class="flex-1 overflow-y-auto no-scrollbar px-5 pb-6">
+          
+          <!-- 1. Filter chips row (scrollable, 12px below header, height 40) -->
+          <div class="pt-3 pb-4 overflow-x-auto no-scrollbar flex items-center gap-2 -mx-5 px-5 flex-shrink-0">
+            <!-- Selected "All": gold fill, 3px #D99A00 bottom edge -->
+            <button class="h-10 px-5 rounded-full bg-[#FFC83D] border-b-[3px] border-[#D99A00] font-baloo text-sm font-bold text-[#1F2937] flex-shrink-0 flex items-center justify-center">
+              All
+            </button>
+            <!-- Unselected "Expenses": white, 2px border -->
+            <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+              Expenses
+            </button>
+            <!-- Unselected "Income": white, 2px border -->
+            <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+              Income
+            </button>
+            <!-- Unselected "People": white, 2px border -->
+            <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+              People
+            </button>
+          </div>
+
+          <!-- 2. Summary line: Body 16 "You've spent " + Baloo 700 "₹21,539" + " this month" -->
+          <div class="text-[16px] leading-[22px] font-semibold text-[#1F2937] mb-4">
+            You've spent <span class="font-baloo font-bold text-[18px] text-[#1F2937] tabular">₹21,539</span> this month
+          </div>
+
+          <!-- 3. Day group header: Today, 14 Oct -->
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Today, 14 Oct</span>
+            <span class="font-baloo font-bold text-[15px] text-[#E5484D] tabular">−₹2,859</span>
+          </div>
+
+          <!-- 4. White list card with rows -->
+          <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] overflow-hidden mb-6">
+            <!-- Row 1: Rahul -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#8B5CF6]/15 flex items-center justify-center text-[#8B5CF6]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="4"></circle>
+                    <path d="M20 21a8 8 0 1 0-16 0"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-malayalam font-bold text-[16px] text-[#1F2937] leading-tight">രാഹുൽ</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Received</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#1F8A5B] tabular">+₹300</div>
+            </div>
+            
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 2: Salary -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#1F8A5B]/15 flex items-center justify-center text-[#1F8A5B]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2"></rect>
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">Salary</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Income</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#1F8A5B] tabular">+₹15,000</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 3: auto -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#38BDF8]/15 flex items-center justify-center text-[#0E7C86]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="9" rx="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">auto</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Transport</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹80</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 4: bench #1 -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#F97316]/15 flex items-center justify-center text-[#F97316]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">bench</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Food</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹50</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 5: bench #2 -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#F97316]/15 flex items-center justify-center text-[#F97316]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">bench</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Food</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹50</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 6: bench #3 -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#F97316]/15 flex items-center justify-center text-[#F97316]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">bench</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Food</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹50</div>
+            </div>
+          </div>
+
+          <!-- 5. Second day group: Yesterday, 13 Oct -->
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Yesterday, 13 Oct</span>
+            <span class="font-baloo font-bold text-[15px] text-[#E5484D] tabular">−₹1,430</span>
+          </div>
+
+          <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] overflow-hidden">
+            <!-- Row 1: Grocery -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#0E7C86]/15 flex items-center justify-center text-[#0E7C86]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">Supermarket</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Shopping</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹1,180</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 2: Chai -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#F97316]/15 flex items-center justify-center text-[#F97316]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">ചായ</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Food</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹50</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 3: Metro -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#38BDF8]/15 flex items-center justify-center text-[#0E7C86]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="3" width="16" height="16" rx="2"></rect>
+                    <path d="M4 11h16M12 3v8M8 19l-2 3M16 19l2 3"></path>
+                  </svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">Metro</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Transport</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹200</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- TAB BAR (identical to Home, History active) -->
+        <div class="h-[84px] bg-white border-t-2 border-[#F0E4C8] px-2 flex justify-between items-center relative flex-shrink-0 z-30 pb-5">
+          <!-- Home -->
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">Home</span>
+          </div>
+          <!-- History (Active) -->
+          <div class="flex-1 flex flex-col items-center justify-center text-[#1F2937]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">History</span>
+            <div class="w-1.5 h-1.5 rounded-full bg-[#FFC83D] mt-0.5"></div>
+          </div>
+          <!-- Center Pappu Coin Mic Button -->
+          <div class="flex-1 relative flex items-center justify-center"><div class="w-[72px] h-[72px] rounded-full bg-[#FFC83D] border-4 border-[#1F2937] border-b-4 border-b-[#D99A00] absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center cursor-pointer z-30"><svg width="56" height="56" viewBox="0 0 56 56" fill="none" class="mt-[-2px]"><circle cx="28" cy="27" r="21" stroke="#D99A00" stroke-width="1.8"></circle><text x="28" y="16" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="10" fill="#D99A00" text-anchor="middle">₹</text><ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><circle cx="22" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="34" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="23" cy="24.8" r="1" fill="#FFFFFF"></circle><circle cx="35" cy="24.8" r="1" fill="#FFFFFF"></circle><path d="M 23 34 C 25 36.5 31 36.5 33 34" stroke="#1F2937" stroke-width="2.2" stroke-linecap="round" fill="none"></path><g transform="translate(24, 40)"><rect x="2.5" y="0" width="3" height="5" rx="1.5" fill="#1F2937"></rect><path d="M 1 2.5 C 1 4.5 7 4.5 7 2.5" stroke="#1F2937" stroke-width="1" stroke-linecap="round" fill="none"></path><line x1="4" y1="5" x2="4" y2="6.5" stroke="#1F2937" stroke-width="1"></line></g></svg></div><span class="w-1.5 h-1.5 mt-auto"></span></div>
+          <!-- People -->
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">People</span>
+          </div>
+          <!-- Me -->
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">Me</span>
+          </div>
+        </div>
+      </div>
+      <span class="mt-3 font-baloo font-bold text-sm text-[#1F2937]">1. History (Default View)</span>
+    </div>
+
+
+    <!-- FRAME 2: Swiped Left Delete Interaction Frame -->
+    <div class="flex flex-col items-center">
+      <div class="mobile-frame">
+        <!-- Status Bar -->
+        <div class="h-[47px] w-full px-6 flex justify-between items-center text-xs font-bold text-[#1F2937] flex-shrink-0 z-20">
+          <span class="">9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path></svg>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18 20V10M14 20V6M10 20v-8M6 20v-4"></path></svg>
+            <div class="w-5 h-2.5 border-2 border-[#1F2937] rounded-sm p-0.5 flex items-center">
+              <div class="w-full h-full bg-[#1F2937] rounded-2xs"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- App Header with Search Button -->
+        <div class="h-[64px] px-5 flex items-center justify-between flex-shrink-0 z-20">
+          <div class="flex items-center gap-2">
+            <svg width="32" height="32" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="32" fill="#FFC83D" stroke="#1F2937" stroke-width="4"></circle>
+              <circle cx="36" cy="36" r="26" fill="none" stroke="#D99A00" stroke-width="2"></circle>
+              <text x="36" y="44" font-family="'Baloo Chettan 2', sans-serif" font-size="28" font-weight="800" fill="#1F2937" text-anchor="middle">P</text>
+            </svg>
+            <span class="font-baloo text-[22px] font-extrabold text-[#1F2937] leading-none pt-0.5">Pappu</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-white border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <div class="flex-1 overflow-y-auto no-scrollbar px-5 pb-6">
+          <!-- Filter chips row -->
+          <div class="pt-3 pb-4 overflow-x-auto no-scrollbar flex items-center gap-2 -mx-5 px-5 flex-shrink-0">
+            <button class="h-10 px-5 rounded-full bg-[#FFC83D] border-b-[3px] border-[#D99A00] font-baloo text-sm font-bold text-[#1F2937] flex-shrink-0 flex items-center justify-center">
+              All
+            </button>
+            <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+              Expenses
+            </button>
+            <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+              Income
+            </button>
+            <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+              People
+            </button>
+          </div>
+
+          <!-- Summary line -->
+          <div class="text-[16px] leading-[22px] font-semibold text-[#1F2937] mb-4">
+            You've spent <span class="font-baloo font-bold text-[18px] text-[#1F2937] tabular">₹21,539</span> this month
+          </div>
+
+          <!-- Day group header -->
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Today, 14 Oct</span>
+            <span class="font-baloo font-bold text-[15px] text-[#E5484D] tabular">−₹2,859</span>
+          </div>
+
+          <!-- White list card with SWIPED row -->
+          <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] overflow-hidden mb-6">
+            <!-- Row 1: Rahul -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#8B5CF6]/15 flex items-center justify-center text-[#8B5CF6]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
+                </div>
+                <div>
+                  <div class="font-malayalam font-bold text-[16px] text-[#1F2937] leading-tight">രാഹുൽ</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Received</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#1F8A5B] tabular">+₹300</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 2: Salary -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#1F8A5B]/15 flex items-center justify-center text-[#1F8A5B]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">Salary</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Income</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#1F8A5B] tabular">+₹15,000</div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 3: SWIPED ROW (auto) revealing coral full-height area with trash icon -->
+            <div class="h-16 relative overflow-hidden bg-[#E5484D] flex items-center justify-end">
+              <!-- Coral Delete Action Background -->
+              <div class="w-20 h-full flex flex-col items-center justify-center text-white">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"></path>
+                </svg>
+              </div>
+
+              <!-- Sliding Content Layer (Offset left by -76px) -->
+              <div class="absolute inset-0 bg-white px-4 flex items-center justify-between" style="transform: translateX(-76px);">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-[#38BDF8]/15 flex items-center justify-center text-[#0E7C86]">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="9" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  </div>
+                  <div>
+                    <div class="font-bold text-[16px] text-[#1F2937] leading-tight">auto</div>
+                    <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Transport</div>
+                  </div>
+                </div>
+                <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹80</div>
+              </div>
+            </div>
+
+            <div class="h-[1px] bg-[#F0E4C8]"></div>
+
+            <!-- Row 4: bench -->
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#F97316]/15 flex items-center justify-center text-[#F97316]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"></path></svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">bench</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Food</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹50</div>
+            </div>
+          </div>
+
+          <!-- Second day group -->
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[13px] leading-[18px] font-bold text-[#6B7280]">Yesterday, 13 Oct</span>
+            <span class="font-baloo font-bold text-[15px] text-[#E5484D] tabular">−₹1,430</span>
+          </div>
+
+          <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] overflow-hidden">
+            <div class="h-16 px-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-[#0E7C86]/15 flex items-center justify-center text-[#0E7C86]">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                </div>
+                <div>
+                  <div class="font-bold text-[16px] text-[#1F2937] leading-tight">Supermarket</div>
+                  <div class="text-[13px] font-bold text-[#6B7280] leading-tight">Shopping</div>
+                </div>
+              </div>
+              <div class="font-baloo font-bold text-[17px] text-[#E5484D] tabular">−₹1,180</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB BAR -->
+        <div class="h-[84px] bg-white border-t-2 border-[#F0E4C8] px-2 flex justify-between items-center relative flex-shrink-0 z-30 pb-5">
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">Home</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center justify-center text-[#1F2937]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">History</span>
+            <div class="w-1.5 h-1.5 rounded-full bg-[#FFC83D] mt-0.5"></div>
+          </div>
+          <div class="flex-1 relative flex items-center justify-center"><div class="w-[72px] h-[72px] rounded-full bg-[#FFC83D] border-4 border-[#1F2937] border-b-4 border-b-[#D99A00] absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center cursor-pointer z-30"><svg width="56" height="56" viewBox="0 0 56 56" fill="none" class="mt-[-2px]"><circle cx="28" cy="27" r="21" stroke="#D99A00" stroke-width="1.8"></circle><text x="28" y="16" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="10" fill="#D99A00" text-anchor="middle">₹</text><ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><circle cx="22" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="34" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="23" cy="24.8" r="1" fill="#FFFFFF"></circle><circle cx="35" cy="24.8" r="1" fill="#FFFFFF"></circle><path d="M 23 34 C 25 36.5 31 36.5 33 34" stroke="#1F2937" stroke-width="2.2" stroke-linecap="round" fill="none"></path><g transform="translate(24, 40)"><rect x="2.5" y="0" width="3" height="5" rx="1.5" fill="#1F2937"></rect><path d="M 1 2.5 C 1 4.5 7 4.5 7 2.5" stroke="#1F2937" stroke-width="1" stroke-linecap="round" fill="none"></path><line x1="4" y1="5" x2="4" y2="6.5" stroke="#1F2937" stroke-width="1"></line></g></svg></div><span class="w-1.5 h-1.5 mt-auto"></span></div>
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">People</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">Me</span>
+          </div>
+        </div>
+      </div>
+      <span class="mt-3 font-baloo font-bold text-sm text-[#1F2937]">2. History (Swipe to Delete State)</span>
+    </div>
+
+
+    <!-- FRAME 3: Empty State Frame -->
+    <div class="flex flex-col items-center">
+      <div class="mobile-frame">
+        <!-- Status Bar -->
+        <div class="h-[47px] w-full px-6 flex justify-between items-center text-xs font-bold text-[#1F2937] flex-shrink-0 z-20">
+          <span class="">9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path></svg>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18 20V10M14 20V6M10 20v-8M6 20v-4"></path></svg>
+            <div class="w-5 h-2.5 border-2 border-[#1F2937] rounded-sm p-0.5 flex items-center">
+              <div class="w-full h-full bg-[#1F2937] rounded-2xs"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- App Header with Search Button -->
+        <div class="h-[64px] px-5 flex items-center justify-between flex-shrink-0 z-20">
+          <div class="flex items-center gap-2">
+            <svg width="32" height="32" viewBox="0 0 72 72">
+              <circle cx="36" cy="36" r="32" fill="#FFC83D" stroke="#1F2937" stroke-width="4"></circle>
+              <circle cx="36" cy="36" r="26" fill="none" stroke="#D99A00" stroke-width="2"></circle>
+              <text x="36" y="44" font-family="'Baloo Chettan 2', sans-serif" font-size="28" font-weight="800" fill="#1F2937" text-anchor="middle">P</text>
+            </svg>
+            <span class="font-baloo text-[22px] font-extrabold text-[#1F2937] leading-none pt-0.5">Pappu</span>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-white border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Filter chips row -->
+        <div class="px-5 pt-3 pb-4 overflow-x-auto no-scrollbar flex items-center gap-2 flex-shrink-0">
+          <button class="h-10 px-5 rounded-full bg-[#FFC83D] border-b-[3px] border-[#D99A00] font-baloo text-sm font-bold text-[#1F2937] flex-shrink-0 flex items-center justify-center">
+            All
+          </button>
+          <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+            Expenses
+          </button>
+          <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+            Income
+          </button>
+          <button class="h-10 px-5 rounded-full bg-white border-2 border-[#F0E4C8] font-baloo text-sm font-bold text-[#6B7280] flex-shrink-0 flex items-center justify-center">
+            People
+          </button>
+        </div>
+
+        <!-- Empty State Body (Centered, Pappu Sleepy 120px) -->
+        <div class="flex-1 flex flex-col items-center justify-center px-6 text-center pb-12">
+          
+          <!-- Pappu Sleepy Pose (120px) strictly obeying character sheet -->
+          <div class="w-[120px] h-[120px] relative mb-6"><svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+  <!-- Noodle arms with round mitten hands (6px stroke, #1F2937) -->
+  <path d="M 18 52 Q 13 65 16 76" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"></path>
+  <circle cx="16" cy="78" r="5" fill="#1F2937"></circle>
+  
+  <path d="M 82 52 Q 87 65 84 76" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"></path>
+  <circle cx="84" cy="78" r="5" fill="#1F2937"></circle>
+
+  <!-- Short legs & rounded shoes -->
+  <path d="M 41 85 L 41 93" stroke="#1F2937" stroke-width="6" stroke-linecap="round"></path>
+  <ellipse cx="38" cy="94" rx="6" ry="3.5" fill="#1F2937"></ellipse>
+  
+  <path d="M 59 85 L 59 93" stroke="#1F2937" stroke-width="6" stroke-linecap="round"></path>
+  <ellipse cx="62" cy="94" rx="6" ry="3.5" fill="#1F2937"></ellipse>
+
+  <!-- Outer coin body: circle with #FFC83D fill and 4px solid #1F2937 outline -->
+  <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4"></circle>
+  
+  <!-- Inner rim ring: concentric circle stroke in #D99A00 with 8px inset (r = 28) -->
+  <circle cx="50" cy="50" r="28" fill="none" stroke="#D99A00" stroke-width="2.5"></circle>
+
+  <!-- Forehead emboss: bold ₹ currency symbol in #D99A00 centered horizontally on upper forehead -->
+  <text x="50" y="33" font-family="'Nunito', sans-serif" font-size="14" font-weight="900" fill="#D99A00" text-anchor="middle">₹</text>
+
+  <!-- Curved closed eye arcs with sleepy lashes -->
+  <path d="M 35 48 Q 40 44 45 48" fill="none" stroke="#1F2937" stroke-width="3" stroke-linecap="round"></path>
+  <path d="M 38 46 L 36 43" stroke="#1F2937" stroke-width="2" stroke-linecap="round"></path>
+  <path d="M 42 45 L 42 42" stroke="#1F2937" stroke-width="2" stroke-linecap="round"></path>
+
+  <path d="M 55 48 Q 60 44 65 48" fill="none" stroke="#1F2937" stroke-width="3" stroke-linecap="round"></path>
+  <path d="M 58 45 L 58 42" stroke="#1F2937" stroke-width="2" stroke-linecap="round"></path>
+  <path d="M 62 46 L 64 43" stroke="#1F2937" stroke-width="2" stroke-linecap="round"></path>
+
+  <!-- Sleeping curved mouth -->
+  <path d="M 46 61 Q 50 63.5 54 61" fill="none" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round"></path>
+  
+  <!-- Sleep bubble near mouth -->
+  <ellipse cx="58" cy="58" rx="4" ry="4" fill="#38BDF8" fill-opacity="0.75" stroke="#0E7C86" stroke-width="1.2"></ellipse>
+  <circle cx="56.5" cy="56" r="1" fill="#FFFFFF"></circle>
+
+  <!-- Clean floating 'z' indicator -->
+  <text x="73" y="28" font-family="'Baloo Chettan 2', sans-serif" font-size="16" font-weight="800" fill="#1F2937">z</text>
+  <text x="83" y="16" font-family="'Baloo Chettan 2', sans-serif" font-size="22" font-weight="800" fill="#1F2937">Z</text>
+</svg></div>
+
+          <!-- Exact Locked Headings & Copy -->
+          <h2 class="font-baloo text-[22px] leading-[26px] font-bold text-[#1F2937] mb-2">Nothing here yet</h2>
+          <p class="text-[16px] leading-[22px] font-semibold text-[#6B7280]">Tell me what you spent.</p>
+        </div>
+
+        <!-- TAB BAR -->
+        <div class="h-[84px] bg-white border-t-2 border-[#F0E4C8] px-2 flex justify-between items-center relative flex-shrink-0 z-30 pb-5">
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">Home</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center justify-center text-[#1F2937]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">History</span>
+            <div class="w-1.5 h-1.5 rounded-full bg-[#FFC83D] mt-0.5"></div>
+          </div>
+          <div class="flex-1 relative flex items-center justify-center"><div class="w-[72px] h-[72px] rounded-full bg-[#FFC83D] border-4 border-[#1F2937] border-b-4 border-b-[#D99A00] absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center cursor-pointer z-30"><svg width="56" height="56" viewBox="0 0 56 56" fill="none" class="mt-[-2px]"><circle cx="28" cy="27" r="21" stroke="#D99A00" stroke-width="1.8"></circle><text x="28" y="16" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="10" fill="#D99A00" text-anchor="middle">₹</text><ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><circle cx="22" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="34" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="23" cy="24.8" r="1" fill="#FFFFFF"></circle><circle cx="35" cy="24.8" r="1" fill="#FFFFFF"></circle><path d="M 23 34 C 25 36.5 31 36.5 33 34" stroke="#1F2937" stroke-width="2.2" stroke-linecap="round" fill="none"></path><g transform="translate(24, 40)"><rect x="2.5" y="0" width="3" height="5" rx="1.5" fill="#1F2937"></rect><path d="M 1 2.5 C 1 4.5 7 4.5 7 2.5" stroke="#1F2937" stroke-width="1" stroke-linecap="round" fill="none"></path><line x1="4" y1="5" x2="4" y2="6.5" stroke="#1F2937" stroke-width="1"></line></g></svg></div><span class="w-1.5 h-1.5 mt-auto"></span></div>
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">People</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center justify-center text-[#6B7280]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span class="text-[13px] font-bold leading-tight mt-0.5">Me</span>
+          </div>
+        </div>
+      </div>
+      <span class="mt-3 font-baloo font-bold text-sm text-[#1F2937]">3. History (Empty State)</span>
+    </div>
+
+  </div>
+
+
+
+
+
+
+
+</body></html>

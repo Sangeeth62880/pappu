@@ -9,8 +9,8 @@ import {
   Dimensions,
   PanResponder,
 } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import Feather from '@expo/vector-icons/Feather';
+import { colors, radius, spacing } from '../../theme/tokens';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -102,7 +102,7 @@ export default function BottomSheet({
             accessibilityLabel="Close sheet"
             activeOpacity={0.7}
           >
-            <MaterialIcons name="close" size={20} color={colors.text.secondary} />
+            <Feather name="x" size={20} color={colors.ink_muted} />
           </TouchableOpacity>
         </View>
 
@@ -115,7 +115,7 @@ export default function BottomSheet({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)', // Dimmed slate backdrop
+    backgroundColor: colors.dim_overlay,
   },
   sheetContainer: {
     position: 'absolute',
@@ -123,10 +123,13 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radius['3xl'],
-    borderTopRightRadius: radius['3xl'],
-    maxHeight: SCREEN_HEIGHT * 0.85,
-    ...shadows.lg,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderColor: colors.border,
+    maxHeight: SCREEN_HEIGHT * 0.9,
   },
   topHeaderBar: {
     flexDirection: 'row',
@@ -146,8 +149,8 @@ const styles = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    borderRadius: radius.full,
-    backgroundColor: '#CBD5E1', // Slate 300
+    borderRadius: 2,
+    backgroundColor: colors.border,
   },
   closeBtn: {
     position: 'absolute',
@@ -156,7 +159,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },

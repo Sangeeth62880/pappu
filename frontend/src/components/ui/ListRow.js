@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, spacing } from '../../theme/tokens';
+import { colors, spacing, typography } from '../../theme/tokens';
 
 export default function ListRow({
   leading,
@@ -8,20 +8,36 @@ export default function ListRow({
   subtitle,
   trailing,
   onPress,
+  showDivider = true,
   style,
   testID = 'list-row',
 }) {
   const content = (
-    <View style={[styles.row, style]} testID={testID}>
+    <View
+      style={[
+        styles.row,
+        showDivider && styles.rowDivider,
+        style,
+      ]}
+      testID={testID}
+    >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={styles.middle}>
         {title ? (
-          <Text style={styles.title} numberOfLines={1}>
+          <Text
+            style={[styles.title, typography.body_main]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {title}
           </Text>
         ) : null}
         {subtitle ? (
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text
+            style={[styles.subtitle, typography.body_secondary]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {subtitle}
           </Text>
         ) : null}
@@ -48,13 +64,20 @@ export default function ListRow({
 
 const styles = StyleSheet.create({
   touchable: {
-    minHeight: 48,
+    minHeight: 64,
+    backgroundColor: colors.surface,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    minHeight: 48,
+    minHeight: 64,
+    backgroundColor: colors.surface,
+  },
+  rowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   leading: {
     marginRight: spacing.md,
@@ -67,15 +90,19 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 15,
+    lineHeight: 22,
     fontWeight: '600',
-    color: colors.text.primary,
-    lineHeight: 20,
+    color: colors.ink,
+    fontFamily: 'Nunito_600SemiBold',
+    includeFontPadding: false,
   },
   subtitle: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.ink_muted,
+    fontFamily: 'Nunito_600SemiBold',
     marginTop: 2,
+    includeFontPadding: false,
   },
   trailing: {
     marginLeft: spacing.md,

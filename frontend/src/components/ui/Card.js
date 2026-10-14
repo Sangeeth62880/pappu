@@ -1,16 +1,14 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 
 export default function Card({
   children,
   style,
-  elevation = 'sm', // 'none' | 'sm' | 'md' | 'lg'
-  padding = 'lg',   // 'none' | 'sm' | 'md' | 'lg' | 'xl'
+  padding = 'lg',
   testID = 'card',
   ...props
 }) {
-  const shadowStyle = elevation !== 'none' ? shadows[elevation] || shadows.sm : null;
   const paddingVal = padding === 'none' ? 0 : spacing[padding] || spacing.lg;
 
   return (
@@ -18,7 +16,6 @@ export default function Card({
       testID={testID}
       style={[
         styles.card,
-        shadowStyle,
         { padding: paddingVal },
         style,
       ]}
@@ -32,8 +29,8 @@ export default function Card({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius['2xl'],
-    borderWidth: 1,
+    borderRadius: radius.card,
+    borderWidth: 2,
     borderColor: colors.border,
   },
 });

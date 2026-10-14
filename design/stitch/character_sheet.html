@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=390, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pappu Character Reference Sheet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@700;800&family=Nunito:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      background-color: #FFF8E7;
+      color: #1F2937;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 22px;
+      width: 390px;
+      min-height: 844px;
+      margin: 0 auto;
+      padding: 0 0 40px 0;
+      overflow-x: hidden;
+    }
+    .status-bar {
+      height: 47px;
+      width: 100%;
+    }
+    .container {
+      padding: 0 20px;
+    }
+    .header-title {
+      font-family: 'Baloo Chettan 2', sans-serif;
+      font-weight: 800;
+      font-size: 24px;
+      line-height: 28px;
+      color: #1F2937;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 18px;
+      color: #6B7280;
+      margin-bottom: 16px;
+    }
+    .card {
+      background: #FFFFFF;
+      border: 2px solid #F0E4C8;
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .section-label {
+      font-family: 'Baloo Chettan 2', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      line-height: 22px;
+      color: #1F2937;
+      margin-bottom: 12px;
+    }
+    .grid-poses {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .pose-item {
+      background: #FFF8E7;
+      border: 2px solid #F0E4C8;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 12px 6px 10px;
+      height: 140px;
+    }
+    .pose-svg-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    .pose-label {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 18px;
+      color: #1F2937;
+      margin-top: 6px;
+    }
+    
+    /* App Icon section */
+    .icon-box {
+      width: 96px;
+      height: 96px;
+      background: #FFC83D;
+      border: 4px solid #1F2937;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+    }
+    .icon-meta {
+      text-align: center;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 18px;
+      color: #6B7280;
+    }
+
+    /* Wordmark section */
+    .wordmark-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px;
+      background: #FFF8E7;
+      border: 2px solid #F0E4C8;
+      border-radius: 16px;
+    }
+    .wordmark-text {
+      font-family: 'Baloo Chettan 2', sans-serif;
+      font-weight: 800;
+      font-size: 32px;
+      line-height: 36px;
+      color: #1F2937;
+    }
+
+    /* Size tests */
+    .sizes-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 16px 8px 8px;
+      background: #FFF8E7;
+      border: 2px solid #F0E4C8;
+      border-radius: 16px;
+    }
+    .size-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .size-caption {
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 18px;
+      color: #6B7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="status-bar"></div>
+  <div class="container">
+    <h1 class="header-title">Character reference sheet</h1>
+    <div class="subtitle">Pappu mascot design lock &amp; pose specifications</div>
+
+    <!-- 10 POSES GRID -->
+    <div class="card">
+      <div class="section-label">Pose catalog (5×2)</div>
+      <div class="grid-poses">
+
+        <!-- 1. IDLE -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: down, relaxed -->
+              <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 52 Q 86 66 82 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="82" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+              <!-- Coin Body -->
+              <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <!-- Rupee forehead -->
+              <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyes: standard oval with highlight -->
+              <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="42" cy="48" r="3.5" fill="#1F2937" />
+              <circle cx="43.5" cy="46.5" r="1.2" fill="#FFFFFF" />
+              <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="58" cy="48" r="3.5" fill="#1F2937" />
+              <circle cx="59.5" cy="46.5" r="1.2" fill="#FFFFFF" />
+              <!-- Smile: relaxed -->
+              <path d="M 45 61 Q 50 66 55 61" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+          <div class="pose-label">Idle</div>
+        </div>
+
+        <!-- 2. LISTENING -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: one relaxed, one cupped at ear -->
+              <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 52 C 86 48 86 42 81 38" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <!-- Cupped hand prop/pose -->
+              <path d="M 81 34 C 84 37 84 43 80 46" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+              <!-- Sound wave prop -->
+              <path d="M 89 36 C 92 41 92 46 89 50" stroke="#0E7C86" stroke-width="2" stroke-linecap="round" fill="none" />
+              <!-- Coin Body -->
+              <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyes: wide -->
+              <ellipse cx="41" cy="48" rx="7" ry="9" fill="#FFFFFF" />
+              <circle cx="42" cy="48" r="4" fill="#1F2937" />
+              <circle cx="43.5" cy="46" r="1.5" fill="#FFFFFF" />
+              <ellipse cx="59" cy="48" rx="7" ry="9" fill="#FFFFFF" />
+              <circle cx="60" cy="48" r="4" fill="#1F2937" />
+              <circle cx="61.5" cy="46" r="1.5" fill="#FFFFFF" />
+              <!-- Mouth: attentive small smile -->
+              <path d="M 46 62 Q 50 65 54 62" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+          <div class="pose-label">Listening</div>
+        </div>
+
+        <!-- 3. THINKING -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: one relaxed, right hand on chin -->
+              <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 54 Q 72 68 56 68" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="55" cy="68" rx="5" ry="5" fill="#1F2937" />
+              <!-- Tilted head (10 deg) -->
+              <g transform="rotate(10 50 50)">
+                <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+                <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+                <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+                <!-- Eyes: looking up-right -->
+                <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+                <circle cx="43" cy="44" r="3.5" fill="#1F2937" />
+                <circle cx="44.5" cy="43" r="1.2" fill="#FFFFFF" />
+                <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+                <circle cx="61" cy="44" r="3.5" fill="#1F2937" />
+                <circle cx="62.5" cy="43" r="1.2" fill="#FFFFFF" />
+                <!-- Eyebrows raised inquiringly -->
+                <path d="M 37 38 Q 42 36 45 38" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+                <path d="M 55 36 Q 60 34 63 36" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+                <!-- Mouth: sideways thoughtful line -->
+                <path d="M 46 62 Q 51 63 56 60" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              </g>
+              <!-- Small thought bubble prop -->
+              <circle cx="83" cy="22" r="3" fill="#6B7280" />
+              <circle cx="89" cy="15" r="4.5" fill="#6B7280" />
+            </svg>
+          </div>
+          <div class="pose-label">Thinking</div>
+        </div>
+
+        <!-- 4. SPEAKING -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: one down, one raised lecturing/gesturing -->
+              <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 52 Q 88 40 84 28" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="84" cy="28" rx="4.5" ry="4.5" fill="#1F2937" />
+              <!-- Speech note prop -->
+              <path d="M 88 18 L 92 18 L 92 24" stroke="#0E7C86" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+              <!-- Coin Body -->
+              <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyes -->
+              <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="42" cy="48" r="3.5" fill="#1F2937" />
+              <circle cx="43.5" cy="46.5" r="1.2" fill="#FFFFFF" />
+              <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="58" cy="48" r="3.5" fill="#1F2937" />
+              <circle cx="59.5" cy="46.5" r="1.2" fill="#FFFFFF" />
+              <!-- Mouth: open 'o' -->
+              <ellipse cx="50" cy="62" rx="4" ry="5.5" fill="#1F2937" />
+            </svg>
+          </div>
+          <div class="pose-label">Speaking</div>
+        </div>
+
+        <!-- 5. HAPPY -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs: small hop -->
+              <rect x="38" y="76" width="6" height="18" rx="3" fill="#1F2937" transform="rotate(-8 38 76)" />
+              <rect x="56" y="76" width="6" height="18" rx="3" fill="#1F2937" transform="rotate(8 56 76)" />
+              <ellipse cx="36" cy="94" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="64" cy="94" rx="7" ry="5" fill="#1F2937" />
+              <!-- Hop dust prop -->
+              <path d="M 30 102 Q 35 100 40 102" stroke="#6B7280" stroke-width="2" stroke-linecap="round" fill="none" />
+              <path d="M 60 102 Q 65 100 70 102" stroke="#6B7280" stroke-width="2" stroke-linecap="round" fill="none" />
+              <!-- Arms: energetic bend -->
+              <path d="M 22 50 Q 12 56 16 66" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="16" cy="66" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 50 Q 88 56 84 66" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="84" cy="66" rx="4.5" ry="4.5" fill="#1F2937" />
+              <!-- Coin Body slightly lifted -->
+              <circle cx="50" cy="46" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="46" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="30" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyes: upward joyful arcs -->
+              <path d="M 36 46 C 36 40 46 40 46 46" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+              <path d="M 54 46 C 54 40 64 40 64 46" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+              <!-- Mouth: big joyful open smile -->
+              <path d="M 43 56 Q 50 67 57 56 Z" fill="#1F2937" />
+            </svg>
+          </div>
+          <div class="pose-label">Happy</div>
+        </div>
+
+        <!-- 6. EXCITED -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs: wide stance -->
+              <rect x="37" y="80" width="6" height="18" rx="3" fill="#1F2937" transform="rotate(-6 37 80)" />
+              <rect x="57" y="80" width="6" height="18" rx="3" fill="#1F2937" transform="rotate(6 57 80)" />
+              <ellipse cx="35" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="65" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: both up in celebration -->
+              <path d="M 22 48 Q 12 32 18 20" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="18" cy="20" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 48 Q 88 32 82 20" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="82" cy="20" rx="4.5" ry="4.5" fill="#1F2937" />
+              <!-- Pennant / ribbon prop -->
+              <path d="M 85 18 L 94 14 L 91 22 Z" fill="#1F8A5B" />
+              <!-- Coin Body -->
+              <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyes: big thrilled circles with highlights -->
+              <ellipse cx="41" cy="46" rx="6.5" ry="8.5" fill="#FFFFFF" />
+              <circle cx="41" cy="46" r="4.2" fill="#1F2937" />
+              <circle cx="43" cy="44" r="1.5" fill="#FFFFFF" />
+              <ellipse cx="59" cy="46" rx="6.5" ry="8.5" fill="#FFFFFF" />
+              <circle cx="59" cy="46" r="4.2" fill="#1F2937" />
+              <circle cx="61" cy="44" r="1.5" fill="#FFFFFF" />
+              <!-- Mouth: wide open excitement -->
+              <path d="M 42 57 Q 50 71 58 57 Z" fill="#1F2937" />
+            </svg>
+          </div>
+          <div class="pose-label">Excited</div>
+        </div>
+
+        <!-- 7. WORRIED -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs: slightly inward -->
+              <rect x="41" y="80" width="6" height="18" rx="3" fill="#1F2937" transform="rotate(3 41 80)" />
+              <rect x="53" y="80" width="6" height="18" rx="3" fill="#1F2937" transform="rotate(-3 53 80)" />
+              <ellipse cx="40" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="60" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: timid, touching sides -->
+              <path d="M 22 52 Q 20 66 25 76" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="25" cy="76" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 52 Q 80 66 75 76" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="75" cy="76" rx="4.5" ry="4.5" fill="#1F2937" />
+              <!-- Coin Body -->
+              <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyebrows: raised slanted in worry -->
+              <path d="M 37 36 Q 41 39 45 40" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+              <path d="M 63 36 Q 59 39 55 40" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+              <!-- Eyes: standard with worried gaze -->
+              <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="42" cy="49" r="3.5" fill="#1F2937" />
+              <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="58" cy="49" r="3.5" fill="#1F2937" />
+              <!-- Mouth: wavy worried line -->
+              <path d="M 44 63 Q 47 60 50 63 Q 53 66 56 63" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              <!-- Sweat drop prop -->
+              <path d="M 73 34 C 73 31 77 27 77 27 C 77 27 81 31 81 34 C 81 36.5 79 38 77 38 C 75 38 73 36.5 73 34 Z" fill="#38BDF8" stroke="#1F2937" stroke-width="1.5" />
+            </svg>
+          </div>
+          <div class="pose-label">Worried</div>
+        </div>
+
+        <!-- 8. CONCERNED -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: both hands out palms up -->
+              <path d="M 22 52 Q 10 54 12 46" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="12" cy="45" rx="5" ry="4" fill="#1F2937" />
+              <path d="M 78 52 Q 90 54 88 46" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="88" cy="45" rx="5" ry="4" fill="#1F2937" />
+              <!-- Rupee coin prop in front -->
+              <circle cx="50" cy="74" r="5" fill="#FFC83D" stroke="#1F2937" stroke-width="1.5" />
+              <text x="50" y="77" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="6" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Coin Body -->
+              <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyebrows: tilted inward (concern) -->
+              <path d="M 37 38 L 44 41" stroke="#1F2937" stroke-width="2" stroke-linecap="round" />
+              <path d="M 63 38 L 56 41" stroke="#1F2937" stroke-width="2" stroke-linecap="round" />
+              <!-- Eyes -->
+              <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="41.5" cy="48" r="3.5" fill="#1F2937" />
+              <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="58.5" cy="48" r="3.5" fill="#1F2937" />
+              <!-- Mouth: small frown -->
+              <path d="M 45 64 Q 50 60 55 64" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+          <div class="pose-label">Concerned</div>
+        </div>
+
+        <!-- 9. CONFUSED -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: shrug (one up, one down-side) -->
+              <path d="M 22 50 Q 10 42 12 34" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="12" cy="34" rx="4.5" ry="4.5" fill="#1F2937" />
+              <path d="M 78 50 Q 88 56 84 66" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <ellipse cx="84" cy="66" rx="4.5" ry="4.5" fill="#1F2937" />
+              <!-- Question mark prop above head -->
+              <text x="66" y="20" font-family="'Baloo Chettan 2', sans-serif" font-weight="800" font-size="18" fill="#E5484D" text-anchor="middle">?</text>
+              <!-- Coin Body -->
+              <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyebrows: one raised high, one low -->
+              <path d="M 37 35 Q 41 33 45 35" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+              <path d="M 55 41 Q 59 42 63 41" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+              <!-- Eyes: one normal, one squinched -->
+              <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+              <circle cx="41" cy="47" r="3.5" fill="#1F2937" />
+              <ellipse cx="59" cy="48" rx="5.5" ry="6" fill="#FFFFFF" />
+              <circle cx="59" cy="48" r="3" fill="#1F2937" />
+              <!-- Mouth: sideways crooked -->
+              <path d="M 45 61 L 55 64" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" />
+            </svg>
+          </div>
+          <div class="pose-label">Confused</div>
+        </div>
+
+        <!-- 10. SLEEPY -->
+        <div class="pose-item">
+          <div class="pose-svg-wrap">
+            <svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs: relaxed slumped -->
+              <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+              <ellipse cx="38" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <ellipse cx="62" cy="99" rx="7" ry="5" fill="#1F2937" />
+              <!-- Arms: limp hanging straight down -->
+              <rect x="18" y="52" width="6" height="30" rx="3" fill="#1F2937" />
+              <ellipse cx="21" cy="84" rx="4.5" ry="4.5" fill="#1F2937" />
+              <rect x="76" y="52" width="6" height="30" rx="3" fill="#1F2937" />
+              <ellipse cx="79" cy="84" rx="4.5" ry="4.5" fill="#1F2937" />
+              <!-- "z" float prop above -->
+              <text x="70" y="24" font-family="'Nunito', sans-serif" font-weight="700" font-size="12" fill="#6B7280" text-anchor="middle">z</text>
+              <text x="80" y="14" font-family="'Nunito', sans-serif" font-weight="700" font-size="15" fill="#6B7280" text-anchor="middle">Z</text>
+              <!-- Coin Body slightly downward tilted -->
+              <circle cx="50" cy="52" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <circle cx="50" cy="52" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+              <text x="50" y="36" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+              <!-- Eyes: closed peaceful arcs -->
+              <path d="M 37 50 Q 41 54 45 50" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              <path d="M 55 50 Q 59 54 63 50" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              <!-- Mouth: gentle sleep bubble / soft line -->
+              <path d="M 47 62 Q 50 63 53 62" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+              <circle cx="56" cy="59" r="3" fill="#FFF8E7" stroke="#38BDF8" stroke-width="1.5" />
+            </svg>
+          </div>
+          <div class="pose-label">Sleepy</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- (A) APP ICON -->
+    <div class="card">
+      <div class="section-label">App icon</div>
+      <div class="icon-box">
+        <svg width="76" height="76" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Mascot face only, no text, gold background -->
+          <circle cx="50" cy="50" r="38" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+          <circle cx="50" cy="50" r="30" stroke="#D99A00" stroke-width="2.5" fill="none" />
+          <!-- Forehead embossed rupee -->
+          <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="15" fill="#D99A00" text-anchor="middle">₹</text>
+          <!-- Eyes -->
+          <ellipse cx="40" cy="50" rx="7" ry="9.5" fill="#FFFFFF" />
+          <circle cx="41.5" cy="50" r="4.2" fill="#1F2937" />
+          <circle cx="43.5" cy="48" r="1.5" fill="#FFFFFF" />
+          <ellipse cx="60" cy="50" rx="7" ry="9.5" fill="#FFFFFF" />
+          <circle cx="58.5" cy="50" r="4.2" fill="#1F2937" />
+          <circle cx="60.5" cy="48" r="1.5" fill="#FFFFFF" />
+          <!-- Smile -->
+          <path d="M 44 65 Q 50 71 56 65" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+        </svg>
+      </div>
+      <div class="icon-meta">1024×1024 px master specification (face mark only)</div>
+    </div>
+
+    <!-- (B) WORDMARK -->
+    <div class="card">
+      <div class="section-label">Wordmark logo</div>
+      <div class="wordmark-wrap">
+        <!-- Coin-P face mark 32px -->
+        <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="17" fill="#FFC83D" stroke="#1F2937" stroke-width="2.5" />
+          <circle cx="20" cy="20" r="13" stroke="#D99A00" stroke-width="1.5" fill="none" />
+          <text x="20" y="14" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="8" fill="#D99A00" text-anchor="middle">₹</text>
+          <ellipse cx="16" cy="20" rx="2.8" ry="3.8" fill="#FFFFFF" />
+          <circle cx="16.5" cy="20" r="1.6" fill="#1F2937" />
+          <ellipse cx="24" cy="20" rx="2.8" ry="3.8" fill="#FFFFFF" />
+          <circle cx="23.5" cy="20" r="1.6" fill="#1F2937" />
+          <path d="M 17 26 Q 20 28.5 23 26" stroke="#1F2937" stroke-width="1.5" stroke-linecap="round" fill="none" />
+        </svg>
+        <span class="wordmark-text">Pappu</span>
+      </div>
+    </div>
+
+    <!-- (C) SIZE TEST -->
+    <div class="card">
+      <div class="section-label">Size test (Idle pose)</div>
+      <div class="sizes-row">
+        <!-- 32px -->
+        <div class="size-col">
+          <svg width="32" height="35" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <path d="M 78 52 Q 86 66 82 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="82" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+            <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+            <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+            <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="42" cy="48" r="3.5" fill="#1F2937" />
+            <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="58" cy="48" r="3.5" fill="#1F2937" />
+            <path d="M 45 61 Q 50 66 55 61" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          </svg>
+          <span class="size-caption">32px</span>
+        </div>
+
+        <!-- 48px -->
+        <div class="size-col">
+          <svg width="48" height="53" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <path d="M 78 52 Q 86 66 82 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="82" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+            <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+            <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+            <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="42" cy="48" r="3.5" fill="#1F2937" />
+            <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="58" cy="48" r="3.5" fill="#1F2937" />
+            <path d="M 45 61 Q 50 66 55 61" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          </svg>
+          <span class="size-caption">48px</span>
+        </div>
+
+        <!-- 72px -->
+        <div class="size-col">
+          <svg width="68" height="75" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <path d="M 78 52 Q 86 66 82 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="82" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+            <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+            <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+            <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="42" cy="48" r="3.5" fill="#1F2937" />
+            <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="58" cy="48" r="3.5" fill="#1F2937" />
+            <path d="M 45 61 Q 50 66 55 61" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          </svg>
+          <span class="size-caption">72px</span>
+        </div>
+
+        <!-- 120px -->
+        <div class="size-col">
+          <svg width="96" height="106" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+            <ellipse cx="39" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <ellipse cx="61" cy="99" rx="7" ry="5" fill="#1F2937" />
+            <path d="M 22 52 Q 14 66 18 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="18" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <path d="M 78 52 Q 86 66 82 80" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+            <ellipse cx="82" cy="80" rx="4.5" ry="4.5" fill="#1F2937" />
+            <circle cx="50" cy="50" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+            <circle cx="50" cy="50" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+            <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+            <ellipse cx="41" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="42" cy="48" r="3.5" fill="#1F2937" />
+            <ellipse cx="59" cy="48" rx="6" ry="8" fill="#FFFFFF" />
+            <circle cx="58" cy="48" r="3.5" fill="#1F2937" />
+            <path d="M 45 61 Q 50 66 55 61" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          </svg>
+          <span class="size-caption">120px</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

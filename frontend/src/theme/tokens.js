@@ -1,66 +1,103 @@
 /**
- * Design system tokens for Pappu (Light Theme).
- * All screens and UI primitives MUST use these tokens.
- * WCAG AA compliance verified for all text/background pairs.
+ * Design Tokens for Pappu Tactile Mascot Design System
+ * Visual source of truth: Stitch Project 9429203517741760676 & design/spec/tokens.md
+ * Strictly flat: gradients, glass, blur, glows, and ambient elevation are completely banned.
  */
 
 export const colors = {
-  // Canvases & Surfaces
-  canvas: '#F5F7FB',       // Calming cool canvas
-  surface: '#FFFFFF',      // Pure white card
-  surfaceSubtle: '#F1F5F9',// Slate 100
-  border: '#E2E8F0',       // Slate 200 hairline
-  borderSubtle: '#F1F5F9', // Slate 100
+  // Canvas & Surfaces
+  bg: '#FFF8E7',
+  surface: '#FFFFFF',
+  border: '#F0E4C8',
 
-  // Text Hierarchy
-  text: {
-    primary: '#0F172A',    // Slate 900 (AAA contrast on white)
-    secondary: '#475569',  // Slate 600
-    tertiary: '#64748B',   // Slate 500
-    inverse: '#FFFFFF',    // Pure white on brand fills
-    muted: '#94A3B8',      // Slate 400
-  },
+  // Primary Brand Accent & Tactile Edge
+  gold: '#FFC83D',
+  gold_edge: '#D99A00',
+  goldEdge: '#D99A00',
 
-  // Brand Accent (Blue)
-  brand: {
-    default: '#2563EB',    // Confident royal blue
-    dark: '#1D4ED8',       // Active press
-    darker: '#1E40AF',     // Hero gradient accent
-    tint: '#EAF1FF',       // Soft secondary tint / active nav pill
-    tintBorder: '#BFDBFE', // Accent border
-    pressed: '#1D4ED8',    // Pressed state
-  },
+  // Typography & Hairlines
+  ink: '#1F2937',
+  ink_muted: '#6B7280',
+  inkMuted: '#6B7280',
 
-  // Semantic Status (Cashflow Tokens)
-  semantic: {
-    income: '#15803D',       // Emerald 700 (4.8:1 on white - WCAG AA compliant text)
-    incomeFill: '#059669',   // Emerald 600 (bars, fills, icons from DESIGN.md)
-    incomeBg: '#ECFDF5',     // Emerald 50 surface badge tint from DESIGN.md
-    incomeBorder: '#A7F3D0', // Emerald 200
+  // Cashflow & Destructive Semantics
+  income: '#1F8A5B',
+  expense: '#E5484D',
+  expense_edge: '#B4232A',
+  expenseEdge: '#B4232A',
 
-    expense: '#DC2626',      // Red 600 (Expense / "You Owe")
-    expenseFill: '#EF4444',  // Red 500
-    expenseBg: '#FEF2F2',    // Red 50 surface badge tint
-    expenseBorder: '#FECACA',// Red 200
+  // Secondary Accent & Interactive Links
+  teal: '#0E7C86',
 
-    neutral: '#475569',      // Slate 600
-    neutralBg: '#F1F5F9',    // Slate 100
-  },
+  // Flat Scrim (zero blur)
+  dim_overlay: 'rgba(31, 41, 55, 0.40)',
+  dimOverlay: 'rgba(31, 41, 55, 0.40)',
 
-  // Category Color Map (Restrained blue family + muted accents)
+  // Category Taxonomy
   categories: {
-    Food: '#2563EB',         // Brand Blue
-    Transport: '#0284C7',    // Sky
-    Shopping: '#7C3AED',     // Violet
-    Bills: '#D97706',        // Amber
-    Entertainment: '#EA580C',// Orange
-    Salary: '#059669',       // Emerald
-    People: '#4F46E5',       // Indigo
-    Other: '#64748B',        // Slate
+    food: '#F97316',
+    shopping: '#0E7C86',
+    transport: '#38BDF8',
+    people: '#8B5CF6',
+    other: '#9CA3AF',
+    Food: '#F97316',
+    Shopping: '#0E7C86',
+    Transport: '#38BDF8',
+    People: '#8B5CF6',
+    Other: '#9CA3AF',
+  },
+
+  // Backward compatibility aliases for existing unmigrated components
+  canvas: '#FFF8E7',
+  surfaceSubtle: '#FFF8E7',
+  borderSubtle: '#F0E4C8',
+  text: {
+    primary: '#1F2937',
+    secondary: '#6B7280',
+    tertiary: '#6B7280',
+    muted: '#6B7280',
+    inverse: '#FFFFFF',
+  },
+  brand: {
+    default: '#FFC83D',
+    edge: '#D99A00',
+    dark: '#D99A00',
+    tint: '#FFF8E7',
+    tintBorder: '#F0E4C8',
+  },
+  semantic: {
+    income: '#1F8A5B',
+    incomeFill: '#1F8A5B',
+    incomeBg: '#FFF8E7',
+    incomeBorder: '#F0E4C8',
+    expense: '#E5484D',
+    expenseFill: '#E5484D',
+    expenseEdge: '#B4232A',
+    expenseBg: '#FFF8E7',
+    expenseBorder: '#F0E4C8',
+    neutral: '#1F2937',
+    neutralBg: '#FFF8E7',
   },
 };
 
+export const buttonEdgeColors = {
+  primary: '#D99A00',
+  secondary: '#F0E4C8',
+  destructive: '#B4232A',
+  destructive_outline: '#E5484D',
+  destructiveOutline: '#E5484D',
+};
+
 export const spacing = {
+  space_1: 4,
+  space_2: 8,
+  space_3: 12,
+  space_4: 16,
+  space_5: 20,
+  space_6: 24,
+  space_8: 32,
+
+  // Named aliases
   xs: 4,
   sm: 8,
   md: 12,
@@ -72,91 +109,170 @@ export const spacing = {
 };
 
 export const radius = {
-  sm: 8,
-  md: 12,
+  radius_pill: 999,
+  radius_card: 20,
+  radius_button: 16,
+  radius_input: 16,
+  radius_small: 12,
+  radius_screen: 40,
+
+  // Named aliases
+  pill: 999,
+  card: 20,
+  button: 16,
+  input: 16,
+  small: 12,
+  screen: 40,
+  sm: 12,
+  md: 16,
   lg: 16,
   xl: 20,
-  '2xl': 24,
-  full: 9999,
+  '2xl': 20,
+  '3xl': 24,
+  full: 999,
 };
 
-export const shadows = {
-  sm: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  md: {
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  lg: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  hero: {
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  floatingNav: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 10,
-  },
+export const borderWidth = {
+  border_thin: 1,
+  border_standard: 2,
+  border_heavy: 4,
+  edge_button: 4,
+
+  thin: 1,
+  standard: 2,
+  heavy: 4,
+  buttonEdge: 4,
 };
 
 export const typography = {
-  display: {
+  display_amount: {
+    fontFamily: 'BalooChettan2_800ExtraBold',
     fontSize: 32,
-    lineHeight: 40,
+    lineHeight: 36,
+    fontWeight: '800',
+  },
+  headline_h1: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 24,
+    lineHeight: 28,
     fontWeight: '700',
   },
-  title1: {
+  headline_h2: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+  body_amount: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  button_label: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+  body_main: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+  },
+  body_secondary: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  caption_bold: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+  },
+  tab_label: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
+  },
+
+  // Malayalam typography with increased line heights to prevent descender clipping
+  malayalam_h1: {
+    fontFamily: 'BalooChettan2_700Bold',
     fontSize: 24,
     lineHeight: 32,
     fontWeight: '700',
   },
-  title2: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: '600',
+  malayalam_h2: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '700',
   },
-  headline: {
-    fontSize: 17,
+  malayalam_body: {
+    fontFamily: 'NotoSansMalayalam_600SemiBold',
+    fontSize: 15,
     lineHeight: 24,
     fontWeight: '600',
   },
+  malayalam_caption: {
+    fontFamily: 'NotoSansMalayalam_600SemiBold',
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+
+  // Legacy mappings for backwards compatibility during incremental refactoring
+  display: {
+    fontFamily: 'BalooChettan2_800ExtraBold',
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: '800',
+  },
+  title1: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '700',
+  },
+  title2: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+  headline: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
   body: {
+    fontFamily: 'Nunito_600SemiBold',
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '400',
+    fontWeight: '600',
   },
   callout: {
+    fontFamily: 'Nunito_600SemiBold',
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   caption: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
   },
   caption2: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '400',
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
   },
 };

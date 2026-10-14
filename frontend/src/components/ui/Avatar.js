@@ -1,15 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { radius } from '../../theme/tokens';
+import { colors, radius } from '../../theme/tokens';
 
-const AVATAR_PALETTE = [
-  { bg: '#EFF6FF', text: '#1D4ED8' }, // Blue
-  { bg: '#F5F3FF', text: '#5B21B6' }, // Violet
-  { bg: '#FDF2F8', text: '#9D174D' }, // Pink
-  { bg: '#ECFDF5', text: '#065F46' }, // Emerald
-  { bg: '#FFFBEB', text: '#92400E' }, // Amber
-  { bg: '#F0F9FF', text: '#0369A1' }, // Sky
-  { bg: '#FAF5FF', text: '#6B21A8' }, // Purple
+const TOKEN_AVATAR_PALETTE = [
+  { bg: colors.categories.people, text: colors.surface },
+  { bg: colors.categories.food, text: colors.surface },
+  { bg: colors.categories.shopping, text: colors.surface },
+  { bg: colors.categories.transport, text: colors.ink },
+  { bg: colors.gold, text: colors.ink },
+  { bg: colors.ink, text: colors.surface },
 ];
 
 function getInitials(name = '') {
@@ -27,8 +26,8 @@ function getPalette(name = '') {
     hash = (hash << 5) - hash + name.charCodeAt(i);
     hash |= 0;
   }
-  const index = Math.abs(hash) % AVATAR_PALETTE.length;
-  return AVATAR_PALETTE[index];
+  const index = Math.abs(hash) % TOKEN_AVATAR_PALETTE.length;
+  return TOKEN_AVATAR_PALETTE[index];
 }
 
 export default function Avatar({
@@ -76,6 +75,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontWeight: '700',
+    fontFamily: 'BalooChettan2_700Bold',
     includeFontPadding: false,
   },
 });

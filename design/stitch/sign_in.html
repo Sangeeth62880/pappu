@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pappu - Authentication</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@700;800&family=Nunito:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #FFF8E7;
+      --surface: #FFFFFF;
+      --border: #F0E4C8;
+      --gold: #FFC83D;
+      --gold-edge: #D99A00;
+      --ink: #1F2937;
+      --ink-muted: #6B7280;
+      --income: #1F8A5B;
+      --expense: #E5484D;
+      --teal: #0E7C86;
+    }
+    body {
+      background-color: #EFE8D6;
+      font-family: 'Nunito', sans-serif;
+      color: #1F2937;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .font-baloo {
+      font-family: 'Baloo Chettan 2', cursive, sans-serif;
+    }
+    .font-nunito {
+      font-family: 'Nunito', sans-serif;
+    }
+    .mobile-frame {
+      width: 390px;
+      height: 844px;
+      background-color: #FFF8E7;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 36px rgba(31, 41, 55, 0.12);
+      border-radius: 40px;
+      border: 8px solid #1F2937;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .pappu-card {
+      background-color: #FFFFFF;
+      border: 2px solid #F0E4C8;
+      border-radius: 20px;
+    }
+    .btn-primary {
+      height: 52px;
+      background-color: #FFC83D;
+      color: #1F2937;
+      font-family: 'Baloo Chettan 2', cursive, sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      line-height: 1;
+      border: none;
+      border-bottom: 4px solid #D99A00;
+      border-radius: 16px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
+      transition: all 0.1s ease;
+    }
+    .btn-primary:active {
+      transform: translateY(2px);
+      border-bottom-width: 2px;
+    }
+    .pappu-input {
+      height: 52px;
+      border-radius: 16px;
+      border: 2px solid #F0E4C8;
+      background-color: #FFFFFF;
+      color: #1F2937;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 600;
+      font-size: 16px;
+      outline: none;
+      padding-left: 44px;
+      padding-right: 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .pappu-input::placeholder {
+      color: #6B7280;
+      font-weight: 600;
+    }
+    .pappu-input.focus-state {
+      border: 2px solid #FFC83D;
+      background-color: #FFFFFF;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-start min-h-screen">
+
+  <div class="mb-8 text-center">
+    <h1 class="font-baloo text-3xl font-extrabold text-[#1F2937] tracking-normal mb-1">Pappu Design System — Authentication</h1>
+    <p class="font-nunito text-[#6B7280] font-semibold text-sm">390×844px Mobile Screens • Strict Design Lock Compliance</p>
+  </div>
+
+  <!-- Screens Container -->
+  <div class="flex flex-row flex-wrap justify-center items-start gap-12 max-w-full">
+
+    <!-- SCREEN 1: SIGN IN (DEFAULT) -->
+    <div class="flex flex-col items-center">
+      <div class="mobile-frame">
+        <!-- 1. Status Bar (47px) -->
+        <div class="h-[47px] w-full px-6 flex justify-between items-center text-[#1F2937] font-nunito font-bold text-xs select-none shrink-0">
+          <span>9:41</span>
+          <div class="flex items-center gap-1.5">
+            <!-- Cellular -->
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="none">
+              <rect x="0" y="7.5" width="2.5" height="3.5" rx="0.5" fill="#1F2937"/>
+              <rect x="4.5" y="5" width="2.5" height="6" rx="0.5" fill="#1F2937"/>
+              <rect x="9" y="2.5" width="2.5" height="8.5" rx="0.5" fill="#1F2937"/>
+              <rect x="13.5" y="0" width="2.5" height="11" rx="0.5" fill="#1F2937"/>
+            </svg>
+            <!-- Wifi -->
+            <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
+              <path d="M7.5 11C8.32843 11 9 10.3284 9 9.5C9 8.67157 8.32843 8 7.5 8C6.67157 8 6 8.67157 6 9.5C6 10.3284 6.67157 11 7.5 11Z" fill="#1F2937"/>
+              <path d="M3.75 6.75C4.78 5.75 6.1 5.2 7.5 5.2C8.9 5.2 10.22 5.75 11.25 6.75" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M1 4C2.8 2.2 5.1 1.2 7.5 1.2C9.9 1.2 12.2 2.2 14 4" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <!-- Battery -->
+            <div class="w-6 h-3 border-2 border-[#1F2937] rounded-[4px] p-0.5 flex items-center">
+              <div class="h-full w-3.5 bg-[#1F2937] rounded-[1px]"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 40px space -->
+        <div class="h-10 shrink-0"></div>
+
+        <!-- Scrollable/Flow Content -->
+        <div class="flex-1 px-[20px] flex flex-col items-center">
+          <!-- 2. Pappu Idle-waving pose at 180px, centered -->
+          <div class="w-[180px] h-[180px] flex items-center justify-center shrink-0">
+            <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Left Leg (viewer's left) -->
+              <rect x="74" y="148" width="6" height="16" rx="3" fill="#1F2937" />
+              <path d="M68 164C68 161.8 69.8 160 72 160H80C82.2 160 84 161.8 84 164V165C84 165.6 83.6 166 83 166H69C68.4 166 68 165.6 68 165V164Z" fill="#1F2937" />
+
+              <!-- Right Leg (viewer's right) -->
+              <rect x="100" y="148" width="6" height="16" rx="3" fill="#1F2937" />
+              <path d="M96 164C96 161.8 97.8 160 100 160H108C110.2 160 112 161.8 112 164V165C112 165.6 111.6 166 111 166H97C96.4 166 96 165.6 96 165V164Z" fill="#1F2937" />
+
+              <!-- Left Arm (viewer's left): relaxed down, resting close to body -->
+              <path d="M36 88C28 100 24 116 28 126" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <circle cx="28" cy="128" r="7" fill="#1F2937" />
+
+              <!-- Right Arm (viewer's right): Waving happily! -->
+              <path d="M144 88C154 78 162 62 158 50" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <circle cx="156" cy="48" r="7" fill="#1F2937" />
+              <!-- Wave motion small marks -->
+              <path d="M166 42C168 45 168 49 166 52" stroke="#D99A00" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M171 39C174 44 174 51 171 56" stroke="#D99A00" stroke-width="2.5" stroke-linecap="round"/>
+
+              <!-- Main Coin Body (120px diameter, centered at (90, 88)) -->
+              <circle cx="90" cy="88" r="58" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+
+              <!-- Inner Rim Ring at 8px inset: radius = 58 - 8 = 50px -->
+              <circle cx="90" cy="88" r="50" stroke="#D99A00" stroke-width="2.5" fill="none" />
+
+              <!-- Embossed ₹ on Forehead Area (in #D99A00) -->
+              <g transform="translate(85.5, 52) scale(0.9)">
+                <path d="M0 0H9M0 3H9M0 0V4C0 6.2 1.8 8 4 8H6.5C8 8 9 9 9 10.5C9 12 7.8 13 6 13H0M4 8L9 15" stroke="#D99A00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </g>
+
+              <!-- Left Eye (white oval, black pupil, specular highlight) -->
+              <ellipse cx="76" cy="86" rx="9" ry="12" fill="#FFFFFF" stroke="#1F2937" stroke-width="2.5" />
+              <ellipse cx="77" cy="87" rx="5.5" ry="7.5" fill="#1F2937" />
+              <circle cx="79" cy="84" r="2.5" fill="#FFFFFF" />
+
+              <!-- Right Eye -->
+              <ellipse cx="104" cy="86" rx="9" ry="12" fill="#FFFFFF" stroke="#1F2937" stroke-width="2.5" />
+              <ellipse cx="105" cy="87" rx="5.5" ry="7.5" fill="#1F2937" />
+              <circle cx="107" cy="84" r="2.5" fill="#FFFFFF" />
+
+              <!-- Cheerful curved eyebrows -->
+              <path d="M70 70C73 67 79 67 82 70" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              <path d="M98 70C101 67 107 67 110 70" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+
+              <!-- Friendly curved smile -->
+              <path d="M80 105C85 111 95 111 100 105" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+
+          <!-- 3. "Pappu" wordmark, Display 32 Baloo 800, centered, 8px below -->
+          <div class="mt-2 text-center">
+            <h2 class="font-baloo text-[32px] leading-[36px] font-extrabold text-[#1F2937]">Pappu</h2>
+          </div>
+
+          <!-- 4. Tagline, Body 16 ink-muted, centered, 8px below -->
+          <div class="mt-2 text-center">
+            <p class="font-nunito text-[16px] leading-[22px] font-semibold text-[#6B7280]">Just say it. Pappu keeps track.</p>
+          </div>
+
+          <!-- 5. 32px space, then white card (full width minus margins, radius 20, padding 24) -->
+          <div class="mt-8 w-full pappu-card p-6 box-border">
+            <!-- Email Field -->
+            <div>
+              <label class="block font-nunito font-bold text-[13px] leading-[18px] text-[#1F2937] mb-2">Email</label>
+              <div class="relative flex items-center">
+                <!-- Leading mail icon: rounded outline 24px, 2px stroke, ink -->
+                <div class="absolute left-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="4"></rect>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                  </svg>
+                </div>
+                <input type="text" class="pappu-input" placeholder="you@example.com" readonly value="" />
+              </div>
+            </div>
+
+            <!-- 16px gap -->
+            <div class="h-4"></div>
+
+            <!-- Password Field -->
+            <div>
+              <label class="block font-nunito font-bold text-[13px] leading-[18px] text-[#1F2937] mb-2">Password</label>
+              <div class="relative flex items-center">
+                <!-- Leading lock icon -->
+                <div class="absolute left-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="4" ry="4"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
+                <input type="text" class="pappu-input pr-11" placeholder="••••••••" readonly value="" />
+                <!-- Trailing eye icon -->
+                <div class="absolute right-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- 24px gap -->
+            <div class="h-6"></div>
+
+            <!-- Primary button: height 52, fill #FFC83D, text #1F2937 Baloo 700 17px, 4px bottom edge #D99A00, radius 16 -->
+            <button class="btn-primary">Sign in</button>
+          </div>
+
+          <!-- 6. Below card, 24px gap, centered Body 16 -->
+          <div class="mt-6 text-center">
+            <p class="font-nunito text-[16px] leading-[22px] font-semibold text-[#6B7280]">
+              New here? <a href="#" class="font-baloo font-bold text-[#0E7C86] hover:underline">Create account</a>
+            </p>
+          </div>
+
+        </div>
+      </div>
+      <span class="mt-4 font-nunito font-bold text-sm text-[#1F2937]">1. Sign In (Default State)</span>
+    </div>
+
+
+    <!-- SCREEN 2: INPUT FOCUS STATE (VARIANT FRAME) -->
+    <div class="flex flex-col items-center">
+      <div class="mobile-frame">
+        <!-- 1. Status Bar (47px) -->
+        <div class="h-[47px] w-full px-6 flex justify-between items-center text-[#1F2937] font-nunito font-bold text-xs select-none shrink-0">
+          <span>9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="none">
+              <rect x="0" y="7.5" width="2.5" height="3.5" rx="0.5" fill="#1F2937"/>
+              <rect x="4.5" y="5" width="2.5" height="6" rx="0.5" fill="#1F2937"/>
+              <rect x="9" y="2.5" width="2.5" height="8.5" rx="0.5" fill="#1F2937"/>
+              <rect x="13.5" y="0" width="2.5" height="11" rx="0.5" fill="#1F2937"/>
+            </svg>
+            <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
+              <path d="M7.5 11C8.32843 11 9 10.3284 9 9.5C9 8.67157 8.32843 8 7.5 8C6.67157 8 6 8.67157 6 9.5C6 10.3284 6.67157 11 7.5 11Z" fill="#1F2937"/>
+              <path d="M3.75 6.75C4.78 5.75 6.1 5.2 7.5 5.2C8.9 5.2 10.22 5.75 11.25 6.75" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M1 4C2.8 2.2 5.1 1.2 7.5 1.2C9.9 1.2 12.2 2.2 14 4" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <div class="w-6 h-3 border-2 border-[#1F2937] rounded-[4px] p-0.5 flex items-center">
+              <div class="h-full w-3.5 bg-[#1F2937] rounded-[1px]"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 40px space -->
+        <div class="h-10 shrink-0"></div>
+
+        <!-- Content -->
+        <div class="flex-1 px-[20px] flex flex-col items-center">
+          <!-- 2. Pappu with eyes looking DOWN at active field -->
+          <div class="w-[180px] h-[180px] flex items-center justify-center shrink-0">
+            <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="74" y="148" width="6" height="16" rx="3" fill="#1F2937" />
+              <path d="M68 164C68 161.8 69.8 160 72 160H80C82.2 160 84 161.8 84 164V165C84 165.6 83.6 166 83 166H69C68.4 166 68 165.6 68 165V164Z" fill="#1F2937" />
+              <rect x="100" y="148" width="6" height="16" rx="3" fill="#1F2937" />
+              <path d="M96 164C96 161.8 97.8 160 100 160H108C110.2 160 112 161.8 112 164V165C112 165.6 111.6 166 111 166H97C96.4 166 96 165.6 96 165V164Z" fill="#1F2937" />
+
+              <!-- Left Arm resting forward attentively -->
+              <path d="M36 88C28 100 28 114 36 124" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <circle cx="37" cy="125" r="7" fill="#1F2937" />
+
+              <!-- Right Arm pointing gently down toward form -->
+              <path d="M144 88C152 98 152 114 144 124" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <circle cx="143" cy="125" r="7" fill="#1F2937" />
+
+              <!-- Main Coin Body -->
+              <circle cx="90" cy="88" r="58" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+
+              <!-- Inner Rim Ring -->
+              <circle cx="90" cy="88" r="50" stroke="#D99A00" stroke-width="2.5" fill="none" />
+
+              <!-- Embossed ₹ on Forehead -->
+              <g transform="translate(85.5, 52) scale(0.9)">
+                <path d="M0 0H9M0 3H9M0 0V4C0 6.2 1.8 8 4 8H6.5C8 8 9 9 9 10.5C9 12 7.8 13 6 13H0M4 8L9 15" stroke="#D99A00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </g>
+
+              <!-- Left Eye: Pupils shifted DOWN looking at field -->
+              <ellipse cx="76" cy="86" rx="9" ry="12" fill="#FFFFFF" stroke="#1F2937" stroke-width="2.5" />
+              <ellipse cx="76" cy="91" rx="5.5" ry="6.5" fill="#1F2937" />
+              <circle cx="78" cy="89" r="2.2" fill="#FFFFFF" />
+
+              <!-- Right Eye: Pupils shifted DOWN looking at field -->
+              <ellipse cx="104" cy="86" rx="9" ry="12" fill="#FFFFFF" stroke="#1F2937" stroke-width="2.5" />
+              <ellipse cx="104" cy="91" rx="5.5" ry="6.5" fill="#1F2937" />
+              <circle cx="106" cy="89" r="2.2" fill="#FFFFFF" />
+
+              <!-- Curious/Invested Eyebrows angled slightly down -->
+              <path d="M71 72C74 71 80 71 83 73" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              <path d="M97 73C100 71 106 71 109 72" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+
+              <!-- Gentle attentive smile -->
+              <path d="M82 106C86 110 94 110 98 106" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+
+          <!-- 3. Wordmark -->
+          <div class="mt-2 text-center">
+            <h2 class="font-baloo text-[32px] leading-[36px] font-extrabold text-[#1F2937]">Pappu</h2>
+          </div>
+
+          <!-- 4. Tagline -->
+          <div class="mt-2 text-center">
+            <p class="font-nunito text-[16px] leading-[22px] font-semibold text-[#6B7280]">Just say it. Pappu keeps track.</p>
+          </div>
+
+          <!-- 5. Card with Focused Input (2px Gold Border) -->
+          <div class="mt-8 w-full pappu-card p-6 box-border">
+            <!-- Email Field (FOCUSED) -->
+            <div>
+              <label class="block font-nunito font-bold text-[13px] leading-[18px] text-[#1F2937] mb-2">Email</label>
+              <div class="relative flex items-center">
+                <div class="absolute left-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="4"></rect>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                  </svg>
+                </div>
+                <!-- 2px gold border (#FFC83D) -->
+                <input type="text" class="pappu-input focus-state" value="rahul.sharma@gmail.com" readonly />
+                <!-- Blinking cursor simulation -->
+                <div class="absolute left-[242px] w-[2px] h-5 bg-[#1F2937] animate-pulse"></div>
+              </div>
+            </div>
+
+            <!-- 16px gap -->
+            <div class="h-4"></div>
+
+            <!-- Password Field -->
+            <div>
+              <label class="block font-nunito font-bold text-[13px] leading-[18px] text-[#1F2937] mb-2">Password</label>
+              <div class="relative flex items-center">
+                <div class="absolute left-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="4" ry="4"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
+                <input type="text" class="pappu-input pr-11" placeholder="••••••••" readonly value="" />
+                <div class="absolute right-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- 24px gap -->
+            <div class="h-6"></div>
+
+            <button class="btn-primary">Sign in</button>
+          </div>
+
+          <!-- 6. Bottom text -->
+          <div class="mt-6 text-center">
+            <p class="font-nunito text-[16px] leading-[22px] font-semibold text-[#6B7280]">
+              New here? <a href="#" class="font-baloo font-bold text-[#0E7C86] hover:underline">Create account</a>
+            </p>
+          </div>
+
+        </div>
+      </div>
+      <span class="mt-4 font-nunito font-bold text-sm text-[#1F2937]">2. Sign In (Input Focus State &amp; Pappu Looking Down)</span>
+    </div>
+
+
+    <!-- SCREEN 3: CREATE ACCOUNT SCREEN -->
+    <div class="flex flex-col items-center">
+      <div class="mobile-frame">
+        <!-- 1. Status Bar (47px) -->
+        <div class="h-[47px] w-full px-6 flex justify-between items-center text-[#1F2937] font-nunito font-bold text-xs select-none shrink-0">
+          <span>9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="none">
+              <rect x="0" y="7.5" width="2.5" height="3.5" rx="0.5" fill="#1F2937"/>
+              <rect x="4.5" y="5" width="2.5" height="6" rx="0.5" fill="#1F2937"/>
+              <rect x="9" y="2.5" width="2.5" height="8.5" rx="0.5" fill="#1F2937"/>
+              <rect x="13.5" y="0" width="2.5" height="11" rx="0.5" fill="#1F2937"/>
+            </svg>
+            <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
+              <path d="M7.5 11C8.32843 11 9 10.3284 9 9.5C9 8.67157 8.32843 8 7.5 8C6.67157 8 6 8.67157 6 9.5C6 10.3284 6.67157 11 7.5 11Z" fill="#1F2937"/>
+              <path d="M3.75 6.75C4.78 5.75 6.1 5.2 7.5 5.2C8.9 5.2 10.22 5.75 11.25 6.75" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M1 4C2.8 2.2 5.1 1.2 7.5 1.2C9.9 1.2 12.2 2.2 14 4" stroke="#1F2937" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <div class="w-6 h-3 border-2 border-[#1F2937] rounded-[4px] p-0.5 flex items-center">
+              <div class="h-full w-3.5 bg-[#1F2937] rounded-[1px]"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 24px space (adjusted slightly to comfortably fit 3 fields within 844px without scrolling) -->
+        <div class="h-6 shrink-0"></div>
+
+        <!-- Content -->
+        <div class="flex-1 px-[20px] flex flex-col items-center">
+          <!-- 2. Pappu Idle-waving pose (scaled proportionally to fit 3 fields) -->
+          <div class="w-[140px] h-[140px] flex items-center justify-center shrink-0">
+            <svg width="140" height="140" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Legs -->
+              <rect x="74" y="148" width="6" height="16" rx="3" fill="#1F2937" />
+              <path d="M68 164C68 161.8 69.8 160 72 160H80C82.2 160 84 161.8 84 164V165C84 165.6 83.6 166 83 166H69C68.4 166 68 165.6 68 165V164Z" fill="#1F2937" />
+              <rect x="100" y="148" width="6" height="16" rx="3" fill="#1F2937" />
+              <path d="M96 164C96 161.8 97.8 160 100 160H108C110.2 160 112 161.8 112 164V165C112 165.6 111.6 166 111 166H97C96.4 166 96 165.6 96 165V164Z" fill="#1F2937" />
+
+              <!-- Left Arm -->
+              <path d="M36 88C28 100 24 116 28 126" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <circle cx="28" cy="128" r="7" fill="#1F2937" />
+
+              <!-- Right Arm Waving -->
+              <path d="M144 88C154 78 162 62 158 50" stroke="#1F2937" stroke-width="6" stroke-linecap="round" fill="none"/>
+              <circle cx="156" cy="48" r="7" fill="#1F2937" />
+              <path d="M166 42C168 45 168 49 166 52" stroke="#D99A00" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M171 39C174 44 174 51 171 56" stroke="#D99A00" stroke-width="2.5" stroke-linecap="round"/>
+
+              <!-- Coin Body -->
+              <circle cx="90" cy="88" r="58" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+              <!-- Rim -->
+              <circle cx="90" cy="88" r="50" stroke="#D99A00" stroke-width="2.5" fill="none" />
+              <!-- ₹ -->
+              <g transform="translate(85.5, 52) scale(0.9)">
+                <path d="M0 0H9M0 3H9M0 0V4C0 6.2 1.8 8 4 8H6.5C8 8 9 9 9 10.5C9 12 7.8 13 6 13H0M4 8L9 15" stroke="#D99A00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </g>
+
+              <!-- Eyes -->
+              <ellipse cx="76" cy="86" rx="9" ry="12" fill="#FFFFFF" stroke="#1F2937" stroke-width="2.5" />
+              <ellipse cx="77" cy="87" rx="5.5" ry="7.5" fill="#1F2937" />
+              <circle cx="79" cy="84" r="2.5" fill="#FFFFFF" />
+
+              <ellipse cx="104" cy="86" rx="9" ry="12" fill="#FFFFFF" stroke="#1F2937" stroke-width="2.5" />
+              <ellipse cx="105" cy="87" rx="5.5" ry="7.5" fill="#1F2937" />
+              <circle cx="107" cy="84" r="2.5" fill="#FFFFFF" />
+
+              <!-- Eyebrows -->
+              <path d="M70 70C73 67 79 67 82 70" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+              <path d="M98 70C101 67 107 67 110 70" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+
+              <!-- Smile -->
+              <path d="M80 105C85 111 95 111 100 105" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+
+          <!-- 3. Wordmark -->
+          <div class="mt-1 text-center">
+            <h2 class="font-baloo text-[32px] leading-[36px] font-extrabold text-[#1F2937]">Pappu</h2>
+          </div>
+
+          <!-- 4. Tagline -->
+          <div class="mt-1 text-center">
+            <p class="font-nunito text-[16px] leading-[22px] font-semibold text-[#6B7280]">Just say it. Pappu keeps track.</p>
+          </div>
+
+          <!-- 5. Card with Name, Email, Password -->
+          <div class="mt-6 w-full pappu-card p-6 box-border">
+            <!-- Name Field (Added on top) -->
+            <div>
+              <label class="block font-nunito font-bold text-[13px] leading-[18px] text-[#1F2937] mb-2">Name</label>
+              <div class="relative flex items-center">
+                <div class="absolute left-3.5 pointer-events-none text-[#1F2937]">
+                  <!-- User outline icon -->
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="4"></circle>
+                    <path d="M20 21a8 8 0 0 0-16 0"></path>
+                  </svg>
+                </div>
+                <input type="text" class="pappu-input" placeholder="Your name" readonly value="" />
+              </div>
+            </div>
+
+            <!-- 16px gap -->
+            <div class="h-4"></div>
+
+            <!-- Email Field -->
+            <div>
+              <label class="block font-nunito font-bold text-[13px] leading-[18px] text-[#1F2937] mb-2">Email</label>
+              <div class="relative flex items-center">
+                <div class="absolute left-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="4"></rect>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                  </svg>
+                </div>
+                <input type="text" class="pappu-input" placeholder="you@example.com" readonly value="" />
+              </div>
+            </div>
+
+            <!-- 16px gap -->
+            <div class="h-4"></div>
+
+            <!-- Password Field -->
+            <div>
+              <label class="block font-nunito font-bold text-[13px] leading-[18px] text-[#1F2937] mb-2">Password</label>
+              <div class="relative flex items-center">
+                <div class="absolute left-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="4" ry="4"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
+                <input type="text" class="pappu-input pr-11" placeholder="••••••••" readonly value="" />
+                <div class="absolute right-3.5 pointer-events-none text-[#1F2937]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- 24px gap -->
+            <div class="h-6"></div>
+
+            <!-- Button text "Create account" -->
+            <button class="btn-primary">Create account</button>
+          </div>
+
+          <!-- 6. Link text "Already have an account? Sign in" -->
+          <div class="mt-6 text-center">
+            <p class="font-nunito text-[16px] leading-[22px] font-semibold text-[#6B7280]">
+              Already have an account? <a href="#" class="font-baloo font-bold text-[#0E7C86] hover:underline">Sign in</a>
+            </p>
+          </div>
+
+        </div>
+      </div>
+      <span class="mt-4 font-nunito font-bold text-sm text-[#1F2937]">3. Create Account Screen</span>
+    </div>
+
+  </div>
+
+</body>
+</html>

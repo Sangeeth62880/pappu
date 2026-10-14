@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { colors, radius, shadows, spacing } from '../../theme/tokens';
+import { colors, radius, spacing } from '../../theme/tokens';
 import Skeleton from './Skeleton';
 
 /**
- * Hero Glass Card for Dashboard — matched to stitch/home.html.
- * Frosted translucent glass card with ambient blue tint, tabular figures, and clean secondary metrics.
+ * Balance Card for Dashboard.
+ * Clean flat card with tabular figures and secondary metrics.
  */
 export default function Balance({
   balance = '0.00',
@@ -59,12 +58,7 @@ export default function Balance({
         { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
       ]}
     >
-      <LinearGradient
-        colors={['rgba(255,255,255,0.98)', 'rgba(255,255,255,0.90)', 'rgba(219,225,255,0.40)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.gradient}
-      >
+      <View style={styles.gradient}>
         {/* Top Header & Delta comparison */}
         <View style={styles.headerRow}>
           <Text style={styles.titleText}>{title}</Text>
@@ -78,13 +72,13 @@ export default function Balance({
               <MaterialIcons
                 name={isLowerDelta ? 'arrow-downward' : 'arrow-upward'}
                 size={12}
-                color={isLowerDelta ? colors.semantic.income : colors.semantic.expense}
+                color={isLowerDelta ? colors.income : colors.expense}
                 style={{ marginRight: 2 }}
               />
               <Text
                 style={[
                   styles.deltaBadgeText,
-                  { color: isLowerDelta ? colors.semantic.income : colors.semantic.expense },
+                  { color: isLowerDelta ? colors.income : colors.expense },
                 ]}
               >
                 {deltaText}
@@ -124,7 +118,7 @@ export default function Balance({
             </Text>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </Animated.View>
   );
 }
@@ -132,25 +126,25 @@ export default function Balance({
 const styles = StyleSheet.create({
   loadingCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius['3xl'],
+    borderRadius: radius.card,
     padding: spacing.xl,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
     minHeight: 180,
     justifyContent: 'center',
-    ...shadows.hero,
   },
   heroContainer: {
-    borderRadius: radius['3xl'],
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    ...shadows.hero,
+    borderRadius: radius.card,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   gradient: {
     padding: spacing.xl,
-    borderRadius: radius['3xl'],
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
   },
   headerRow: {
     flexDirection: 'row',
@@ -159,7 +153,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   titleText: {
-    color: colors.text.secondary,
+    color: colors.ink_muted,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -170,13 +164,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
   },
   deltaGreen: {
-    backgroundColor: colors.semantic.incomeBg,
+    backgroundColor: colors.bg,
   },
   deltaRed: {
-    backgroundColor: colors.semantic.expenseBg,
+    backgroundColor: colors.bg,
   },
   deltaBadgeText: {
     fontSize: 11,
@@ -186,7 +180,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
   },
   heroAmount: {
-    color: colors.text.primary,
+    color: colors.ink,
     fontSize: 38,
     lineHeight: 46,
     fontWeight: '800',
@@ -206,20 +200,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   subLabel: {
-    color: colors.text.secondary,
+    color: colors.ink_muted,
     fontSize: 11,
     fontWeight: '600',
     marginBottom: 2,
     letterSpacing: 0.3,
   },
   incomeAmount: {
-    color: colors.text.primary,
+    color: colors.ink,
     fontSize: 16,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   expenseAmount: {
-    color: colors.semantic.expense,
+    color: colors.expense,
     fontSize: 16,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
