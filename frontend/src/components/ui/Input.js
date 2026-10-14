@@ -6,7 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Icon from './Icon';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 
 export default function Input({
@@ -38,7 +38,7 @@ export default function Input({
   return (
     <View style={[styles.container, style]}>
       {label ? (
-        <Text style={[styles.label, typography.body_secondary]}>{label}</Text>
+        <Text style={[styles.label, typography.caption_bold]}>{label}</Text>
       ) : null}
 
       <View
@@ -64,10 +64,16 @@ export default function Input({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           editable={editable}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          style={[styles.input, typography.body_main, inputStyle]}
           {...props}
+          onFocus={(e) => {
+            setIsFocused(true);
+            if (props.onFocus) props.onFocus(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            if (props.onBlur) props.onBlur(e);
+          }}
+          style={[styles.input, typography.body_main, inputStyle]}
         />
 
         {secureTextEntry ? (
@@ -78,10 +84,10 @@ export default function Input({
             accessibilityRole="button"
             accessibilityLabel={isSecure ? 'Show password' : 'Hide password'}
           >
-            <MaterialIcons
-              name={isSecure ? 'visibility' : 'visibility-off'}
+            <Icon
+              name={isSecure ? 'eye' : 'eye-off'}
               size={20}
-              color={colors.ink_muted}
+              color={colors.ink}
             />
           </TouchableOpacity>
         ) : trailingIcon ? (
@@ -89,7 +95,7 @@ export default function Input({
         ) : null}
       </View>
 
-      {error ? (
+      {typeof error === 'string' && error.trim() ? (
         <Text style={[styles.errorText, typography.caption_bold]} testID={`${testID}-error`}>
           {error}
         </Text>
@@ -105,8 +111,10 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.ink,
-    marginBottom: spacing.xs,
-    fontFamily: 'Nunito_600SemiBold',
+    marginBottom: spacing.sm,
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    lineHeight: 18,
   },
   inputContainer: {
     flexDirection: 'row',

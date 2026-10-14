@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
+import { chunkedSecureStoreAdapter } from '../utils/chunkedSecureStore';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: false, // in React Native tests / environments without async-storage configured, default to standard memory session
+    storage: chunkedSecureStoreAdapter,
+    persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
   },

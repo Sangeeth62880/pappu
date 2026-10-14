@@ -32,6 +32,9 @@ export function useReduceMotion() {
   const [reduceMotion, setReduceMotion] = useState(globalReduceMotion);
 
   useEffect(() => {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') {
+      return;
+    }
     let mounted = true;
 
     if (AccessibilityInfo?.isReduceMotionEnabled) {

@@ -28,6 +28,7 @@ import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
 import { colors, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
 import { undoTransaction, clearChatHistory } from '../api/client';
+import { queryClient } from '../data/queryClient';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -258,6 +259,8 @@ function InnerHomeScreen({
   const handleSignOut = async () => {
     try {
       await signOut();
+      queryClient.clear();
+      await handleClearMessages();
       setSession(null);
       setToken(null);
       setHistoryFilter(null);

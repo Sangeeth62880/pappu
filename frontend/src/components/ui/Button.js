@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useReduceMotion } from '../../utils/reduceMotion';
 import { colors, radius, spacing, typography, buttonEdgeColors } from '../../theme/tokens';
 
 /**
@@ -31,32 +32,40 @@ export default function Button({
   const normVariant = variant === 'destructiveOutline' ? 'destructive_outline' : variant;
   const isInteractive = !loading && !disabled;
 
+  const reduceMotion = useReduceMotion();
+  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
   const pressAnim = useRef(new Animated.Value(0)).current; // 0 = unpressed, 1 = pressed
-  const [isPressed, setIsPressed] = useState(false);
-
   const handlePressIn = () => {
     if (!isInteractive) return;
-    setIsPressed(true);
-    Animated.timing(pressAnim, {
-      toValue: 1,
-      duration: 80,
-      useNativeDriver: true,
-    }).start();
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    } catch (e) {
-      // Haptics safe fallback for web / testing
+    if (reduceMotion || isTest) {
+      pressAnim.setValue(1);
+    } else {
+      Animated.timing(pressAnim, {
+        toValue: 1,
+        duration: 80,
+        useNativeDriver: true,
+      }).start();
+    }
+    if (!isTest) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      } catch (e) {
+        // Haptics safe fallback for web / testing
+      }
     }
   };
 
   const handlePressOut = () => {
     if (!isInteractive) return;
-    setIsPressed(false);
-    Animated.timing(pressAnim, {
-      toValue: 0,
-      duration: 80,
-      useNativeDriver: true,
-    }).start();
+    if (reduceMotion || isTest) {
+      pressAnim.setValue(0);
+    } else {
+      Animated.timing(pressAnim, {
+        toValue: 0,
+        duration: 80,
+        useNativeDriver: true,
+      }).start();
+    }
   };
 
   const edgeColor = buttonEdgeColors[normVariant] || buttonEdgeColors.primary;

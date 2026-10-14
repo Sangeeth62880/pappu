@@ -46,7 +46,8 @@
       "\\.css$": "<rootDir>/tests/mocks/cssMock.js",
       "^tslib$": "<rootDir>/tests/mocks/tslibMock.js",
       "^expo-audio$": "<rootDir>/tests/mocks/expoAudioMock.js",
-      "^expo-font$": "<rootDir>/tests/mocks/expoFontMock.js"
+      "^expo-font$": "<rootDir>/tests/mocks/expoFontMock.js",
+      "^expo-secure-store$": "<rootDir>/tests/mocks/expoSecureStoreMock.js"
     }
   },
   "private": true,

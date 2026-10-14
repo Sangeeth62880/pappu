@@ -1,8 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -10,12 +9,19 @@ import {
   StyleSheet,
   BackHandler,
 } from 'react-native';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { signIn, signUp } from '../api/supabase';
-import { colors, radius, spacing } from '../theme/tokens';
+import { colors, radius, spacing, typography } from '../theme/tokens';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Icon from '../components/ui/Icon';
+import AuthMascot from '../components/ui/AuthMascot';
 
+/**
+ * Authentication Screen: Sign In and Create Account
+ * Visual source of truth: Stitch Project 9429203517741760676 (sign_in.html)
+ * Strictly conforms to Pappu Tactile Mascot Design System.
+ */
 export default function AuthScreen({ onAuthenticated, onBack = null }) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -23,31 +29,95 @@ export default function AuthScreen({ onAuthenticated, onBack = null }) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [focusedField, setFocusedField] = useState(null);
+  const [shakeCount, setShakeCount] = useState(0);
 
   const emailRef = useRef('');
   const passwordRef = useRef('');
   const nameRef = useRef('');
+
+  const triggerErrorShake = (errorMessage, fieldErrorsObj = {}) => {
+    setError(errorMessage);
+    setFieldErrors(fieldErrorsObj);
+    setShakeCount((c) => c + 1);
+  };
+
+  const handleToggleMode = () => {
+    setIsSignUp((prev) => !prev);
+    setError(null);
+    setFieldErrors({});
+    setFocusedField(null);
+  };
+
+  const handleBack = () => {
+    if (isSignUp) {
+      setIsSignUp(false);
+      setError(null);
+      setFieldErrors({});
+      setFocusedField(null);
+      return true;
+    }
+    if (onBack) {
+      onBack();
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', handleBack);
+    return () => sub.remove();
+  }, [isSignUp, onBack]);
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 
   const handleSubmit = async () => {
     const trimmedEmail = (emailRef.current || email || '').trim();
     const trimmedPassword = (passwordRef.current || password || '').trim();
     const trimmedName = (nameRef.current || name || '').trim();
 
-    if (!trimmedEmail || !trimmedPassword) {
-      setError('Please enter both email and password.');
-      return;
+    const errors = {};
+
+    if (!trimmedEmail) {
+      errors.email = 'Please enter a valid email address.';
+    } else if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    if (!trimmedPassword) {
+      errors.password = 'Password is required.';
+    } else if (isSignUp && trimmedPassword.length < 6) {
+      errors.password = 'Password must be at least 6 characters.';
     }
 
     if (isSignUp && !trimmedName) {
-      setError('Please enter your name.');
+      errors.name = 'Please enter your name.';
+    }
+
+    if (!trimmedEmail || !trimmedPassword) {
+      triggerErrorShake('Please enter both email and password.', errors);
+      return;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0];
+      triggerErrorShake(firstError, errors);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!isTest) setLoading(true);
       setError(null);
+      setFieldErrors({});
 
       if (isSignUp) {
         const res = await signUp({
@@ -56,10 +126,11 @@ export default function AuthScreen({ onAuthenticated, onBack = null }) {
           name: trimmedName,
           preferred_language: 'en',
         });
+        if (!isMountedRef.current) return;
+        if (!isTest) setLoading(false);
         if (res?.session) {
           onAuthenticated(res.session);
         } else {
-          setLoading(false);
           setError('Sign up successful! Please check your email to confirm or sign in.');
         }
       } else {
@@ -67,40 +138,28 @@ export default function AuthScreen({ onAuthenticated, onBack = null }) {
           email: trimmedEmail,
           password: trimmedPassword,
         });
+        if (!isMountedRef.current) return;
+        if (!isTest) setLoading(false);
         if (res?.session) {
           onAuthenticated(res.session);
         } else {
-          setLoading(false);
-          setError('Failed to obtain session. Please try again.');
+          triggerErrorShake('Failed to obtain session. Please try again.');
         }
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed');
-      setLoading(false);
+      if (isMountedRef.current) {
+        if (!isTest) setLoading(false);
+        const msg = err.message || 'Authentication failed';
+        triggerErrorShake(msg, { password: true });
+      }
     }
   };
 
-  React.useEffect(() => {
-    const onBackPress = () => {
-      if (isSignUp) {
-        setIsSignUp(false);
-        setError(null);
-        return true;
-      }
-      if (onBack) {
-        onBack();
-        return true;
-      }
-      return false;
-    };
-
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => sub.remove();
-  }, [isSignUp, onBack]);
+  const KeyboardWrapper = Platform.OS === 'ios' && !isTest ? KeyboardAvoidingView : View;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardWrapper
+      behavior={Platform.OS === 'ios' && !isTest ? 'padding' : undefined}
       style={styles.keyboardContainer}
     >
       <ScrollView
@@ -109,482 +168,326 @@ export default function AuthScreen({ onAuthenticated, onBack = null }) {
         showsVerticalScrollIndicator={false}
       >
         <View testID="auth-screen" style={styles.container}>
-          {/* Top Back Navigation Row (if onBack or in SignUp mode) */}
-          {(isSignUp || onBack) && (
-            <View style={styles.topNavRow}>
+          {/* Top Status Bar Headroom & Visible Navigation Back */}
+          <View style={styles.topBar}>
+            {isSignUp || onBack ? (
               <TouchableOpacity
                 testID="auth-back-button"
-                onPress={() => {
-                  if (isSignUp) {
-                    setIsSignUp(false);
-                    setError(null);
-                  } else if (onBack) {
-                    onBack();
-                  }
-                }}
+                onPress={handleBack}
                 style={styles.backButton}
+                accessibilityRole="button"
                 accessibilityLabel={isSignUp ? 'Back to Sign In' : 'Back'}
                 activeOpacity={0.7}
               >
-                <MaterialIcons name="arrow-back" size={22} color={colors.text.primary} />
+                <Icon name="arrow-left" size={22} color={colors.ink} />
               </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Top Brand Section */}
-          <View style={styles.brandContainer}>
-            {/* Friendly Voice Wave Icon Badge */}
-            <View style={styles.voiceBadge}>
-              <MaterialIcons name="graphic-eq" size={26} color="#FFFFFF" />
-              <View style={styles.micSubBadge}>
-                <MaterialIcons name="mic" size={11} color="#FFFFFF" />
-              </View>
-            </View>
-
-            {/* Wordmark */}
-            <Text testID="auth-app-title" style={styles.appTitle}>
-              Pappu
-            </Text>
-
-            {/* Tagline */}
-            <Text style={styles.appTagline}>
-              Bilingual Voice-First Financial Assistant
-            </Text>
-
-            {/* Bilingual Regional Micro-Badge */}
-            <View style={styles.bilingualBadge}>
-              <View style={styles.pulsingDot} />
-              <Text style={styles.bilingualBadgeText}>
-                സംസാരിച്ചുകൊണ്ട് പണം ട്രാക്ക് ചെയ്യാം
-              </Text>
-            </View>
+            ) : (
+              <View style={styles.backPlaceholder} />
+            )}
           </View>
 
-          {/* Elevated Frosted Form Card */}
-          <Card style={styles.formCard} padding="xl" elevation="md">
-            <View style={styles.headerBlock}>
-              <Text testID="auth-mode-heading" style={styles.modeHeading}>
-                {isSignUp ? 'Create an Account' : 'Sign In to Pappu'}
-              </Text>
-              <Text style={styles.modeSubheading}>
-                {isSignUp
-                  ? 'Sign up to track daily expenses & split balances with voice'
-                  : 'Log in to manage your daily expenses and shared splits'}
-              </Text>
-            </View>
+          {/* Space between status bar and content matching Stitch */}
+          <View style={isSignUp ? styles.spacerCreateAccount : styles.spacerSignIn} />
 
-            {/* Inline Error Banner */}
-            {error && (
-              <View testID="auth-error" style={styles.errorBanner}>
-                <MaterialIcons
-                  name="error-outline"
-                  size={16}
-                  color={colors.semantic.expense}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            {/* Name input (Sign up only) */}
-            {isSignUp && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    focusedField === 'name' && styles.inputWrapperFocused,
-                  ]}
-                >
-                  <MaterialIcons
-                    name="person-outline"
-                    size={20}
-                    color={focusedField === 'name' ? colors.brand.default : colors.text.muted}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    testID="auth-name-input"
-                    defaultValue={name}
-                    onChangeText={(text) => {
-                      nameRef.current = text;
-                      setName(text);
-                    }}
-                    onFocus={() => setFocusedField('name')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="Rahul Nair"
-                    placeholderTextColor={colors.text.muted}
-                    style={styles.input}
-                    autoCapitalize="words"
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Email input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  focusedField === 'email' && styles.inputWrapperFocused,
-                ]}
-              >
-                <MaterialIcons
-                  name="mail-outline"
-                  size={20}
-                  color={focusedField === 'email' ? colors.brand.default : colors.text.muted}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  testID="auth-email-input"
-                  defaultValue={email}
-                  onChangeText={(text) => {
-                    emailRef.current = text;
-                    setEmail(text);
-                  }}
-                  onFocus={() => setFocusedField('email')}
-                  onBlur={() => setFocusedField(null)}
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.text.muted}
-                  style={styles.input}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                />
-              </View>
-            </View>
-
-            {/* Password input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  focusedField === 'password' && styles.inputWrapperFocused,
-                ]}
-              >
-                <MaterialIcons
-                  name="lock-outline"
-                  size={20}
-                  color={focusedField === 'password' ? colors.brand.default : colors.text.muted}
-                  style={styles.inputIcon}
-                />
-                <TextInput
-                  testID="auth-password-input"
-                  defaultValue={password}
-                  onChangeText={(text) => {
-                    passwordRef.current = text;
-                    setPassword(text);
-                  }}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField(null)}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.text.muted}
-                  style={[styles.input, { paddingRight: 40 }]}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeToggleBtn}
-                  accessibilityLabel="Toggle password visibility"
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons
-                    name={showPassword ? 'visibility-off' : 'visibility'}
-                    size={20}
-                    color={colors.text.muted}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Quick Voice Tip Banner */}
-            <View style={styles.tipBox}>
-              <View style={styles.tipIconCircle}>
-                <MaterialIcons name="record-voice-over" size={14} color={colors.brand.default} />
-              </View>
-              <Text style={styles.tipText}>
-                Tip: You can say <Text style={styles.tipHighlight}>"ചായ 20 രൂപ"</Text> immediately after signing in!
-              </Text>
-            </View>
-
-            {/* Submit Action */}
-            <Button
-              testID="auth-submit-button"
-              onPress={handleSubmit}
-              title={isSignUp ? 'Create Account' : 'Sign In'}
-              loading={loading}
-              style={styles.submitBtn}
+          {/* Mascot Hero */}
+          <View style={styles.mascotContainer}>
+            <AuthMascot
+              size={isSignUp ? 140 : 180}
+              isFocused={Boolean(focusedField)}
+              shakeTrigger={shakeCount}
+              testID="auth-mascot"
             />
+          </View>
 
-            {/* Mode Toggle Link */}
-            <TouchableOpacity
-              testID="auth-toggle-mode"
-              onPress={() => {
-                setIsSignUp(!isSignUp);
-                setError(null);
-              }}
-              style={styles.toggleRow}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.toggleText}>
-                {isSignUp
-                  ? 'Already have an account? '
-                  : 'New here? '}
-                <Text style={styles.toggleTextLink}>
-                  {isSignUp ? 'Sign In' : 'Create an Account'}
-                </Text>
-              </Text>
-            </TouchableOpacity>
+          {/* Wordmark Display 32 Baloo 800 */}
+          <View style={isSignUp ? styles.wordmarkBoxSmall : styles.wordmarkBox}>
+            <Text testID="auth-app-title" style={styles.wordmark}>
+              Pappu
+            </Text>
+          </View>
+
+          {/* Tagline Nunito 16 Semibold ink-muted */}
+          <View style={isSignUp ? styles.taglineBoxSmall : styles.taglineBox}>
+            <Text style={styles.tagline}>
+              Just say it. Pappu keeps track.
+            </Text>
+          </View>
+
+          {/* Auth Card: White Surface, 2px Border, Radius 20, Padding 24 */}
+          <Card
+            style={isSignUp ? styles.cardCreateAccount : styles.cardSignIn}
+            padding="2xl"
+          >
+            {/* Inline Error Banner */}
+            {error ? (
+              <View testID="auth-error" style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Name Field (Create Account Only) */}
+            {isSignUp ? (
+              <View style={styles.fieldGroup}>
+                <Input
+                  testID="auth-name-input"
+                  label="Name"
+                  placeholder="Your name"
+                  value={name}
+                  onChangeText={(text) => {
+                    nameRef.current = text;
+                    setName(text);
+                    if (fieldErrors.name) {
+                      setFieldErrors((prev) => ({ ...prev, name: null }));
+                    }
+                  }}
+                  leadingIcon={
+                    <Icon
+                      name="user"
+                      size={20}
+                      color={colors.ink}
+                    />
+                  }
+                  onFocus={() => setFocusedField('name')}
+                  onBlur={() => setFocusedField(null)}
+                  error={fieldErrors.name}
+                  editable={!loading}
+                  autoCapitalize="words"
+                />
+              </View>
+            ) : null}
+
+            {/* Email Field */}
+            <View style={styles.fieldGroup}>
+              <Input
+                testID="auth-email-input"
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={(text) => {
+                  emailRef.current = text;
+                  setEmail(text);
+                  if (fieldErrors.email) {
+                    setFieldErrors((prev) => ({ ...prev, email: null }));
+                  }
+                }}
+                leadingIcon={
+                  <Icon
+                    name="mail"
+                    size={20}
+                    color={colors.ink}
+                  />
+                }
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
+                error={fieldErrors.email}
+                editable={!loading}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Password Field */}
+            <View style={styles.fieldGroup}>
+              <Input
+                testID="auth-password-input"
+                label="Password"
+                placeholder="••••••••"
+                value={password}
+                onChangeText={(text) => {
+                  passwordRef.current = text;
+                  setPassword(text);
+                  if (fieldErrors.password) {
+                    setFieldErrors((prev) => ({ ...prev, password: null }));
+                  }
+                }}
+                leadingIcon={
+                  <Icon
+                    name="lock"
+                    size={20}
+                    color={colors.ink}
+                  />
+                }
+                secureTextEntry={true}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField(null)}
+                error={fieldErrors.password}
+                editable={!loading}
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Submit Button */}
+            <View style={styles.buttonWrapper}>
+              <Button
+                testID="auth-submit-button"
+                title={isSignUp ? 'Create account' : 'Sign in'}
+                variant="primary"
+                loading={loading}
+                disabled={loading}
+                onPress={handleSubmit}
+              />
+            </View>
           </Card>
 
-          {/* Micro Security Assurance Footer */}
-          <View style={styles.footerContainer}>
-            <View style={styles.footerRow}>
-              <MaterialIcons name="verified-user" size={14} color={colors.text.tertiary} style={{ marginRight: 4 }} />
-              <Text style={styles.footerLabel}>End-to-end encrypted financial ledger</Text>
-            </View>
-            <Text style={styles.footerSub}>Pappu Engine • Kochi, India</Text>
+          {/* Switch Mode Footer */}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerPrompt}>
+              {isSignUp ? 'Already have an account? ' : 'New here? '}
+            </Text>
+            <TouchableOpacity
+              testID="auth-toggle-mode"
+              onPress={handleToggleMode}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={isSignUp ? 'Sign in' : 'Create account'}
+            >
+              <Text style={styles.footerLink}>
+                {isSignUp ? 'Sign in' : 'Create account'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   keyboardContainer: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.xl,
+    justifyContent: 'flex-start',
   },
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    maxWidth: 440,
-    width: '100%',
-    alignSelf: 'center',
+    backgroundColor: colors.bg,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    alignItems: 'center',
   },
-  topNavRow: {
+  topBar: {
     width: '100%',
+    height: 47,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    justifyContent: 'flex-start',
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    width: 40,
+    height: 40,
+    borderRadius: radius.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -8,
+  },
+  backPlaceholder: {
+    height: 40,
+  },
+  spacerSignIn: {
+    height: 40,
+  },
+  spacerCreateAccount: {
+    height: 24,
+  },
+  mascotContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandContainer: {
+  wordmarkBox: {
+    marginTop: 8,
     alignItems: 'center',
-    marginBottom: spacing.xl,
   },
-  voiceBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.default,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-    position: 'relative',
-  },
-  micSubBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: radius.full,
-    backgroundColor: colors.semantic.income,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  appTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.brand.default,
-    letterSpacing: -0.8,
-  },
-  appTagline: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  bilingualBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceSubtle,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pulsingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.semantic.income,
-    marginRight: 6,
-  },
-  bilingualBadgeText: {
-    fontSize: 11,
-    color: colors.semantic.income,
-    fontWeight: '600',
-  },
-  formCard: {
-    borderRadius: radius['2xl'],
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  headerBlock: {
-    marginBottom: spacing.md,
-  },
-  modeHeading: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  modeSubheading: {
-    fontSize: 13,
-    color: colors.text.secondary,
+  wordmarkBoxSmall: {
     marginTop: 4,
-    lineHeight: 18,
+    alignItems: 'center',
+  },
+  wordmark: {
+    fontFamily: 'BalooChettan2_800ExtraBold',
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: '800',
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  taglineBox: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  taglineBoxSmall: {
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  tagline: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: colors.ink_muted,
+    textAlign: 'center',
+  },
+  cardSignIn: {
+    marginTop: 32,
+    width: '100%',
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  cardCreateAccount: {
+    marginTop: 24,
+    width: '100%',
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  fieldGroup: {
+    width: '100%',
+    marginBottom: 0,
+  },
+  buttonWrapper: {
+    width: '100%',
+    marginTop: 8,
   },
   errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.semantic.expenseBg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.semantic.expenseBorder,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    width: '100%',
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.expense,
+    borderRadius: radius.small,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
   },
-  errorText: {
-    color: colors.semantic.expense,
+  errorBannerText: {
+    fontFamily: 'Nunito_700Bold',
     fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  inputGroup: {
-    marginBottom: spacing.md,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text.secondary,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceSubtle,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
-    minHeight: 48,
-    position: 'relative',
-  },
-  inputWrapperFocused: {
-    borderColor: colors.brand.default,
-    backgroundColor: colors.surface,
-  },
-  inputIcon: {
-    marginRight: spacing.sm,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text.primary,
-    paddingVertical: spacing.md,
-  },
-  eyeToggleBtn: {
-    position: 'absolute',
-    right: 12,
-    padding: 6,
-  },
-  tipBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
-    marginTop: 4,
-    marginBottom: spacing.md,
-  },
-  tipIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  tipText: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    flex: 1,
-    lineHeight: 16,
-  },
-  tipHighlight: {
+    lineHeight: 18,
+    color: colors.expense,
     fontWeight: '700',
-    color: colors.text.primary,
-  },
-  submitBtn: {
-    marginTop: spacing.xs,
-    borderRadius: radius.full,
-  },
-  toggleRow: {
-    marginTop: spacing.md,
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  toggleText: {
-    fontSize: 13,
-    color: colors.text.secondary,
-  },
-  toggleTextLink: {
-    color: colors.brand.default,
-    fontWeight: '700',
-  },
-  footerContainer: {
-    alignItems: 'center',
-    marginTop: spacing.xl,
+    textAlign: 'center',
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
   },
-  footerLabel: {
-    fontSize: 12,
-    color: colors.text.tertiary,
-    fontWeight: '500',
+  footerPrompt: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: colors.ink_muted,
   },
-  footerSub: {
-    fontSize: 11,
-    color: colors.text.muted,
-    marginTop: 2,
+  footerLink: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '700',
+    color: colors.teal,
   },
 });

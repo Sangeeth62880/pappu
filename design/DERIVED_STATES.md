@@ -99,3 +99,21 @@ When user enables large font accessibility (1.3x):
 - Card Heights: All cards use flexible height (`minHeight`) rather than fixed heights.
 - Horizontal metric pairs (Income vs Net): Stacks vertically if width cannot accommodate both amounts.
 - Tab bar: Tab labels (10px) expand up to 13px maximum. Icons scale proportionally. Center coin maintains 72px fixed boundary.
+
+## 6. Authentication Derived States (Sign In & Create Account)
+
+- Loading State:
+  - Submit button switches into loading state showing ActivityIndicator in ink `#1F2937` with `loading={true}`.
+  - Inputs are locked during submission (`editable={!loading}`).
+  - No shimmer, no overlays, and no decorative spinners.
+- Inline Field Validation:
+  - Empty or invalid email: "Please enter a valid email address."
+  - Empty password: "Password is required."
+  - Short password on sign up: "Password must be at least 6 characters."
+  - Empty name on sign up: "Please enter your name."
+  - Field container border shifts to 2px expense `#E5484D`.
+- Server Error State:
+  - Wrong password or user not found: Banner displayed inside the card with 2px expense border `#E5484D` and Nunito 13px bold error copy.
+  - Mascot head shake: Triggers 200ms subtle horizontal head shake sequence over `[-8, 8, -6, 6, 0]px`.
+- Navigation Back State:
+  - Top back button arrow (Feather `arrow-left` icon, 22px ink `#1F2937`) visible in Create Account mode to return to Sign In, alongside the footer switch link "Already have an account? Sign in".
