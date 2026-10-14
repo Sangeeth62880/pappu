@@ -108,6 +108,29 @@ def answer_pending_endpoint(
     return response
 
 
+@router.get("/pending", response_model=Optional[PendingSummary])
+def get_active_pending_endpoint(
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> Optional[PendingSummary]:
+    """
+    Returns the active pending confirmation for the authenticated user, or None.
+    If the active pending item has expired, returns None.
+    """
+    if not ASSISTANT_V2:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assistant v2 is disabled",
+        )
+
+    _ensure_profile_exists(db, user_id)
+    item = get_active_pending(db, user_id)
+    if not item:
+        return None
+
+    return format_pending_summary(item)
+
+
 @router.post("/message", response_model=AssistantResponse)
 def handle_assistant_message(
     body: AssistantMessageRequest,

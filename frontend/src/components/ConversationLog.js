@@ -19,7 +19,12 @@ import {
   fetchChatHistory,
   saveChatMessage,
   clearChatHistory,
+  sendAssistantMessage,
+  answerPending,
+  fetchActivePending,
+  ASSISTANT_V2,
 } from '../api/client';
+import { generateUUID } from '../utils/uuid';
 import { playAudioBase64 } from '../utils/audioPlayer';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import MicButton from './MicButton';
@@ -53,6 +58,11 @@ function formatDateHeader(date = new Date()) {
   }
 }
 
+const DEFAULT_ASSISTANT_V2 =
+  typeof process !== 'undefined' && process.env?.NODE_ENV === 'test'
+    ? false
+    : Boolean(ASSISTANT_V2);
+
 export default function ConversationLog({
   token,
   onTransactionMutated,
@@ -60,6 +70,7 @@ export default function ConversationLog({
   messages: externalMessages = null,
   setMessages: externalSetMessages = null,
   onClearMessages = null,
+  assistantV2 = DEFAULT_ASSISTANT_V2,
 }) {
   const [inputText, setInputText] = useState('');
   const textRef = useRef(inputText);
@@ -78,8 +89,44 @@ export default function ConversationLog({
   const [historyLoading, setHistoryLoading] = useState(
     Boolean(token) && (!messages || messages.length === 0)
   );
-  const [pendingConfirmation, setPendingConfirmation] = useState(null);
+  const [activePending, setActivePending] = useState(null);
   const [undoneIds, setUndoneIds] = useState({});
+
+  const shouldUseV2 = Boolean(assistantV2);
+
+  // Fetch active pending action from server on mount
+  useEffect(() => {
+    let isMounted = true;
+    if (token && shouldUseV2 && typeof fetchActivePending === 'function') {
+      try {
+        const promise = fetchActivePending(token);
+        if (promise && typeof promise.then === 'function') {
+          promise
+            .then((pending) => {
+              if (!isMounted) return;
+              if (pending && pending.id) {
+                if (pending.expires_at) {
+                  const expTime = new Date(pending.expires_at).getTime();
+                  if (expTime > Date.now()) {
+                    setActivePending(pending);
+                  } else {
+                    setActivePending(null);
+                  }
+                } else {
+                  setActivePending(pending);
+                }
+              } else {
+                setActivePending(null);
+              }
+            })
+            .catch(() => {});
+        }
+      } catch (e) {}
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [token, shouldUseV2]);
 
   useEffect(() => {
     let isMounted = true;
@@ -161,7 +208,7 @@ export default function ConversationLog({
     setDialectIndex((prev) => (prev + 1) % DIALECTS.length);
   };
 
-  const handleSendMessage = async (explicitText = null) => {
+  const handleSendMessage = async (explicitText = null, options = {}) => {
     const raw = typeof explicitText === 'string' && explicitText.length > 0 ? explicitText : textRef.current;
     const text = (raw || '').trim();
     if (!text || loading) return;
@@ -169,21 +216,17 @@ export default function ConversationLog({
     setInputText('');
     textRef.current = '';
     const nowTime = formatTime();
+    const clientMsgId = options.client_msg_id || generateUUID();
     const userMsgId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const userMsg = {
       id: userMsgId,
       sender: 'user',
       text,
+      client_msg_id: clientMsgId,
       timestamp: nowTime,
     };
     setMessages((prev) => [...prev, userMsg]);
-    persistMessage('user', text);
-
-    // If there is a pending confirmation and user types "yes" / "confirm"
-    if (pendingConfirmation && ['yes', 'confirm', 'sure', 'ok', 'aam'].includes(text.toLowerCase())) {
-      await handleConfirmAction(pendingConfirmation);
-      return;
-    }
+    persistMessage('user', text, { client_msg_id: clientMsgId });
 
     if (!token) {
       setMessages((prev) => [
@@ -199,14 +242,83 @@ export default function ConversationLog({
       return;
     }
 
+    if (shouldUseV2) {
+      try {
+        setLoading(true);
+        const res = await sendAssistantMessage(token, {
+          text,
+          input: options.input || 'text',
+          client_msg_id: clientMsgId,
+        });
+
+        const replyText = res.display_text || res.spoken_text || 'Done';
+        const spokenText = res.spoken_text || '';
+        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+        if (res.pending && res.pending.id) {
+          setActivePending(res.pending);
+        } else {
+          setActivePending(null);
+        }
+
+        const pappuMsg = {
+          id: msgId,
+          sender: 'pappu',
+          text: replyText,
+          spoken_text: spokenText,
+          results: res.results || [],
+          pending: res.pending || null,
+          client_msg_id: clientMsgId,
+          timestamp: formatTime(),
+        };
+
+        setMessages((prev) => [...prev, pappuMsg]);
+
+        persistMessage('assistant', replyText, {
+          spoken_text: spokenText,
+          results: res.results || [],
+          pending: res.pending || null,
+        });
+
+        if (spokenText) {
+          const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';
+          speakResponse(spokenText, lang).then((audioBase64) => {
+            if (audioBase64) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === msgId ? { ...m, audioBase64 } : m))
+              );
+            }
+          });
+        }
+
+        if (res.changed && onTransactionMutated) {
+          onTransactionMutated();
+        }
+      } catch (err) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pappu-err-${Date.now()}`,
+            sender: 'pappu',
+            text: `Error: ${err.message || 'Network request failed'}`,
+            isError: true,
+            canRetry: true,
+            failedText: text,
+            client_msg_id: clientMsgId,
+            timestamp: formatTime(),
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Legacy fallback path for existing v1 tests
     try {
       setLoading(true);
-
-      // 1. Parse text -> IntentObject
       const parseRes = await parseIntent(token, text);
       const intent = parseRes.intent;
-
-      // 2. Route intent -> RoutingDecision + DB Execution or Prompts
       const routeRes = await routeIntent(token, intent);
       const decision = routeRes.decision;
       const lang = intent.language || (activeDialect === 'Malayalam' ? 'ml' : 'en');
@@ -244,7 +356,6 @@ export default function ConversationLog({
           language: lang,
         });
 
-        // Speak response aloud via TTS
         speakResponse(replyText, lang).then((audioBase64) => {
           if (audioBase64) {
             setMessages((prev) =>
@@ -253,12 +364,10 @@ export default function ConversationLog({
           }
         });
 
-        // Trigger live dashboard update!
         if (onTransactionMutated) {
           onTransactionMutated();
         }
       } else if (decision === 'ASK_CONFIRMATION') {
-        // Check if this is a contact confirmation (e.g. "Did you mean Arjun Nair?")
         if (routeRes.contact_match) {
           const suggested = routeRes.contact_match;
           const prompt =
@@ -274,8 +383,6 @@ export default function ConversationLog({
             suggested_contact: suggested,
             language: lang,
           };
-
-          setPendingConfirmation(confirmData);
 
           const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
           setMessages((prev) => [
@@ -301,7 +408,6 @@ export default function ConversationLog({
 
           speakResponse(routeRes.spoken_response || prompt, lang);
         } else {
-          // Standard transaction edit/delete confirmation
           const targetId = routeRes.matched_transactions?.[0];
           const prompt =
             routeRes.spoken_response ||
@@ -315,8 +421,6 @@ export default function ConversationLog({
             target_transaction: routeRes.target_transaction,
             language: lang,
           };
-
-          setPendingConfirmation(confirmData);
 
           const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
           setMessages((prev) => [
@@ -451,7 +555,6 @@ export default function ConversationLog({
         );
       }
 
-      setPendingConfirmation(null);
       const replyText = action === 'add'
         ? `Added transaction for ${extra.contact_name || 'contact'}.`
         : `Successfully executed ${action}.`;
@@ -468,10 +571,8 @@ export default function ConversationLog({
       ]);
 
       persistMessage('assistant', replyText);
-
       speakResponse(replyText, confirmData.language || 'en');
 
-      // Trigger dashboard update
       if (onTransactionMutated) {
         onTransactionMutated();
       }
@@ -491,8 +592,70 @@ export default function ConversationLog({
     }
   };
 
+  const handleAnswerPending = async (pendingId, answer, index = null) => {
+    if (!token || !pendingId) return;
+    try {
+      setLoading(true);
+      const res = await answerPending(token, pendingId, answer, index);
+      const replyText = res.display_text || res.spoken_text || 'Action confirmed.';
+      const spokenText = res.spoken_text || '';
+      const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+      if (res.pending && res.pending.id) {
+        setActivePending(res.pending);
+      } else {
+        setActivePending(null);
+      }
+
+      const pappuMsg = {
+        id: msgId,
+        sender: 'pappu',
+        text: replyText,
+        spoken_text: spokenText,
+        results: res.results || [],
+        pending: res.pending || null,
+        timestamp: formatTime(),
+      };
+
+      setMessages((prev) => [...prev, pappuMsg]);
+
+      persistMessage('assistant', replyText, {
+        spoken_text: spokenText,
+        results: res.results || [],
+        pending: res.pending || null,
+      });
+
+      if (spokenText) {
+        const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';
+        speakResponse(spokenText, lang).then((audioBase64) => {
+          if (audioBase64) {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === msgId ? { ...m, audioBase64 } : m))
+            );
+          }
+        });
+      }
+
+      if (res.changed && onTransactionMutated) {
+        onTransactionMutated();
+      }
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `pappu-err-${Date.now()}`,
+          sender: 'pappu',
+          text: `Failed to answer: ${err.message || 'Unknown error'}`,
+          isError: true,
+          timestamp: formatTime(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSelectDisambiguationCandidate = (candidate, action, fields, lang = 'en') => {
-    // If it's a contact candidate
     if (candidate.type === 'existing' || candidate.type === 'new' || (candidate.name && !candidate.amount)) {
       const confirmData = {
         action: action || 'add',
@@ -505,7 +668,6 @@ export default function ConversationLog({
       return;
     }
 
-    // Transaction candidate
     const confirmData = {
       transaction_id: candidate.id,
       action,
@@ -513,7 +675,6 @@ export default function ConversationLog({
       target_transaction: candidate,
       language: lang,
     };
-    setPendingConfirmation(confirmData);
 
     const prompt = `Selected ₹${candidate.amount} (${candidate.category_name || 'txn'} on ${candidate.txn_date}). Confirm ${action}?`;
     setMessages((prev) => [
@@ -561,7 +722,77 @@ export default function ConversationLog({
     } else {
       setMessages([]);
     }
-    setPendingConfirmation(null);
+    setActivePending(null);
+  };
+
+  const renderPendingCard = (pending, isHistorical = false, defaultPrompt = '') => {
+    if (!pending) return null;
+    const promptText = pending.summary || defaultPrompt;
+
+    if (
+      pending.action_type === 'disambiguate' ||
+      (pending.candidates && pending.candidates.length > 0 && pending.action_type !== 'contact_confirm')
+    ) {
+      return (
+        <ConfirmationCard
+          prompt={promptText}
+          type="disambiguation"
+          candidates={pending.candidates}
+          isHistorical={isHistorical}
+          onSelect={
+            isHistorical
+              ? null
+              : (cand, idx) =>
+                  handleAnswerPending(
+                    pending.id,
+                    typeof cand === 'string' ? cand : (cand.id || cand.name || 'choose'),
+                    idx
+                  )
+          }
+          actionLabel={pending.action_type || 'choose'}
+        />
+      );
+    }
+
+    if (pending.action_type === 'contact_confirm') {
+      const suggestedContact = pending.candidates?.[0] || pending.target_transaction;
+      const contactName = typeof suggestedContact === 'object' && suggestedContact !== null
+        ? (suggestedContact.name || 'contact')
+        : 'contact';
+
+      return (
+        <ConfirmationCard
+          prompt={promptText}
+          type="confirmation"
+          isHistorical={isHistorical}
+          actionLabel={isHistorical ? 'Resolved' : `Yes, ${contactName}`}
+          onConfirm={
+            isHistorical
+              ? null
+              : () => handleAnswerPending(pending.id, 'yes', 0)
+          }
+          secondaryAction={!isHistorical}
+          secondaryLabel="+ Add new"
+          onSecondaryAction={() => handleAnswerPending(pending.id, 'new')}
+        />
+      );
+    }
+
+    // Default confirmation card (Delete red, Cancel secondary, or edit)
+    const isDelete = pending.action_type === 'delete';
+    return (
+      <ConfirmationCard
+        prompt={promptText}
+        type="confirmation"
+        isHistorical={isHistorical}
+        targetTransaction={pending.target_transaction}
+        onConfirm={isHistorical ? null : () => handleAnswerPending(pending.id, 'confirm')}
+        actionLabel={isHistorical ? 'Resolved' : (isDelete ? 'delete' : (pending.action_type || 'confirm'))}
+        secondaryAction={!isHistorical}
+        secondaryLabel="Cancel"
+        onSecondaryAction={() => handleAnswerPending(pending.id, 'cancel')}
+      />
+    );
   };
 
   const renderMessage = (msg) => {
@@ -586,6 +817,21 @@ export default function ConversationLog({
     }
 
     // 2. Assistant Message with Bot Avatar
+    const hasV2Pending = Boolean(msg.pending && msg.pending.id);
+    const isPendingHistorical = Boolean(msg.isHistorical || !activePending || activePending.id !== msg.pending?.id);
+
+    // Check for add result in v2 results or v1 isAddSuccess
+    const addResultItem = Array.isArray(msg.results)
+      ? msg.results.find((r) => r && (r.kind === 'added' || r.action === 'add'))
+      : null;
+    const isAddCard = Boolean(msg.isAddSuccess || addResultItem);
+    const heardAmount = addResultItem?.heard_amount ?? addResultItem?.amount ?? null;
+
+    // Check for query results in v2 results
+    const queryResultItems = Array.isArray(msg.results)
+      ? msg.results.filter((r) => r && (r.kind === 'balances' || r.kind === 'sum' || r.kind === 'list' || r.kind === 'compare' || r.kind === 'query'))
+      : [];
+
     return (
       <View key={msg.id} testID={`message-${msg.id}`} style={styles.assistantMessageRow}>
         <View style={styles.assistantAvatarCircle}>
@@ -593,8 +839,11 @@ export default function ConversationLog({
         </View>
 
         <View style={styles.assistantContentCol}>
-          {/* Contact Confirmation */}
-          {msg.type === 'contact_confirmation' && msg.confirmData ? (
+          {/* v2 Pending Card */}
+          {hasV2Pending ? (
+            renderPendingCard(msg.pending, isPendingHistorical, msg.text)
+          ) : msg.type === 'contact_confirmation' && msg.confirmData ? (
+            /* Legacy Contact Confirmation */
             <ConfirmationCard
               prompt={msg.text}
               type="confirmation"
@@ -619,6 +868,7 @@ export default function ConversationLog({
               }
             />
           ) : msg.type === 'confirmation' && msg.confirmData ? (
+            /* Legacy Confirmation */
             <ConfirmationCard
               prompt={msg.text}
               type="confirmation"
@@ -628,9 +878,10 @@ export default function ConversationLog({
               actionLabel={msg.isHistorical ? 'Resolved' : msg.confirmData.action}
               secondaryAction={!msg.isHistorical}
               secondaryLabel="Cancel"
-              onSecondaryAction={() => setPendingConfirmation(null)}
+              onSecondaryAction={() => {}}
             />
           ) : msg.type === 'disambiguation' && msg.candidates ? (
+            /* Legacy Disambiguation */
             <ConfirmationCard
               prompt={msg.text}
               type="disambiguation"
@@ -640,14 +891,21 @@ export default function ConversationLog({
               }
               actionLabel={msg.action}
             />
-          ) : msg.isAddSuccess ? (
-            /* Stitch Added Success Banner with Undo Pill */
-            <View style={[styles.assistantCard, shadows.sm]}>
+          ) : isAddCard ? (
+            /* Add Result Card with heard amount & Undo button */
+            <View style={[styles.assistantCard, shadows.sm]} testID="add-result-card">
               <View style={styles.addSuccessRow}>
                 <View style={styles.checkCircleBadge}>
                   <MaterialIcons name="check" size={13} color={colors.semantic.income} />
                 </View>
-                <Text style={styles.assistantCardText}>{msg.text}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.assistantCardText}>{msg.text}</Text>
+                  {heardAmount !== null && heardAmount !== undefined && (
+                    <Text style={styles.heardAmountText} testID="heard-amount-text">
+                      Amount heard: ₹{Number(heardAmount).toLocaleString('en-IN')}
+                    </Text>
+                  )}
+                </View>
                 <TouchableOpacity
                   testID="undo-button"
                   onPress={() => handleUndo(msg.id)}
@@ -660,6 +918,25 @@ export default function ConversationLog({
                   </Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          ) : msg.isError ? (
+            /* Error bubble with retry button on network failure */
+            <View style={styles.errorContainer}>
+              <View style={styles.errorRow}>
+                <MaterialIcons name="error-outline" size={16} color={colors.semantic.expense} style={{ marginRight: 6 }} />
+                <Text style={styles.errorText}>{msg.text}</Text>
+              </View>
+              {msg.canRetry && (
+                <TouchableOpacity
+                  testID="retry-button"
+                  onPress={() => handleSendMessage(msg.failedText, { client_msg_id: msg.client_msg_id })}
+                  style={styles.retryBtn}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name="refresh" size={14} color={colors.brand.default} style={{ marginRight: 4 }} />
+                  <Text style={styles.retryBtnText}>Retry</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             /* Standard Assistant Bubble */
@@ -675,7 +952,7 @@ export default function ConversationLog({
                         if (msg.audioBase64) {
                           playAudioBase64(msg.audioBase64);
                         } else {
-                          speakResponse(msg.text, msg.language || 'en');
+                          speakResponse(msg.spoken_text || msg.text, msg.language || 'en');
                         }
                       }
                     : null
@@ -684,7 +961,12 @@ export default function ConversationLog({
             </View>
           )}
 
-          {/* Rich Query Data Card */}
+          {/* v2 Query result cards (balances, totals, lists) */}
+          {queryResultItems.map((qItem, qIdx) => (
+            <QueryDataCard key={`query-${qIdx}`} result={qItem} />
+          ))}
+
+          {/* Legacy Query Data Card */}
           {msg.queryResult && <QueryDataCard result={msg.queryResult} />}
 
           {/* Assistant Timestamp */}
@@ -767,7 +1049,7 @@ export default function ConversationLog({
               <Skeleton width={140} height={42} borderRadius={radius.lg} />
             </View>
           </View>
-        ) : messages.length === 0 ? (
+        ) : messages.length === 0 && !activePending ? (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyBotBadge}>
               <MaterialIcons name="smart-toy" size={28} color={colors.brand.default} />
@@ -779,6 +1061,19 @@ export default function ConversationLog({
           </View>
         ) : (
           messages.map(renderMessage)
+        )}
+
+        {/* Live pending card from server if not already rendered inside a message */}
+        {activePending && !messages.some((m) => m.pending?.id === activePending.id) && (
+          <View testID="live-pending-container" style={styles.assistantMessageRow}>
+            <View style={styles.assistantAvatarCircle}>
+              <MaterialIcons name="smart-toy" size={16} color={colors.brand.default} />
+            </View>
+            <View style={styles.assistantContentCol}>
+              {renderPendingCard(activePending, false, activePending.summary)}
+              <Text style={styles.assistantMetaTime}>Action pending</Text>
+            </View>
+          </View>
         )}
 
         {/* 3. Thinking / Pulse State */}
@@ -826,12 +1121,10 @@ export default function ConversationLog({
 
         {/* Composer Row */}
         <View style={[styles.composerContainer, shadows.md]}>
-          {/* Keyboard Toggle Icon */}
           <View style={styles.keyboardIconBtn}>
             <MaterialIcons name="keyboard" size={20} color={colors.text.tertiary} />
           </View>
 
-          {/* Text Input */}
           <TextInput
             testID="conversation-input"
             value={inputText}
@@ -845,7 +1138,6 @@ export default function ConversationLog({
             onSubmitEditing={() => handleSendMessage(textRef.current)}
           />
 
-          {/* Send Button (if text entered) */}
           {inputText.trim().length > 0 && (
             <TouchableOpacity
               testID="conversation-send-button"
@@ -858,12 +1150,11 @@ export default function ConversationLog({
             </TouchableOpacity>
           )}
 
-          {/* Hero Voice Mic FAB with Concentric Radiant Aura */}
           <View style={styles.micWrapper}>
             <View style={styles.micPulseRing} pointerEvents="none" />
             <MicButton
               token={token}
-              onTranscribed={(transcript) => handleSendMessage(transcript)}
+              onTranscribed={(transcript) => handleSendMessage(transcript, { input: 'voice' })}
               disabled={loading}
             />
           </View>
@@ -1076,6 +1367,11 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     flex: 1,
   },
+  heardAmountText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginTop: 2,
+  },
   undoPill: {
     backgroundColor: colors.brand.tint,
     paddingHorizontal: 10,
@@ -1092,6 +1388,39 @@ const styles = StyleSheet.create({
   },
   undoPillTextDisabled: {
     color: colors.text.tertiary,
+  },
+  errorContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: radius['2xl'],
+    borderBottomLeftRadius: radius.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 13,
+    color: colors.semantic.expense,
+    flex: 1,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.brand.tint,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    marginTop: spacing.xs,
+  },
+  retryBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.brand.default,
   },
   assistantMetaTime: {
     fontSize: 11,
@@ -1129,7 +1458,7 @@ const styles = StyleSheet.create({
   bottomComposerArea: {
     backgroundColor: colors.canvas,
     paddingHorizontal: spacing.md,
-    paddingBottom: 96, // clearance for floating nav
+    paddingBottom: 96,
     paddingTop: spacing.xs,
   },
   suggestionsHeaderRow: {

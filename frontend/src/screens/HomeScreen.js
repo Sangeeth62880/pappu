@@ -25,7 +25,7 @@ import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { colors, radius, shadows, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
-import { undoTransaction, clearChatHistory } from '../api/client';
+import { undoTransaction, clearChatHistory, ASSISTANT_V2 } from '../api/client';
 
 const TABS = [
   { key: 'dashboard', label: 'Home', icon: 'account-balance-wallet' },
@@ -478,6 +478,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
         onClose={() => setVoiceSheetVisible(false)}
         token={token}
         onTransactionMutated={handleTransactionMutated}
+        setMessages={handleUpdateMessages}
       />
     </SafeAreaView>
   );

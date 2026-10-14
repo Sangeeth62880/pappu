@@ -139,62 +139,75 @@ export default function ConfirmationCard({
       )}
 
       {/* Disambiguation / candidate list */}
-      {(type === 'disambiguation' || candidates.length > 0) && (
+      {(type === 'disambiguation' || (candidates && candidates.length > 0)) && (
         <View style={styles.candidatesList}>
-          {candidates.map((cand) => {
-            const isContactCandidate = Boolean(cand.name && !cand.amount);
+          {isHistorical ? (
+            <View testID="resolved-badge" style={[styles.resolvedBadge, { marginTop: spacing.xs }]}>
+              <MaterialIcons name="done" size={14} color={colors.text.tertiary} style={{ marginRight: 4 }} />
+              <Text style={styles.resolvedText}>Resolved</Text>
+            </View>
+          ) : (
+            (candidates || []).slice(0, 5).map((cand, idx) => {
+              const isString = typeof cand === 'string';
+              const candId = isString ? `cand-${idx}` : (cand.id || `cand-${idx}`);
+              const isContactCandidate = !isString && Boolean(cand.name && !cand.amount);
 
-            return (
-              <Pressable
-                key={cand.id}
-                testID={`disambig-candidate-${cand.id}`}
-                onPress={() => onSelect && onSelect(cand)}
-                style={({ pressed }) => [
-                  styles.candidateRow,
-                  pressed && styles.candidateRowPressed,
-                ]}
-              >
-                {isContactCandidate ? (
-                  <View style={styles.contactRow}>
-                    <View style={styles.candIconCircle}>
-                      <MaterialIcons
-                        name={cand.id === 'new' ? 'person-add' : 'person'}
-                        size={16}
-                        color={cand.id === 'new' ? colors.brand.default : colors.text.secondary}
-                      />
+              return (
+                <Pressable
+                  key={candId}
+                  testID={`disambig-candidate-${candId}`}
+                  onPress={() => onSelect && onSelect(cand, idx)}
+                  style={({ pressed }) => [
+                    styles.candidateRow,
+                    pressed && styles.candidateRowPressed,
+                  ]}
+                >
+                  {isString ? (
+                    <View style={styles.candidateInfo}>
+                      <Text style={styles.candidateTitle}>{cand}</Text>
                     </View>
+                  ) : isContactCandidate ? (
+                    <View style={styles.contactRow}>
+                      <View style={styles.candIconCircle}>
+                        <MaterialIcons
+                          name={cand.id === 'new' ? 'person-add' : 'person'}
+                          size={16}
+                          color={cand.id === 'new' ? colors.brand.default : colors.text.secondary}
+                        />
+                      </View>
+                      <View style={styles.candidateInfo}>
+                        <Text style={styles.candidateTitle}>
+                          {cand.id === 'new' ? `Add new person "${cand.name}"` : cand.name}
+                        </Text>
+                        {cand.id !== 'new' && (
+                          <Text style={styles.candidateSub}>Existing Contact</Text>
+                        )}
+                      </View>
+                    </View>
+                  ) : (
                     <View style={styles.candidateInfo}>
                       <Text style={styles.candidateTitle}>
-                        {cand.id === 'new' ? `Add new person "${cand.name}"` : cand.name}
+                        {cand.category_name || cand.category || 'Transaction'}
                       </Text>
-                      {cand.id !== 'new' && (
-                        <Text style={styles.candidateSub}>Existing Contact</Text>
-                      )}
+                      <Text style={styles.candidateSub}>
+                        {cand.txn_date || 'Recent'}
+                        {cand.description ? ` · ${cand.description}` : ''}
+                      </Text>
                     </View>
-                  </View>
-                ) : (
-                  <View style={styles.candidateInfo}>
-                    <Text style={styles.candidateTitle}>
-                      {cand.category_name || 'Transaction'}
-                    </Text>
-                    <Text style={styles.candidateSub}>
-                      {cand.txn_date}
-                      {cand.description ? ` · ${cand.description}` : ''}
-                    </Text>
-                  </View>
-                )}
+                  )}
 
-                {cand.amount !== undefined && (
-                  <AmountText
-                    amount={cand.amount}
-                    type={cand.type === 'income' ? 'income' : 'expense'}
-                    showSign={true}
-                    size="sm"
-                  />
-                )}
-              </Pressable>
-            );
-          })}
+                  {!isString && cand.amount !== undefined && (
+                    <AmountText
+                      amount={cand.amount}
+                      type={cand.type === 'income' ? 'income' : 'expense'}
+                      showSign={true}
+                      size="sm"
+                    />
+                  )}
+                </Pressable>
+              );
+            })
+          )}
         </View>
       )}
     </View>

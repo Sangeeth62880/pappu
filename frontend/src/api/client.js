@@ -4,6 +4,7 @@
  */
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://100.82.216.61:8000';
+export const ASSISTANT_V2 = process.env.EXPO_PUBLIC_ASSISTANT_V2 !== 'false';
 
 /**
  * Helper to execute HTTP requests with auth headers.
@@ -296,6 +297,46 @@ export async function saveChatMessage(token, { role, text, payload = null }) {
 export async function clearChatHistory(token) {
   return request('/chat/history', {
     method: 'DELETE',
+    token,
+  });
+}
+
+/**
+ * POST /assistant/message - Unified message endpoint for Assistant v2.
+ */
+export async function sendAssistantMessage(token, { text, input = 'typed', client_msg_id = null }) {
+  const body = { text, input };
+  if (client_msg_id) {
+    body.client_msg_id = client_msg_id;
+  }
+  return request('/assistant/message', {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
+/**
+ * POST /assistant/pending/{id}/answer - Deterministically resolves an active pending item.
+ */
+export async function answerPending(token, pendingId, answer, index = null) {
+  const body = { answer };
+  if (index !== null && index !== undefined) {
+    body.index = index;
+  }
+  return request(`/assistant/pending/${pendingId}/answer`, {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
+/**
+ * GET /assistant/pending - Fetches the single active pending item for the user if any.
+ */
+export async function fetchActivePending(token) {
+  return request('/assistant/pending', {
+    method: 'GET',
     token,
   });
 }

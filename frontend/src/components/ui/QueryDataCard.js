@@ -19,13 +19,28 @@ export default function QueryDataCard({ result }) {
   const [showAll, setShowAll] = useState(false);
   if (!result) return null;
 
-  const category = result.category || 'All';
-  const iconName = CATEGORY_ICONS[category] || 'insights';
-  const totalAmount = Number(result.total_amount || result.total_expense || result.total_sent || 0);
-  const count = result.count ?? (result.transactions?.length || 0);
-  const period = result.period || (result.contact_name ? `With ${result.contact_name}` : 'Overview');
-  const transactions = result.transactions || [];
+  const category = result.category || (result.kind === 'balances' ? 'Balances' : 'All');
+  const iconName = CATEGORY_ICONS[category] || (result.kind === 'balances' ? 'account-balance-wallet' : 'insights');
+  const totalAmount = Number(
+    result.total !== undefined
+      ? result.total
+      : result.total_amount || result.total_expense || result.total_sent || (result.net !== undefined ? Math.abs(result.net) : 0)
+  );
+  const balancesList = result.per_contact || result.contacts || [];
+  const transactions = result.transactions || (result.transaction ? [result.transaction] : []);
+  const count = result.count ?? (transactions.length || balancesList.length || 0);
+  const period =
+    result.period ||
+    (result.contact_name ? `With ${result.contact_name}` : result.kind === 'balances' ? 'Current Balances' : 'Overview');
   const displayTransactions = showAll ? transactions : transactions.slice(0, 3);
+  const statLabel =
+    result.kind === 'balances'
+      ? (result.net !== undefined ? (result.net >= 0 ? 'Net You Are Owed' : 'Net You Owe') : 'Balances')
+      : result.kind === 'compare'
+      ? `Compare (${result.direction || 'trend'})`
+      : result.status === 'queried_contact'
+      ? result.display_text
+      : `Total ${category === 'All' ? 'Spending' : category}`;
 
   return (
     <View testID="query-data-card" style={[styles.card, shadows.sm]}>
@@ -47,11 +62,7 @@ export default function QueryDataCard({ result }) {
 
       {/* Main Stat / Big Number */}
       <View style={styles.statContainer}>
-        <Text style={styles.statLabel}>
-          {result.status === 'queried_contact'
-            ? result.display_text
-            : `Total ${category === 'All' ? 'Spending' : category}`}
-        </Text>
+        <Text style={styles.statLabel}>{statLabel}</Text>
         <AmountText
           amount={totalAmount}
           type="neutral"
@@ -59,6 +70,36 @@ export default function QueryDataCard({ result }) {
           style={styles.totalAmount}
         />
       </View>
+
+      {/* Balances Rows */}
+      {balancesList.length > 0 && (
+        <View style={styles.txListContainer}>
+          <View style={styles.txListHeader}>
+            <Text style={styles.txListCount}>Contacts ({balancesList.length})</Text>
+          </View>
+          {balancesList.map((b, idx) => {
+            const bal = Number(b.balance !== undefined ? b.balance : (b.net_balance !== undefined ? b.net_balance : 0));
+            const owesYou = Boolean(b.owes_you || bal > 0);
+            const youOwe = Boolean(b.you_owe || bal < 0);
+            return (
+              <View key={b.contact_id || b.contact_name || idx} style={styles.txRow} testID={`balance-row-${idx}`}>
+                <View style={styles.txInfo}>
+                  <Text style={styles.txTitle}>{b.contact_name}</Text>
+                  <Text style={styles.txSub}>
+                    {b.status || (owesYou ? 'Owes you' : youOwe ? 'You owe' : 'Settled')}
+                  </Text>
+                </View>
+                <AmountText
+                  amount={Math.abs(bal)}
+                  type={owesYou ? 'income' : youOwe ? 'expense' : 'neutral'}
+                  showSign={false}
+                  size="sm"
+                />
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       {/* Transaction List Preview */}
       {transactions.length > 0 && (

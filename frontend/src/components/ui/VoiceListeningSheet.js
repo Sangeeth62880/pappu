@@ -21,24 +21,46 @@ import {
   confirmAction,
   synthesizeSpeech,
   saveChatMessage,
+  sendAssistantMessage,
+  answerPending,
+  ASSISTANT_V2,
 } from '../../api/client';
+import { generateUUID } from '../../utils/uuid';
 import { playAudioBase64 } from '../../utils/audioPlayer';
+
+function formatTime(date = new Date()) {
+  try {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch (e) {
+    return 'Just now';
+  }
+}
+
+const DEFAULT_ASSISTANT_V2 =
+  typeof process !== 'undefined' && process.env?.NODE_ENV === 'test'
+    ? false
+    : Boolean(ASSISTANT_V2);
 
 export default function VoiceListeningSheet({
   visible,
   onClose,
   token,
   onTransactionMutated,
+  setMessages = null,
+  assistantV2 = DEFAULT_ASSISTANT_V2,
 }) {
   const [transcript, setTranscript] = useState('');
   const [statusText, setStatusText] = useState('Tap the microphone to speak');
   const [loading, setLoading] = useState(false);
   const [resultMessage, setResultMessage] = useState(null);
   const [queryResult, setQueryResult] = useState(null);
+  const [v2Pending, setV2Pending] = useState(null);
   const [pendingConfirmation, setPendingConfirmation] = useState(null);
   const [disambigCandidates, setDisambigCandidates] = useState(null);
   const [error, setError] = useState(null);
   const [textInput, setTextInput] = useState('');
+
+  const shouldUseV2 = Boolean(assistantV2);
 
   // Reset state whenever the sheet is opened or closed
   useEffect(() => {
@@ -48,6 +70,7 @@ export default function VoiceListeningSheet({
       setLoading(false);
       setResultMessage(null);
       setQueryResult(null);
+      setV2Pending(null);
       setPendingConfirmation(null);
       setDisambigCandidates(null);
       setError(null);
@@ -73,15 +96,113 @@ export default function VoiceListeningSheet({
     if (!query || !token || loading) return;
 
     setTranscript(query);
-    setStatusText('Processing with Pappu…');
+    setStatusText('Processing with Pappu');
     setLoading(true);
     setError(null);
     setResultMessage(null);
     setQueryResult(null);
+    setV2Pending(null);
     setPendingConfirmation(null);
     setDisambigCandidates(null);
 
-    // Save user message to persistent history
+    const clientMsgId = generateUUID();
+    const nowTime = formatTime();
+
+    if (shouldUseV2) {
+      // Append user message to persistent chat history
+      if (typeof setMessages === 'function') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            sender: 'user',
+            text: query,
+            client_msg_id: clientMsgId,
+            timestamp: nowTime,
+          },
+        ]);
+      }
+
+      if (typeof saveChatMessage === 'function') {
+        try {
+          const p = saveChatMessage(token, { role: 'user', text: query, payload: { client_msg_id: clientMsgId } });
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (e) {}
+      }
+
+      try {
+        const res = await sendAssistantMessage(token, {
+          text: query,
+          input: 'voice',
+          client_msg_id: clientMsgId,
+        });
+
+        const reply = res.display_text || res.spoken_text || 'Done';
+        setResultMessage(reply);
+        setStatusText('Done');
+
+        if (res.pending && res.pending.id) {
+          setV2Pending(res.pending);
+          setStatusText('Action pending');
+        }
+
+        const qRes = Array.isArray(res.results)
+          ? res.results.find((r) => r && (r.kind === 'balances' || r.kind === 'sum' || r.kind === 'list' || r.kind === 'compare' || r.kind === 'query'))
+          : null;
+        if (qRes) {
+          setQueryResult(qRes);
+        }
+
+        // Append to chat history
+        if (typeof setMessages === 'function') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              sender: 'pappu',
+              text: reply,
+              spoken_text: res.spoken_text,
+              results: res.results || [],
+              pending: res.pending || null,
+              client_msg_id: clientMsgId,
+              timestamp: nowTime,
+            },
+          ]);
+        }
+
+        if (typeof saveChatMessage === 'function') {
+          try {
+            const p = saveChatMessage(token, {
+              role: 'assistant',
+              text: reply,
+              payload: {
+                spoken_text: res.spoken_text,
+                results: res.results || [],
+                pending: res.pending || null,
+              },
+            });
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+          } catch (e) {}
+        }
+
+        // TTS speaks spoken_text only
+        if (res.spoken_text) {
+          speak(res.spoken_text, 'en');
+        }
+
+        if (res.changed && onTransactionMutated) {
+          onTransactionMutated();
+        }
+      } catch (err) {
+        setError(err.message || 'Failed to process request');
+        setStatusText('Error');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Legacy v1 flow
     if (typeof saveChatMessage === 'function') {
       try {
         const p = saveChatMessage(token, { role: 'user', text: query });
@@ -107,14 +228,28 @@ export default function VoiceListeningSheet({
           } else if (intent.action === 'query') {
             reply = 'Here is your data summary.';
           } else {
-            reply = 'Done!';
+            reply = 'Done';
           }
         }
 
         setResultMessage(reply);
-        setStatusText('Done!');
+        setStatusText('Done');
         if (intent.action === 'query') {
           setQueryResult(routeRes.execution_result);
+        }
+
+        if (typeof setMessages === 'function') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              sender: 'pappu',
+              text: reply,
+              queryResult: intent.action === 'query' ? routeRes.execution_result : null,
+              isAddSuccess: intent.action === 'add',
+              timestamp: nowTime,
+            },
+          ]);
         }
 
         if (typeof saveChatMessage === 'function') {
@@ -177,6 +312,60 @@ export default function VoiceListeningSheet({
     }
   };
 
+  const handleV2Answer = async (pendingId, answer, index = null) => {
+    if (!token || !pendingId) return;
+    try {
+      setLoading(true);
+      const res = await answerPending(token, pendingId, answer, index);
+      const reply = res.display_text || res.spoken_text || 'Action confirmed.';
+      setResultMessage(reply);
+      setStatusText('Done');
+      setV2Pending(res.pending || null);
+
+      if (typeof setMessages === 'function') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            sender: 'pappu',
+            text: reply,
+            spoken_text: res.spoken_text,
+            results: res.results || [],
+            pending: res.pending || null,
+            timestamp: formatTime(),
+          },
+        ]);
+      }
+
+      if (typeof saveChatMessage === 'function') {
+        try {
+          const p = saveChatMessage(token, {
+            role: 'assistant',
+            text: reply,
+            payload: {
+              spoken_text: res.spoken_text,
+              results: res.results || [],
+              pending: res.pending || null,
+            },
+          });
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (e) {}
+      }
+
+      if (res.spoken_text) {
+        speak(res.spoken_text, 'en');
+      }
+
+      if (res.changed && onTransactionMutated) {
+        onTransactionMutated();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to answer pending action');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConfirm = async (confirmData) => {
     if (!token || !confirmData) return;
     try {
@@ -190,7 +379,19 @@ export default function VoiceListeningSheet({
       setPendingConfirmation(null);
       const reply = `Successfully executed ${confirmData.action}.`;
       setResultMessage(reply);
-      setStatusText('Done!');
+      setStatusText('Done');
+
+      if (typeof setMessages === 'function') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            sender: 'pappu',
+            text: reply,
+            timestamp: formatTime(),
+          },
+        ]);
+      }
 
       if (typeof saveChatMessage === 'function') {
         try {
@@ -250,7 +451,7 @@ export default function VoiceListeningSheet({
         )}
 
         {/* Interactive Center: Mic Button */}
-        {!resultMessage && !pendingConfirmation && (
+        {!resultMessage && !pendingConfirmation && !v2Pending && (
           <View style={styles.micCenterArea}>
             <View style={styles.micOuterCircle}>
               <MicButton
@@ -270,7 +471,7 @@ export default function VoiceListeningSheet({
         {loading && (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="small" color={colors.brand.default} />
-            <Text style={styles.loadingText}>Pappu is thinking…</Text>
+            <Text style={styles.loadingText}>Pappu is thinking</Text>
           </View>
         )}
 
@@ -282,7 +483,49 @@ export default function VoiceListeningSheet({
           </View>
         )}
 
-        {/* Confirmation Card */}
+        {/* v2 Pending Card */}
+        {v2Pending && (
+          <View style={styles.cardContainer}>
+            {v2Pending.action_type === 'disambiguate' || (v2Pending.candidates && v2Pending.candidates.length > 0 && v2Pending.action_type !== 'contact_confirm') ? (
+              <ConfirmationCard
+                prompt={v2Pending.summary}
+                type="disambiguation"
+                candidates={v2Pending.candidates}
+                onSelect={(cand, idx) =>
+                  handleV2Answer(
+                    v2Pending.id,
+                    typeof cand === 'string' ? cand : (cand.id || cand.name || 'choose'),
+                    idx
+                  )
+                }
+                actionLabel={v2Pending.action_type || 'choose'}
+              />
+            ) : v2Pending.action_type === 'contact_confirm' ? (
+              <ConfirmationCard
+                prompt={v2Pending.summary}
+                type="confirmation"
+                actionLabel={`Yes, ${v2Pending.candidates?.[0]?.name || 'confirm'}`}
+                onConfirm={() => handleV2Answer(v2Pending.id, 'yes', 0)}
+                secondaryAction={true}
+                secondaryLabel="+ Add new"
+                onSecondaryAction={() => handleV2Answer(v2Pending.id, 'new')}
+              />
+            ) : (
+              <ConfirmationCard
+                prompt={v2Pending.summary}
+                type="confirmation"
+                targetTransaction={v2Pending.target_transaction}
+                actionLabel={v2Pending.action_type === 'delete' ? 'delete' : (v2Pending.action_type || 'confirm')}
+                onConfirm={() => handleV2Answer(v2Pending.id, 'confirm')}
+                secondaryAction={true}
+                secondaryLabel="Cancel"
+                onSecondaryAction={() => handleV2Answer(v2Pending.id, 'cancel')}
+              />
+            )}
+          </View>
+        )}
+
+        {/* Legacy Confirmation Card */}
         {pendingConfirmation && (
           <View style={styles.cardContainer}>
             <ConfirmationCard
@@ -298,7 +541,7 @@ export default function VoiceListeningSheet({
           </View>
         )}
 
-        {/* Disambiguation Candidates */}
+        {/* Legacy Disambiguation Candidates */}
         {disambigCandidates && (
           <View style={styles.cardContainer}>
             <ConfirmationCard
@@ -338,7 +581,7 @@ export default function VoiceListeningSheet({
           <TextInput
             testID="voice-fallback-input"
             style={styles.textInput}
-            placeholder="Or type here… (e.g. Spent 250 on lunch)"
+            placeholder="Or type here (e.g. Spent 250 on lunch)"
             placeholderTextColor={colors.text.tertiary}
             value={textInput}
             onChangeText={setTextInput}
@@ -451,29 +694,31 @@ const styles = StyleSheet.create({
   micHelperText: {
     fontSize: 12,
     color: colors.text.tertiary,
+    textAlign: 'center',
   },
   loadingBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.md,
   },
   loadingText: {
-    marginLeft: spacing.sm,
     fontSize: 13,
-    color: colors.brand.default,
-    fontWeight: '600',
+    color: colors.text.secondary,
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.semantic.expenseBg || '#FEE2E2',
+    gap: spacing.xs,
+    backgroundColor: colors.surface,
     padding: spacing.sm,
     borderRadius: radius.md,
-    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.semantic.expense,
+    marginBottom: spacing.md,
   },
   errorText: {
-    marginLeft: spacing.xs,
     fontSize: 13,
     color: colors.semantic.expense,
     flex: 1,
@@ -484,53 +729,49 @@ const styles = StyleSheet.create({
   successBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.semantic.incomeBg || '#ECFDF5',
+    gap: spacing.sm,
+    backgroundColor: colors.surfaceSubtle,
     padding: spacing.md,
     borderRadius: radius.lg,
     marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
   },
   successIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#D1FAE5',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.semantic.incomeBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
   },
   successText: {
     fontSize: 14,
-    fontWeight: '600',
     color: colors.text.primary,
+    fontWeight: '500',
     flex: 1,
   },
   textFallbackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
     marginTop: spacing.sm,
+    gap: spacing.xs,
   },
   textInput: {
     flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
     fontSize: 13,
     color: colors.text.primary,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.xs,
   },
   sendIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.brand.default,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.xs,
   },
 });
