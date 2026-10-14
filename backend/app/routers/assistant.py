@@ -44,6 +44,7 @@ from app.assistant.pending import (
     format_pending_summary,
     format_delete_confirmation_question,
 )
+from app.assistant.sanitizer import sanitize_plan
 from app.assistant.executors.add import execute_add
 from app.assistant.executors.edit import execute_edit
 from app.assistant.executors.query import execute_query
@@ -178,7 +179,8 @@ def handle_assistant_message(
                 planner = AssistantPlanner()
                 plan = planner.plan(body.text, ctx, tracer=tracer, include_reasoning=False)
 
-        # 6. Deterministic Execution and Pending State Management
+        # 6. Sanitize descriptions and Deterministic Execution
+        plan = sanitize_plan(plan, body.text)
         with tracer.time_stage("execution"):
             ref_date = getattr(ctx, "today", None)
             last_touched_id = get_last_touched_id(db, user_id)

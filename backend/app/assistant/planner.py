@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 from app.assistant.schemas import Plan, ClarifyAction, AnswerPendingAction
 from app.assistant.context import AssistantContext
+from app.assistant.sanitizer import sanitize_plan
 from app.llm.client import SarvamLLMClient, _extract_json_from_response
 from app.services.tracing import AssistantTracer
 
@@ -136,6 +137,7 @@ class AssistantPlanner:
             json_str = _extract_json_from_response(raw_output)
             data = json.loads(json_str)
             plan_obj = Plan.model_validate(data)
+            plan_obj = sanitize_plan(plan_obj, text)
             if tracer:
                 tracer.set_plan(plan_obj.model_dump())
             return plan_obj
@@ -167,6 +169,7 @@ class AssistantPlanner:
             retry_json_str = _extract_json_from_response(retry_output)
             retry_data = json.loads(retry_json_str)
             plan_obj = Plan.model_validate(retry_data)
+            plan_obj = sanitize_plan(plan_obj, text)
             if tracer:
                 tracer.set_plan(plan_obj.model_dump())
             return plan_obj
