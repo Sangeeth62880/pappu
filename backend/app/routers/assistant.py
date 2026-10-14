@@ -102,6 +102,22 @@ def answer_pending_endpoint(
             detail="Pending confirmation not found",
         )
 
+    # Backend is single writer: persist user answer and assistant response
+    user_msg = ChatMessage(
+        user_id=user_id,
+        role="user",
+        text=body.answer,
+        payload=json.dumps({"input": "tap", "pending_id": str(pending_id)}),
+    )
+    asst_msg = ChatMessage(
+        user_id=user_id,
+        role="assistant",
+        text=response.reply_text,
+        payload=json.dumps(response.model_dump()),
+    )
+    db.add_all([user_msg, asst_msg])
+    db.commit()
+
     return response
 
 
@@ -160,7 +176,7 @@ def handle_assistant_message(
 
         # 3. Context Loading (in parallel)
         with tracer.time_stage("context_loading"):
-            ctx = load_assistant_context(user_id, db=db)
+            ctx = load_assistant_context(user_id, db=db, current_message_text=body.text)
             tracer.context_json = ctx.to_dict_for_prompt()
 
         # 4. Fast Path check

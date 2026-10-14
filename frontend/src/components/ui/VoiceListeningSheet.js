@@ -17,7 +17,6 @@ import Button from './Button';
 import { colors, radius, shadows, spacing } from '../../theme/tokens';
 import {
   synthesizeSpeech,
-  saveChatMessage,
   sendAssistantMessage,
   answerPending,
 } from '../../api/client';
@@ -104,13 +103,6 @@ export default function VoiceListeningSheet({
       ]);
     }
 
-    if (typeof saveChatMessage === 'function') {
-      try {
-        const p = saveChatMessage(token, { role: 'user', text: query, payload: { client_msg_id: clientMsgId } });
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-      } catch (e) {}
-    }
-
     try {
       const res = await sendAssistantMessage(token, {
         text: query,
@@ -149,21 +141,6 @@ export default function VoiceListeningSheet({
             timestamp: nowTime,
           },
         ]);
-      }
-
-      if (typeof saveChatMessage === 'function') {
-        try {
-          const p = saveChatMessage(token, {
-            role: 'assistant',
-            text: reply,
-            payload: {
-              spoken_text: res.spoken_text,
-              results: res.results || [],
-              pending: res.pending || null,
-            },
-          });
-          if (p && typeof p.catch === 'function') p.catch(() => {});
-        } catch (e) {}
       }
 
       // TTS speaks spoken_text only
@@ -208,21 +185,7 @@ export default function VoiceListeningSheet({
         ]);
       }
 
-      if (typeof saveChatMessage === 'function') {
-        try {
-          const p = saveChatMessage(token, {
-            role: 'assistant',
-            text: reply,
-            payload: {
-              spoken_text: res.spoken_text,
-              results: res.results || [],
-              pending: res.pending || null,
-            },
-          });
-          if (p && typeof p.catch === 'function') p.catch(() => {});
-        } catch (e) {}
-      }
-
+      // TTS speaks spoken_text only
       if (res.spoken_text) {
         speak(res.spoken_text, 'en');
       }

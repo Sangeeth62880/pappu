@@ -111,16 +111,12 @@ describe('Persistent Chat History', () => {
     expect(await findByText('Added Food transaction for ₹120.')).toBeTruthy();
 
     await waitFor(() => {
-      // User message persisted
-      expect(client.saveChatMessage).toHaveBeenCalledWith(
+      // Backend is single writer: frontend does not call saveChatMessage for assistant flow
+      expect(client.sendAssistantMessage).toHaveBeenCalledWith(
         mockToken,
-        expect.objectContaining({ role: 'user', text: 'Tea and snacks 120' })
+        expect.objectContaining({ text: 'Tea and snacks 120' })
       );
-      // Assistant response persisted
-      expect(client.saveChatMessage).toHaveBeenCalledWith(
-        mockToken,
-        expect.objectContaining({ role: 'assistant', text: 'Added Food transaction for ₹120.' })
-      );
+      expect(client.saveChatMessage).not.toHaveBeenCalled();
     });
   });
 

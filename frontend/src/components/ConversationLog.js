@@ -14,7 +14,6 @@ import {
   synthesizeSpeech,
   undoTransaction,
   fetchChatHistory,
-  saveChatMessage,
   clearChatHistory,
   sendAssistantMessage,
   answerPending,
@@ -168,16 +167,6 @@ export default function ConversationLog({
     }
   }, [messages, loading]);
 
-  const persistMessage = (role, text, payload = null) => {
-    if (!token || typeof saveChatMessage !== 'function') return;
-    try {
-      const p = saveChatMessage(token, { role, text, payload });
-      if (p && typeof p.catch === 'function') {
-        p.catch(() => {});
-      }
-    } catch (e) {}
-  };
-
   const speakResponse = async (text, language = 'en') => {
     if (!token || !text) return null;
     try {
@@ -215,7 +204,6 @@ export default function ConversationLog({
       timestamp: nowTime,
     };
     setMessages((prev) => [...prev, userMsg]);
-    persistMessage('user', text, { client_msg_id: clientMsgId });
 
     if (!token) {
       setMessages((prev) => [
@@ -261,12 +249,6 @@ export default function ConversationLog({
       };
 
       setMessages((prev) => [...prev, pappuMsg]);
-
-      persistMessage('assistant', replyText, {
-        spoken_text: spokenText,
-        results: res.results || [],
-        pending: res.pending || null,
-      });
 
       if (spokenText) {
         const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';
@@ -328,12 +310,6 @@ export default function ConversationLog({
       };
 
       setMessages((prev) => [...prev, pappuMsg]);
-
-      persistMessage('assistant', replyText, {
-        spoken_text: spokenText,
-        results: res.results || [],
-        pending: res.pending || null,
-      });
 
       if (spokenText) {
         const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';

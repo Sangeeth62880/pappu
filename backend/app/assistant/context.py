@@ -146,10 +146,12 @@ def load_assistant_context(
     user_id: uuid.UUID,
     db: Optional[Session] = None,
     session_factory: Optional[Callable[[], Session]] = None,
+    current_message_text: Optional[str] = None,
 ) -> AssistantContext:
     """
     Loads assistant context in parallel using threads.
     Guarantees user isolation by filtering every query by user_id.
+    Excludes the current message from last_3_chat_turns.
     """
     ist_now = get_current_ist_datetime()
     today_str = ist_now.date().isoformat()
@@ -182,18 +184,32 @@ def load_assistant_context(
 
     def fetch_chat_turns() -> List[ChatTurnContextItem]:
         with session_factory() as s:
+            query = s.query(ChatMessage).filter(ChatMessage.user_id == user_id)
+            if current_message_text:
+                norm_curr = current_message_text.strip().lower()
+                # Exclude any user message matching the current message
+                query = query.filter(
+                    ~((ChatMessage.role == "user") & (ChatMessage.text == current_message_text))
+                )
             rows = (
-                s.query(ChatMessage)
-                .filter(ChatMessage.user_id == user_id)
-                .order_by(ChatMessage.created_at.desc())
-                .limit(6)
+                query.order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+                .limit(10)
                 .all()
             )
             chronological = list(reversed(rows))
-            return [
-                ChatTurnContextItem(role=msg.role, text=msg.text)
-                for msg in chronological
-            ]
+            # Deduplicate consecutive identical messages
+            deduped: List[ChatTurnContextItem] = []
+            for msg in chronological:
+                if (
+                    current_message_text
+                    and msg.role == "user"
+                    and (msg.text or "").strip().lower() == current_message_text.strip().lower()
+                ):
+                    continue
+                if deduped and deduped[-1].role == msg.role and (deduped[-1].text or "").strip() == (msg.text or "").strip():
+                    continue
+                deduped.append(ChatTurnContextItem(role=msg.role, text=msg.text))
+            return deduped[-6:]
 
     def fetch_last_touched() -> Optional[LastTouchedContextItem]:
         with session_factory() as s:
