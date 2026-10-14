@@ -24,44 +24,65 @@ from app.assistant.validation import (
 from app.assistant.executors.base import ActionResult, serialize_transaction
 
 
+from app.assistant.contacts import resolve_contact, create_contact
+
+
 def execute_add(
     db: Session,
     user_id: uuid.UUID,
     op: AddOp,
     batch_id: uuid.UUID,
+    confirmed: bool = False,
 ) -> ActionResult:
     """
     Executes an Add operation for user_id and logs UndoAction with batch_id.
+    If date is in the future and confirmed is False, returns needs_confirmation.
+    If contact matches fuzzily and confirmed is False, returns needs_confirmation for contact_confirm.
     """
     try:
         amount = validate_amount(op.amount)
         parsed_date, needs_confirmation = validate_and_parse_date(op.date)
+
+        if needs_confirmation and not confirmed:
+            return ActionResult(
+                ok=False,
+                action="add",
+                needs_confirmation=True,
+                candidates=[{
+                    "amount": float(amount),
+                    "kind": op.kind,
+                    "category": op.category or ("People" if op.kind == "person" else None),
+                    "date": parsed_date.isoformat(),
+                    "contact": op.contact,
+                    "description": op.description,
+                }],
+            )
 
         contact: Optional[Contact] = None
         if op.kind == "person":
             contact_name = validate_person_contact(op.contact)
             txn_type = direction_to_type(op.direction)
 
-            # Match or create contact
-            clean_name = contact_name.strip()
-            user_contacts = db.query(Contact).filter(Contact.user_id == user_id).all()
-            for c in user_contacts:
-                if c.name.strip().lower() == clean_name.lower():
-                    contact = c
-                    break
-                elif c.aliases and any(str(a).strip().lower() == clean_name.lower() for a in c.aliases):
-                    contact = c
-                    break
-
-            if not contact:
-                contact = Contact(
-                    id=uuid.uuid4(),
-                    user_id=user_id,
-                    name=clean_name,
-                    aliases=[],
+            res = resolve_contact(db, user_id, contact_name)
+            if res.status == "fuzzy" and not confirmed:
+                return ActionResult(
+                    ok=False,
+                    action="add",
+                    needs_confirmation=True,
+                    status="contact_confirm",
+                    candidates=[{
+                        "candidate_id": str(res.candidate.id),
+                        "candidate_name": res.candidate.name,
+                        "spoken_name": res.spoken_name,
+                        "similarity": res.similarity,
+                    }],
                 )
-                db.add(contact)
-                db.flush()
+            elif res.status == "exact":
+                contact = res.contact
+            elif res.status == "fuzzy" and confirmed:
+                contact = res.candidate
+            else:
+                contact = create_contact(db, user_id, res.spoken_name)
 
             category = resolve_category(db, "People", default_type=txn_type)
 
@@ -70,25 +91,26 @@ def execute_add(
             category = resolve_category(db, op.category, default_type=txn_type)
 
             if op.contact:
-                clean_name = op.contact.strip()
-                user_contacts = db.query(Contact).filter(Contact.user_id == user_id).all()
-                for c in user_contacts:
-                    if c.name.strip().lower() == clean_name.lower():
-                        contact = c
-                        break
-                    elif c.aliases and any(str(a).strip().lower() == clean_name.lower() for a in c.aliases):
-                        contact = c
-                        break
-
-                if not contact:
-                    contact = Contact(
-                        id=uuid.uuid4(),
-                        user_id=user_id,
-                        name=clean_name,
-                        aliases=[],
+                res = resolve_contact(db, user_id, op.contact)
+                if res.status == "fuzzy" and not confirmed:
+                    return ActionResult(
+                        ok=False,
+                        action="add",
+                        needs_confirmation=True,
+                        status="contact_confirm",
+                        candidates=[{
+                            "candidate_id": str(res.candidate.id),
+                            "candidate_name": res.candidate.name,
+                            "spoken_name": res.spoken_name,
+                            "similarity": res.similarity,
+                        }],
                     )
-                    db.add(contact)
-                    db.flush()
+                elif res.status == "exact":
+                    contact = res.contact
+                elif res.status == "fuzzy" and confirmed:
+                    contact = res.candidate
+                else:
+                    contact = create_contact(db, user_id, res.spoken_name)
         else:
             return ActionResult(
                 ok=False,

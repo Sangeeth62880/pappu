@@ -174,3 +174,34 @@ AnswerPendingOp = AnswerPendingAction
 ClarifyOp = ClarifyAction
 ChatOp = ChatAction
 OpType = Action
+
+
+class PendingAnswerRequest(BaseModel):
+    """
+    Request body for POST /assistant/pending/{id}/answer.
+    """
+    answer: Literal["yes", "no", "pick", "cancel"]
+    index: Optional[int] = None
+
+
+class PendingSummary(BaseModel):
+    """
+    Client-facing summary of an active pending item awaiting user resolution.
+    """
+    id: str
+    kind: Literal["confirm", "disambiguate", "contact_confirm", "future_date"]
+    question: str
+    candidates: Optional[List[Dict[str, Any]]] = None
+    expires_at: Optional[str] = None
+
+
+class AssistantResponse(BaseModel):
+    """
+    Unified response shape returned by assistant endpoints.
+    """
+    reply_text: str
+    spoken_text: str
+    language: str = "en"
+    results: List[Dict[str, Any]] = Field(default_factory=list)
+    pending: Optional[PendingSummary] = None
+    changed: bool = False

@@ -218,15 +218,8 @@ def load_assistant_context(
 
     def fetch_pending() -> Optional[PendingItemContextItem]:
         with session_factory() as s:
-            row = (
-                s.query(PendingAction)
-                .filter(
-                    PendingAction.user_id == user_id,
-                    PendingAction.status == "pending",
-                )
-                .order_by(PendingAction.created_at.desc())
-                .first()
-            )
+            from app.assistant.pending import get_active_pending
+            row = get_active_pending(s, user_id)
             if not row:
                 return None
             return PendingItemContextItem(

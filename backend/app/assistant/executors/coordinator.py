@@ -23,6 +23,7 @@ def execute_ops(
     user_id: uuid.UUID,
     ops: List[OpType],
     last_touched_id: Optional[uuid.UUID] = None,
+    confirmed: bool = False,
     confirmed_deletes: bool = False,
     batch_id: Optional[uuid.UUID] = None,
 ) -> List[ActionResult]:
@@ -33,12 +34,13 @@ def execute_ops(
     if batch_id is None:
         batch_id = uuid.uuid4()
 
+    is_confirmed_delete = confirmed or confirmed_deletes
     results: List[ActionResult] = []
 
     for op in ops:
         try:
             if isinstance(op, AddOp) or getattr(op, "op", None) == "add":
-                res = execute_add(db, user_id, op, batch_id)
+                res = execute_add(db, user_id, op, batch_id, confirmed=confirmed)
             elif isinstance(op, EditOp) or getattr(op, "op", None) == "edit":
                 res = execute_edit(db, user_id, op, batch_id, last_touched_id)
             elif isinstance(op, DeleteOp) or getattr(op, "op", None) == "delete":
@@ -48,7 +50,7 @@ def execute_ops(
                     op,
                     batch_id,
                     last_touched_id,
-                    confirmed=confirmed_deletes,
+                    confirmed=is_confirmed_delete,
                 )
             elif isinstance(op, QueryOp) or getattr(op, "op", None) == "query":
                 res = execute_query(db, user_id, op, last_touched_id)

@@ -19,6 +19,19 @@ class ActionResult:
     filters_used: Optional[Dict[str, Any]] = None
     candidates: Optional[List[Dict[str, Any]]] = None
 
+    def model_dump(self) -> Dict[str, Any]:
+        return {
+            "ok": self.ok,
+            "action": self.action,
+            "transaction_id": self.transaction_id,
+            "data": self.data,
+            "error": self.error,
+            "status": self.status,
+            "needs_confirmation": self.needs_confirmation,
+            "filters_used": self.filters_used,
+            "candidates": self.candidates,
+        }
+
 
 def serialize_transaction(txn: Transaction) -> Dict[str, Any]:
     return {
