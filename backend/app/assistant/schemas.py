@@ -96,9 +96,10 @@ class DeleteAction(BaseModel):
 
 class QueryAction(BaseModel):
     op: Literal["query"] = "query"
-    query_kind: Literal["balances", "sum", "list", "count", "biggest", "compare"]
+    query_kind: Literal["balances", "sum", "list", "count", "biggest", "compare", "category_breakdown"]
     selector: Selector = Field(default_factory=Selector)
     compare_to: Optional[Selector] = None
+    balance_side: Optional[Literal["owed_to_me", "i_owe", "all"]] = None
 
 
 class UndoActionOp(BaseModel):

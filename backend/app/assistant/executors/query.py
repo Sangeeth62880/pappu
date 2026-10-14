@@ -13,7 +13,7 @@ Supports:
 import uuid
 from decimal import Decimal
 from datetime import date
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any, List
 from sqlalchemy.orm import Session
 
 from app.assistant.schemas import QueryOp, Selector
@@ -37,16 +37,55 @@ def execute_query(
         kind = op.query_kind
 
         if kind == "balances":
+            # The balances executor must ignore a stray direction field.
             contact_needle = op.selector.contact if op.selector else None
             res_balances = balances(db, user_id, contact=contact_needle)
+
+            # Filter by balance_side: "owed_to_me", "i_owe", "all"
+            side = getattr(op, "balance_side", None) or "all"
+            if side == "owed_to_me":
+                res_balances = [b for b in res_balances if b.net_balance > Decimal("0.00")]
+            elif side == "i_owe":
+                res_balances = [b for b in res_balances if b.net_balance < Decimal("0.00")]
+            elif side == "all":
+                res_balances = [b for b in res_balances if b.net_balance != Decimal("0.00")]
+
             return ActionResult(
                 ok=True,
                 action="query",
                 status="balances",
                 data={
                     "balances": [item.model_dump() for item in res_balances],
+                    "balance_side": side,
                     "count": len(res_balances),
                 },
+            )
+
+        elif kind == "category_breakdown":
+            res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
+            allow_people = should_allow_people(op.selector)
+            rows = [r for r in res.rows if is_spending_txn(r, allow_people=allow_people)]
+
+            groups: Dict[str, Decimal] = {}
+            for r in rows:
+                cat_name = r.category.name if r.category else "Other"
+                groups[cat_name] = groups.get(cat_name, Decimal("0.00")) + Decimal(str(r.amount))
+
+            sorted_cats = [
+                {"category": k, "total": float(v)}
+                for k, v in sorted(groups.items(), key=lambda item: item[1], reverse=True)
+            ]
+
+            return ActionResult(
+                ok=True,
+                action="query",
+                status="category_breakdown",
+                data={
+                    "categories": sorted_cats,
+                    "count": len(sorted_cats),
+                    "filters_used": res.filters_used,
+                },
+                filters_used=res.filters_used,
             )
 
         elif kind == "sum":

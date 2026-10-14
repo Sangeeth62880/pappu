@@ -185,11 +185,28 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
     if q_kind == "balances":
         per_contact = data.get("balances") or data.get("per_contact") or []
         if not per_contact:
-            empty_msg = "Nobody owes you anything right now."
-            if lang == "ml":
-                empty_msg = "ഇപ്പോൾ ആരും നിങ്ങൾക്ക് പണം തരാനില്ല."
-            elif lang == "mixed":
-                empty_msg = "Aarum ningalkku paisa tharaanilla."
+            side = data.get("balance_side") or "all"
+            if side == "owed_to_me":
+                if lang == "ml":
+                    empty_msg = "ഇപ്പോൾ ആരും നിങ്ങൾക്ക് പണം തരാനില്ല."
+                elif lang == "mixed":
+                    empty_msg = "Aarum ningalkku paisa tharaanilla."
+                else:
+                    empty_msg = "Nobody owes you anything right now."
+            elif side == "i_owe":
+                if lang == "ml":
+                    empty_msg = "നിങ്ങൾ ആർക്കും പണം കൊടുക്കാനില്ല."
+                elif lang == "mixed":
+                    empty_msg = "Ningal aarkkum paisa kodukkaanilla."
+                else:
+                    empty_msg = "You do not owe anyone anything right now."
+            else:
+                if lang == "ml":
+                    empty_msg = "ബാക്കി ഇടപാടുകൾ ഒന്നുമില്ല."
+                elif lang == "mixed":
+                    empty_msg = "Baakki idapaadukal onnumilla."
+                else:
+                    empty_msg = "No outstanding balances right now."
             return empty_msg, empty_msg
 
         sentences = []
@@ -205,6 +222,23 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
 
         full_text = " ".join(sentences)
         return full_text, full_text
+
+    elif q_kind == "category_breakdown":
+        cats = data.get("categories") or []
+        filters = data.get("filters_used") or {}
+        range_str = format_range_from_dates(
+            filters.get("resolved_date_from") or filters.get("date_from"),
+            filters.get("resolved_date_to") or filters.get("date_to"),
+        )
+        if not cats:
+            msg = f"No spending found{range_str}."
+            return msg, msg
+
+        items = [f"{c['category']} {format_inr(c['total'])}" for c in cats]
+        full_reply = f"Spending by category{range_str}: " + ", ".join(items) + "."
+        top3 = items[:3]
+        spoken_reply = f"Top spending{range_str}: " + ", ".join(top3) + "."
+        return full_reply, spoken_reply
 
     elif q_kind == "sum":
         total_val = data.get("sum", data.get("total", 0))

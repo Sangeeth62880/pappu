@@ -50,9 +50,10 @@ Each Action object in "ops" must have "op" set to one of the following:
    Inspects transactions or aggregates.
    Fields:
    - "op": "query"
-   - "query_kind": "balances" | "sum" | "list" | "count" | "biggest" | "compare"
+   - "query_kind": "balances" | "sum" | "list" | "count" | "biggest" | "compare" | "category_breakdown"
    - "selector": Selector object
    - "compare_to": Selector object (optional, for "compare")
+   - "balance_side": "owed_to_me" | "i_owe" | "all" (for "balances")
 
 5. Undo ("op": "undo")
    Reverts the last mutating operation.
@@ -200,10 +201,15 @@ Context: last touched transaction is Food 250
 Response:
 {"ops": [{"op": "edit", "selector": {"ref": "last_touched"}, "patch": {"amount": 300}}]}
 
-Example 13: Balances query (English)
+Example 13: Balances query owed to user (English)
 User: "Who owes me money"
 Response:
-{"ops": [{"op": "query", "query_kind": "balances", "selector": {"direction": "received"}}]}
+{"ops": [{"op": "query", "query_kind": "balances", "balance_side": "owed_to_me"}]}
+
+Example 13b: Balances query user owes (English)
+User: "Do I owe anyone"
+Response:
+{"ops": [{"op": "query", "query_kind": "balances", "balance_side": "i_owe"}]}
 
 Example 14: Contact balance query (Malayalam script)
 User: "പൂജയ്ക്ക് എത്ര രൂപ കൊടുക്കാനുണ്ട്"
@@ -229,6 +235,11 @@ Example 17b: Spending in relative week (English)
 User: "How much did I spend last week?"
 Response:
 {"ops": [{"op": "query", "query_kind": "sum", "selector": {"period": "last_week"}}]}
+
+Example 17c: Category breakdown spending (English)
+User: "Where am I spending the most?"
+Response:
+{"ops": [{"op": "query", "query_kind": "category_breakdown"}]}
 
 Example 18: Missing amount clarification (English)
 User: "Took auto to office"

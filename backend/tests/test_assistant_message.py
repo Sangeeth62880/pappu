@@ -343,11 +343,13 @@ def test_regression_query_who_owes_me(test_db_session):
     test_db_session.add_all([t_rahul, t_anu])
     test_db_session.commit()
 
+    # 1. Who owes me money with balance_side="owed_to_me" and stray direction="received"
     mock_plan = Plan(
         actions=[
             QueryAction(
                 op="query",
                 query_kind="balances",
+                balance_side="owed_to_me",
                 selector=Selector(direction="received"),
             )
         ],
@@ -364,7 +366,51 @@ def test_regression_query_who_owes_me(test_db_session):
     assert res.status_code == 200
     data = res.json()
     assert "Rahul owes you ₹2,000." in data["reply_text"]
-    assert "You owe Anu ₹400." in data["reply_text"]
+    assert "You owe Anu" not in data["reply_text"]
+
+    # 2. Do I owe anyone with balance_side="i_owe"
+    mock_plan_i_owe = Plan(
+        actions=[
+            QueryAction(
+                op="query",
+                query_kind="balances",
+                balance_side="i_owe",
+            )
+        ],
+        language="en",
+    )
+    with patch.object(AssistantPlanner, "plan", return_value=mock_plan_i_owe):
+        res_i_owe = client.post(
+            "/assistant/message",
+            json={"text": "Do I owe anyone", "input": "typed"},
+            headers=_auth_header(user_id),
+        )
+    assert res_i_owe.status_code == 200
+    data_i_owe = res_i_owe.json()
+    assert "You owe Anu ₹400." in data_i_owe["reply_text"]
+    assert "Rahul owes you" not in data_i_owe["reply_text"]
+
+    # 3. All balances with balance_side="all"
+    mock_plan_all = Plan(
+        actions=[
+            QueryAction(
+                op="query",
+                query_kind="balances",
+                balance_side="all",
+            )
+        ],
+        language="en",
+    )
+    with patch.object(AssistantPlanner, "plan", return_value=mock_plan_all):
+        res_all = client.post(
+            "/assistant/message",
+            json={"text": "Show all balances", "input": "typed"},
+            headers=_auth_header(user_id),
+        )
+    assert res_all.status_code == 200
+    data_all = res_all.json()
+    assert "Rahul owes you ₹2,000." in data_all["reply_text"]
+    assert "You owe Anu ₹400." in data_all["reply_text"]
 
 
 def test_regression_edit_change_to_300(test_db_session):
