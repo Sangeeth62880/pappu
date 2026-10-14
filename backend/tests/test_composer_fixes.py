@@ -86,8 +86,8 @@ def test_i_owe_anu_direction_and_wording(db_session):
     # Check composer reply
     plan = PlanV2(ops=[add_op])
     reply_text, spoken_text = compose_reply(plan=plan, results=[result.model_dump()], language="en")
-    assert reply_text == "Added ₹400 you owe Anu."
-    assert spoken_text == "Added ₹400 you owe Anu."
+    assert reply_text == "Noted: you owe Anu ₹400."
+    assert spoken_text == "Noted: you owe Anu ₹400."
 
 
 def test_anu_owes_me_direction_and_wording(db_session):
@@ -118,8 +118,8 @@ def test_anu_owes_me_direction_and_wording(db_session):
     # Check composer reply
     plan = PlanV2(ops=[add_op])
     reply_text, spoken_text = compose_reply(plan=plan, results=[result.model_dump()], language="en")
-    assert reply_text == "Added ₹400 Anu owes you."
-    assert spoken_text == "Added ₹400 Anu owes you."
+    assert reply_text == "Noted: Anu owes you ₹400."
+    assert spoken_text == "Noted: Anu owes you ₹400."
 
 
 def test_repayment_wording(db_session):

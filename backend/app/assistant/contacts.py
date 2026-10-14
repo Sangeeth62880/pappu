@@ -23,6 +23,42 @@ from app.services.contact_matcher import find_similar_contacts
 SIMILARITY_THRESHOLD = 0.65
 
 
+MALAYALAM_CASE_SUFFIXES: List[str] = [
+    "യോട്", "ോട്",
+    "യുടെ", "ുടെ", "ിന്റെ", "ന്റെ",
+    "യ്ക്ക്", "ക്ക്",
+    "ിനെ", "നെ",
+    "ിന്", "ന്",
+]
+
+
+def get_malayalam_name_stems(name: str) -> List[str]:
+    """
+    Generates candidate uninflected Malayalam name stems by stripping
+    common case suffixes. Handles chillu consonant letters.
+    """
+    norm = normalize_name(name)
+    if not norm:
+        return []
+
+    stems: List[str] = []
+    for s in MALAYALAM_CASE_SUFFIXES:
+        if norm.endswith(s):
+            stem = norm[:-len(s)]
+            if stem:
+                stems.append(stem)
+                if stem.endswith("ല"):
+                    stems.append(stem[:-1] + "ൽ")
+                elif stem.endswith("ണ"):
+                    stems.append(stem[:-1] + "ൺ")
+                elif stem.endswith("ന"):
+                    stems.append(stem[:-1] + "ൻ")
+                elif stem.endswith("ര"):
+                    stems.append(stem[:-1] + "ർ")
+
+    return list(dict.fromkeys(stems))
+
+
 def normalize_name(text: Optional[str]) -> str:
     """
     Normalizes a name string using Unicode NFC and strips leading or trailing whitespace.
@@ -54,8 +90,9 @@ def resolve_contact(
     """
     Resolves a contact name for user_id in strict priority order:
     1. Exact match on name or any alias (case-insensitive, Unicode normalized).
-    2. Fuzzy match at threshold (0.65). Returns candidate without auto-merging.
-    3. New contact if no exact or fuzzy match exists.
+    2. Uninflected Malayalam stem match on name or any alias.
+    3. Fuzzy match at threshold (0.65). Returns candidate without auto-merging.
+    4. New contact if no exact, stem, or fuzzy match exists.
     """
     clean_name = normalize_name(input_name)
     if not clean_name:
@@ -78,6 +115,20 @@ def resolve_contact(
             a_norm = normalize_name(str(alias))
             if a_norm.lower() == clean_lower:
                 return ContactResolution(status="exact", contact=c, spoken_name=clean_name)
+
+    # 2. Match uninflected Malayalam case stems on contact.name or contact.aliases
+    stems = get_malayalam_name_stems(clean_name)
+    for stem in stems:
+        stem_lower = stem.lower()
+        for c in user_contacts:
+            c_name = normalize_name(c.name)
+            if c_name.lower() == stem_lower:
+                return ContactResolution(status="exact", contact=c, spoken_name=clean_name)
+
+            for alias in (c.aliases or []):
+                a_norm = normalize_name(str(alias))
+                if a_norm.lower() == stem_lower:
+                    return ContactResolution(status="exact", contact=c, spoken_name=clean_name)
 
     # 2. Fuzzy match check using the existing helper and alias ratio comparison
     # First invoke find_similar_contacts from the existing service

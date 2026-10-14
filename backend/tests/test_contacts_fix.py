@@ -360,3 +360,84 @@ def test_new_latin_typed_contact_confirmation_flow(test_db_session, test_setup):
     finally:
         app.dependency_overrides.pop(get_current_user_id, None)
 
+
+def test_malayalam_inflection_resolution(test_db_session, test_setup):
+    """
+    Verify Malayalam case suffix stripping:
+    - പൂജയ്ക്ക് resolves silently to Pooja without asking confirmation or saving alias
+    - രാഹുലിന് resolves silently to രാഹുൽ without asking confirmation or saving alias
+    - An unrelated name still asks confirmation
+    """
+    user_id = test_setup["user_id"]
+    client = TestClient(app)
+    from app.auth import get_current_user_id
+    app.dependency_overrides[get_current_user_id] = lambda: user_id
+
+    # Seed Pooja with alias പൂജ, and രാഹുൽ
+    c_pooja = Contact(id=uuid.uuid4(), user_id=user_id, name="Pooja", aliases=["പൂജ"])
+    c_rahul = Contact(id=uuid.uuid4(), user_id=user_id, name="രാഹുൽ", aliases=[])
+    test_db_session.add_all([c_pooja, c_rahul])
+    test_db_session.commit()
+
+    try:
+        # 1. പൂജയ്ക്ക് 100 കൊടുത്തു resolves to Pooja silently
+        plan_pooja = Plan(
+            actions=[
+                AddAction(op="add", kind="person", direction="sent", amount=100.0, contact="പൂജയ്ക്ക്")
+            ]
+        )
+        with patch.object(AssistantPlanner, "plan", return_value=plan_pooja):
+            resp1 = client.post("/assistant/message", json={"text": "പൂജയ്ക്ക് 100 കൊടുത്തു"})
+            assert resp1.status_code == 200
+            data1 = resp1.json()
+            assert data1["pending"] is None
+            assert data1["changed"] is True
+            assert len(data1["results"]) == 1
+            txn1 = data1["results"][0]["data"]
+            assert txn1["contact_id"] == str(c_pooja.id)
+            assert txn1["contact_name"] == "Pooja"
+
+            # Verify പൂജയ്ക്ക് was NOT saved as an alias
+            test_db_session.refresh(c_pooja)
+            assert c_pooja.aliases == ["പൂജ"]
+
+        # 2. രാഹുലിന് 500 രൂപ കൊടുത്തു resolves to രാഹുൽ silently
+        plan_rahul = Plan(
+            actions=[
+                AddAction(op="add", kind="person", direction="sent", amount=500.0, contact="രാഹുലിന്")
+            ]
+        )
+        with patch.object(AssistantPlanner, "plan", return_value=plan_rahul):
+            resp2 = client.post("/assistant/message", json={"text": "രാഹുലിന് 500 രൂപ കൊടുത്തു"})
+            assert resp2.status_code == 200
+            data2 = resp2.json()
+            assert data2["pending"] is None
+            assert data2["changed"] is True
+            assert len(data2["results"]) == 1
+            txn2 = data2["results"][0]["data"]
+            assert txn2["contact_id"] == str(c_rahul.id)
+            assert txn2["contact_name"] == "രാഹുൽ"
+
+            # Verify രാഹുലിന് was NOT saved as an alias
+            test_db_session.refresh(c_rahul)
+            assert c_rahul.aliases == []
+
+        # 3. An unrelated name still asks "New contact: {name}. Add them?"
+        unrelated_name = "ഷിബുവിന്"
+        plan_unrelated = Plan(
+            actions=[
+                AddAction(op="add", kind="person", direction="sent", amount=200.0, contact=unrelated_name)
+            ]
+        )
+        with patch.object(AssistantPlanner, "plan", return_value=plan_unrelated):
+            resp3 = client.post("/assistant/message", json={"text": "ഷിബുവിന് 200 കൊടുത്തു"})
+            assert resp3.status_code == 200
+            data3 = resp3.json()
+            assert data3["pending"] is not None
+            assert data3["pending"]["kind"] == "contact_confirm"
+            assert data3["pending"]["question"] == f"New contact: {unrelated_name}. Add them?"
+            assert data3["changed"] is False
+    finally:
+        app.dependency_overrides.pop(get_current_user_id, None)
+
+

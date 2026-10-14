@@ -143,13 +143,13 @@ def _compose_single_add(res: Dict[str, Any], lang: str) -> str:
                 return f"{contact}ന് നൽകാനുള്ള {amt} ചേർത്തു."
             elif lang == "mixed":
                 return f"{contact} nu kodukkaamulla {amt} add ചെയ്തു."
-            return f"Added {amt} you owe {contact}."
+            return f"Noted: you owe {contact} {amt}."
         elif person_flow == "they_owe":
             if lang == "ml":
                 return f"{contact} നൽകാനുള്ള {amt} ചേർത്തു."
             elif lang == "mixed":
                 return f"{contact} tharaanulla {amt} add ചെയ്തു."
-            return f"Added {amt} {contact} owes you."
+            return f"Noted: {contact} owes you {amt}."
         else:
             if lang == "ml":
                 return f"{contact}ന് {amt} നൽകി എന്ന് രേഖപ്പെടുത്തി."
