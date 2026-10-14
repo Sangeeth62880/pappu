@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.contact import Contact
 from app.models.transaction import Transaction
-from app.assistant.contacts import normalize_name, merge_contacts
+from app.assistant.contacts import normalize_name, merge_contacts, add_alias_to_contact
 
 
 def inspect_contacts(db: Session, user_id: uuid.UUID):
@@ -92,7 +92,9 @@ def main():
     parser.add_argument("--inspect", action="store_true", help="Inspect contacts for user")
     parser.add_argument("--primary-id", type=str, help="Primary contact UUID to keep")
     parser.add_argument("--secondary-id", type=str, help="Secondary contact UUID to merge and delete")
-    parser.add_argument("--execute", action="store_true", help="Execute merge (modifies database)")
+    parser.add_argument("--contact-id", type=str, help="Contact UUID to add alias to")
+    parser.add_argument("--add-alias", type=str, help="Alias string to add to contact")
+    parser.add_argument("--execute", action="store_true", help="Execute merge or alias addition (modifies database)")
 
     args = parser.parse_args()
     user_id = uuid.UUID(args.user_id)
@@ -101,6 +103,25 @@ def main():
     try:
         if args.inspect:
             inspect_contacts(db, user_id)
+            return
+
+        if args.add_alias:
+            target_id_str = args.contact_id or args.primary_id
+            if not target_id_str:
+                print("Error: --contact-id or --primary-id is required when using --add-alias.")
+                sys.exit(1)
+            target_id = uuid.UUID(target_id_str)
+            contact = db.query(Contact).filter(Contact.id == target_id, Contact.user_id == user_id).first()
+            if not contact:
+                print(f"Error: Contact {target_id} not found.")
+                sys.exit(1)
+
+            if not args.execute:
+                print(f"DRY RUN: Would add alias '{args.add_alias}' to contact {contact.name} ({contact.id}). Current aliases: {contact.aliases or []}")
+            else:
+                updated = add_alias_to_contact(db, target_id, user_id, args.add_alias)
+                db.commit()
+                print(f"Successfully added alias '{args.add_alias}' to contact {updated.name} ({updated.id}). Aliases: {updated.aliases}")
             return
 
         if not args.primary_id or not args.secondary_id:
