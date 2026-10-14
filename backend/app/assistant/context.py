@@ -10,12 +10,19 @@ Loads user context in parallel:
 Returns a typed AssistantContext object and a token estimate.
 """
 
+import re
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Dict, Any, Callable
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker, joinedload
+
+UUID_REGEX = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    re.IGNORECASE,
+)
+
 
 from app.database import SessionLocal
 from app.models.contact import Contact
@@ -55,6 +62,26 @@ class PendingItemContextItem(BaseModel):
     created_at: Optional[str] = None
 
 
+def _build_id_map(
+    contacts: List[ContactContextItem],
+    last_touched: Optional[LastTouchedContextItem],
+    pending_item: Optional[PendingItemContextItem],
+) -> Dict[str, Any]:
+    id_map = {
+        "last_touched_id": str(last_touched.id) if last_touched and last_touched.id else None,
+        "pending_item_id": str(pending_item.id) if pending_item and pending_item.id else None,
+        "contacts": {c.name.lower(): str(c.id) for c in contacts if getattr(c, "id", None)},
+    }
+    if pending_item and pending_item.candidates:
+        cand_ids = []
+        for c in pending_item.candidates:
+            if isinstance(c, dict) and c.get("id"):
+                cand_ids.append(str(c.get("id")))
+        if cand_ids:
+            id_map["candidate_ids"] = cand_ids
+    return id_map
+
+
 class AssistantContext(BaseModel):
     today: str
     weekday: str
@@ -63,23 +90,101 @@ class AssistantContext(BaseModel):
     last_touched_transaction: Optional[LastTouchedContextItem] = None
     pending_item: Optional[PendingItemContextItem] = None
     token_estimate: int = 0
+    id_map: Dict[str, Any] = Field(default_factory=dict)
+
+    def get_last_touched_id(self) -> Optional[str]:
+        return self.id_map.get("last_touched_id") or (
+            self.last_touched_transaction.id if self.last_touched_transaction else None
+        )
+
+    def get_pending_item_id(self) -> Optional[str]:
+        return self.id_map.get("pending_item_id") or (
+            self.pending_item.id if self.pending_item else None
+        )
+
+    def get_contact_id(self, name: str) -> Optional[str]:
+        if not name:
+            return None
+        return self.id_map.get("contacts", {}).get(name.strip().lower())
 
     def to_dict_for_prompt(self) -> Dict[str, Any]:
+        """
+        Formats assistant context for LLM planner system prompt.
+        Strips all transaction and contact IDs and UUIDs.
+        Sends only names, amounts, categories, dates, and descriptions.
+        """
+        prompt_contacts = [
+            {"name": c.name, "aliases": c.aliases}
+            for c in self.contacts
+        ]
+
+        prompt_turns = [
+            {"role": t.role, "text": t.text}
+            for t in self.last_3_chat_turns
+        ]
+
+        prompt_lt = None
+        if self.last_touched_transaction:
+            prompt_lt = {
+                "amount": self.last_touched_transaction.amount,
+                "category": self.last_touched_transaction.category,
+                "contact": self.last_touched_transaction.contact,
+                "date": self.last_touched_transaction.date,
+                "description": self.last_touched_transaction.description,
+            }
+
+        prompt_pending = None
+        if self.pending_item:
+            prompt_pending = {
+                "kind": self.pending_item.kind,
+            }
+            if isinstance(self.pending_item.plan, dict):
+                q = self.pending_item.plan.get("question")
+                if q:
+                    prompt_pending["question"] = q
+            if self.pending_item.candidates:
+                sanitized_cands = []
+                for cand in self.pending_item.candidates:
+                    if isinstance(cand, dict):
+                        sc = {}
+                        for k in (
+                            "name",
+                            "candidate_name",
+                            "spoken_name",
+                            "amount",
+                            "category",
+                            "category_name",
+                            "contact",
+                            "contact_name",
+                            "date",
+                            "txn_date",
+                            "description",
+                        ):
+                            if k in cand and cand[k] is not None:
+                                sc[k] = cand[k]
+                        if not sc:
+                            sc = {
+                                k: v
+                                for k, v in cand.items()
+                                if not k.endswith("_id")
+                                and k not in ("id", "user_id")
+                                and not (isinstance(v, str) and UUID_REGEX.search(v))
+                            }
+                        sanitized_cands.append(sc)
+                    elif isinstance(cand, str):
+                        if not UUID_REGEX.search(cand):
+                            sanitized_cands.append(cand)
+                    else:
+                        sanitized_cands.append(cand)
+                prompt_pending["candidates"] = sanitized_cands
+
         return {
             "today": self.today,
             "weekday": self.weekday,
-            "contacts": [c.model_dump() for c in self.contacts],
-            "last_3_chat_turns": [t.model_dump() for t in self.last_3_chat_turns],
-            "last_touched_transaction": (
-                self.last_touched_transaction.model_dump()
-                if self.last_touched_transaction
-                else None
-            ),
-            "pending_item": (
-                self.pending_item.model_dump()
-                if self.pending_item
-                else None
-            ),
+            "contacts": prompt_contacts,
+            "last_3_chat_turns": prompt_turns,
+            "last_touched_transaction": prompt_lt,
+            "pending_item": prompt_pending,
         }
 
     @classmethod
@@ -124,6 +229,7 @@ class AssistantContext(BaseModel):
             if p_data
             else None
         )
+        id_map = _build_id_map(contacts, last_touched, pending)
         ctx = cls(
             today=data.get("today", "2026-10-14"),
             weekday=data.get("weekday", "Wednesday"),
@@ -131,6 +237,7 @@ class AssistantContext(BaseModel):
             last_3_chat_turns=chat_turns,
             last_touched_transaction=last_touched,
             pending_item=pending,
+            id_map=id_map,
         )
         ctx.token_estimate = _estimate_tokens(str(ctx.to_dict_for_prompt()))
         return ctx
@@ -265,6 +372,7 @@ def load_assistant_context(
             else None
         )
 
+        id_map = _build_id_map(contacts, last_touched, pending_item)
         context = AssistantContext(
             today=today_str,
             weekday=weekday_str,
@@ -272,6 +380,7 @@ def load_assistant_context(
             last_3_chat_turns=chat_turns,
             last_touched_transaction=last_touched,
             pending_item=pending_item,
+            id_map=id_map,
         )
         context.token_estimate = _estimate_tokens(str(context.to_dict_for_prompt()))
         return context
@@ -375,6 +484,7 @@ def load_assistant_context(
         last_touched = f_last_touched.result()
         pending_item = f_pending.result()
 
+    id_map = _build_id_map(contacts, last_touched, pending_item)
     context = AssistantContext(
         today=today_str,
         weekday=weekday_str,
@@ -382,6 +492,7 @@ def load_assistant_context(
         last_3_chat_turns=chat_turns,
         last_touched_transaction=last_touched,
         pending_item=pending_item,
+        id_map=id_map,
     )
 
     prompt_str = str(context.to_dict_for_prompt())

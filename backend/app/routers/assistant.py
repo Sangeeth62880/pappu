@@ -226,7 +226,14 @@ def handle_assistant_message(
 
         with tracer.time_stage("execution"):
             ref_date = getattr(ctx, "today", None)
-            last_touched_id = get_last_touched_id(db, user_id)
+            lt_id_str = ctx.get_last_touched_id() if hasattr(ctx, "get_last_touched_id") else None
+            if lt_id_str:
+                try:
+                    last_touched_id = uuid.UUID(str(lt_id_str))
+                except Exception:
+                    last_touched_id = get_last_touched_id(db, user_id)
+            else:
+                last_touched_id = get_last_touched_id(db, user_id)
             results: List[Dict[str, Any]] = []
             created_pending = None
             multi_action_pending_dropped = False
@@ -381,7 +388,24 @@ def handle_assistant_message(
                     results.append(res.model_dump())
 
                 elif op_name == "answer_pending":
-                    active_item = get_active_pending(db, user_id)
+                    active_item = None
+                    p_id_str = ctx.get_pending_item_id() if hasattr(ctx, "get_pending_item_id") else None
+                    if p_id_str:
+                        try:
+                            pid_uuid = uuid.UUID(str(p_id_str))
+                            active_item = (
+                                db.query(PendingAction)
+                                .filter(
+                                    PendingAction.id == pid_uuid,
+                                    PendingAction.user_id == user_id,
+                                    PendingAction.status == "pending",
+                                )
+                                .first()
+                            )
+                        except Exception:
+                            pass
+                    if not active_item:
+                        active_item = get_active_pending(db, user_id)
                     if active_item:
                         ans_val = str(action.value)
                         ans_res = handle_answer_pending(
