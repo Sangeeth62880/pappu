@@ -133,9 +133,9 @@ describe('HomeScreen Component', () => {
     // Verify conversation response
     expect(await findByText('Added Food transaction for ₹500.')).toBeTruthy();
 
-    // Switch back to dashboard tab to verify it was refreshed
-    const dashboardTab = await findByTestId('tab-dashboard');
-    fireEvent.press(dashboardTab);
+    // Close assistant modal to return to dashboard tab
+    const closeAssistantBtn = await findByTestId('conversation-back-button');
+    fireEvent.press(closeAssistantBtn);
 
     // Verify dashboard was re-fetched and updated live!
     await waitFor(() => {

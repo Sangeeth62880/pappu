@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,39 +6,273 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
-  BackHandler,
-  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import {
+  NavigationContainer,
+  NavigationContext,
+  useNavigation,
+  useNavigationState,
+} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
 import Dashboard from '../components/Dashboard';
 import ConversationLog from '../components/ConversationLog';
 import HistoryScreen from '../components/HistoryScreen';
 import PeopleScreen from '../components/PeopleScreen';
 import AuthScreen from './AuthScreen';
+import MeScreen from './MeScreen';
+import PersonDetailScreen from './PersonDetailScreen';
 import BottomSheet from '../components/ui/BottomSheet';
 import Toast from '../components/ui/Toast';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
 import { colors, radius, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
 import { undoTransaction, clearChatHistory } from '../api/client';
 
+const RootStack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
 const TABS = [
-  { key: 'dashboard', label: 'Home', icon: 'account-balance-wallet' },
-  { key: 'assistant', label: 'Assistant', icon: 'mic' },
-  { key: 'history',   label: 'History',   icon: 'receipt-long' },
-  { key: 'people',    label: 'People',    icon: 'group' },
+  { key: 'Home',    testID: 'tab-dashboard', label: 'Home',      icon: 'account-balance-wallet' },
+  { key: 'Assistant', testID: 'tab-assistant', label: 'Assistant', icon: 'mic' },
+  { key: 'History', testID: 'tab-history',   label: 'History',   icon: 'receipt-long' },
+  { key: 'People',  testID: 'tab-people',    label: 'People',    icon: 'group' },
+  { key: 'Me',      testID: 'tab-me',        label: 'Me',        icon: 'person' },
 ];
 
-export default function HomeScreen({ initialToken = null, initialSession = null }) {
+function CustomTabBar({ state, navigation, rootNavigation }) {
+  const currentTabName = state.routes[state.index]?.name;
+
+  return (
+    <View style={styles.floatingNavContainer} pointerEvents="box-none">
+      <View style={styles.navGlassCard}>
+        <View style={styles.navRow}>
+          {TABS.map((tab) => {
+            const isActive = currentTabName === tab.key;
+            const iconColor = isActive ? colors.brand.default : colors.text.tertiary;
+
+            const handlePress = () => {
+              if (tab.key === 'Assistant') {
+                if (rootNavigation) {
+                  rootNavigation.navigate('Assistant');
+                } else {
+                  navigation.navigate('Assistant');
+                }
+              } else {
+                navigation.navigate(tab.key);
+              }
+            };
+
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                testID={tab.testID}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                accessibilityLabel={tab.label}
+                onPress={handlePress}
+                style={styles.navItem}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.indicatorPill,
+                    isActive && styles.indicatorPillActive,
+                  ]}
+                >
+                  <MaterialIcons
+                    name={tab.icon}
+                    size={20}
+                    color={iconColor}
+                    style={styles.navIcon}
+                  />
+                  <Text
+                    style={[
+                      styles.navLabel,
+                      isActive ? styles.navLabelActive : styles.navLabelInactive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {tab.label}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function MainTabNavigator({
+  token,
+  userEmail,
+  refreshTrigger,
+  handleUndo,
+  showToast,
+  handleTransactionMutated,
+  historyFilter,
+  setHistoryFilter,
+  selectedPersonId,
+  setSelectedPersonId,
+  handleClearChatHistory,
+  handleSignOut,
+  setProfileSheetVisible,
+  setVoiceSheetVisible,
+  rootNavigation,
+}) {
+  const [currentTab, setCurrentTab] = useState('Home');
+
+  return (
+    <SafeAreaView testID="home-screen" style={styles.screen}>
+      <StatusBar style="dark" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.brandIconBadge}>
+            <MaterialIcons name="account-balance-wallet" size={18} color="#FFFFFF" />
+          </View>
+          <View style={styles.headerTitleBox}>
+            <Text style={styles.headerKicker}>Pappu</Text>
+            <Text style={styles.wordmark}>{currentTab}</Text>
+          </View>
+        </View>
+
+        <View style={styles.headerRight}>
+          <View style={styles.langPill}>
+            <MaterialIcons name="translate" size={13} color={colors.text.tertiary} style={{ marginRight: 4 }} />
+            <Text style={styles.langPillText}>EN / മലയാളം</Text>
+          </View>
+
+          <TouchableOpacity
+            testID="header-mic-button"
+            onPress={() => setVoiceSheetVisible(true)}
+            style={styles.headerMicBtn}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Quick voice input"
+          >
+            <MaterialIcons name="mic" size={20} color={colors.brand.default} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            testID="profile-avatar-button"
+            onPress={() => setProfileSheetVisible(true)}
+            style={styles.avatarButton}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          >
+            <Avatar name={userEmail} size={36} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Tab Navigator */}
+      <View style={styles.tabContentContainer}>
+        <Tab.Navigator
+          tabBar={(tabProps) => (
+            <CustomTabBar
+              {...tabProps}
+              rootNavigation={rootNavigation}
+            />
+          )}
+          screenOptions={{ headerShown: false }}
+          backBehavior="firstRoute"
+          screenListeners={{
+            state: (e) => {
+              const route = e.data?.state?.routes[e.data?.state?.index];
+              if (route?.name) setCurrentTab(route.name);
+            },
+          }}
+        >
+          <Tab.Screen name="Home">
+            {(props) => (
+              <Dashboard
+                {...props}
+                token={token}
+                refreshTrigger={refreshTrigger}
+                onUndo={handleUndo}
+                onShowToast={showToast}
+                onTransactionMutated={handleTransactionMutated}
+                onNavigateToHistory={(filter) => {
+                  setHistoryFilter(filter);
+                  props.navigation.navigate('History');
+                }}
+                onNavigateToPeople={(personId) => {
+                  setSelectedPersonId(personId);
+                  props.navigation.navigate('People');
+                }}
+              />
+            )}
+          </Tab.Screen>
+
+          <Tab.Screen name="History">
+            {(props) => (
+              <HistoryScreen
+                {...props}
+                token={token}
+                refreshTrigger={refreshTrigger}
+                initialFilter={historyFilter}
+                onShowToast={showToast}
+                onTransactionMutated={handleTransactionMutated}
+                onBack={() => {
+                  setHistoryFilter(null);
+                  props.navigation.navigate('Home');
+                }}
+              />
+            )}
+          </Tab.Screen>
+
+          <Tab.Screen name="People">
+            {(props) => (
+              <PeopleScreen
+                {...props}
+                token={token}
+                refreshTrigger={refreshTrigger}
+                initialContactId={selectedPersonId}
+                onShowToast={showToast}
+                onTransactionMutated={handleTransactionMutated}
+                onSelectPerson={(personId) => {
+                  rootNavigation.navigate('PersonDetail', { contactId: personId });
+                }}
+                onBack={() => {
+                  setSelectedPersonId(null);
+                  props.navigation.navigate('Home');
+                }}
+              />
+            )}
+          </Tab.Screen>
+
+          <Tab.Screen name="Me">
+            {(props) => (
+              <MeScreen
+                {...props}
+                userEmail={userEmail}
+                onClearChatHistory={handleClearChatHistory}
+                onSignOut={handleSignOut}
+              />
+            )}
+          </Tab.Screen>
+        </Tab.Navigator>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function InnerHomeScreen({ initialToken = null, initialSession = null }) {
   const [session, setSession] = useState(initialSession);
   const [token, setToken] = useState(initialToken || initialSession?.access_token || null);
   const [authChecking, setAuthChecking] = useState(!initialToken && !initialSession);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [profileSheetVisible, setProfileSheetVisible] = useState(false);
   const [voiceSheetVisible, setVoiceSheetVisible] = useState(false);
   const [historyFilter, setHistoryFilter] = useState(null);
@@ -121,65 +355,9 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     };
   }, [initialToken, initialSession]);
 
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-
-  // ── Keyboard Visibility Listener (hides floating nav bar when typing) ──
-  useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
-    );
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-
-  // ── Android Hardware Back Button Navigation Handler ──
-  useEffect(() => {
-    const onBackPress = () => {
-      // 1. Close voice sheet if open
-      if (voiceSheetVisible) {
-        setVoiceSheetVisible(false);
-        return true;
-      }
-      // 2. Close profile sheet if open
-      if (profileSheetVisible) {
-        setProfileSheetVisible(false);
-        return true;
-      }
-      // 3. Return from Contact Detail to People list
-      if (activeTab === 'people' && selectedPersonId) {
-        setSelectedPersonId(null);
-        return true;
-      }
-      // 4. Return from filtered History to Dashboard
-      if (activeTab === 'history' && historyFilter) {
-        setHistoryFilter(null);
-        setActiveTab('dashboard');
-        return true;
-      }
-      // 5. Return from any non-root tab to Dashboard
-      if (activeTab !== 'dashboard') {
-        setActiveTab('dashboard');
-        return true;
-      }
-      // 6. At root dashboard: allow system default (exit app)
-      return false;
-    };
-
-    const backSubscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => backSubscription.remove();
-  }, [voiceSheetVisible, profileSheetVisible, activeTab, selectedPersonId, historyFilter]);
-
   const handleAuthenticated = (newSession) => {
     setSession(newSession);
     setToken(newSession?.access_token || null);
-    setActiveTab('dashboard');
     setHistoryFilter(null);
     setSelectedPersonId(null);
     setProfileSheetVisible(false);
@@ -191,7 +369,6 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
       await signOut();
       setSession(null);
       setToken(null);
-      setActiveTab('dashboard');
       setHistoryFilter(null);
       setSelectedPersonId(null);
     } catch (err) {}
@@ -212,16 +389,6 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     }
   };
 
-  const handleNavigateToHistory = (filter = null) => {
-    setHistoryFilter(filter);
-    setActiveTab('history');
-  };
-
-  const handleNavigateToPeople = (personId = null) => {
-    setSelectedPersonId(personId);
-    setActiveTab('people');
-  };
-
   if (authChecking) {
     return (
       <SafeAreaView testID="auth-loading-screen" style={styles.loadingContainer}>
@@ -231,197 +398,80 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     );
   }
 
-  if (!token) {
-    return <AuthScreen onAuthenticated={handleAuthenticated} />;
-  }
-
   const userEmail = session?.user?.email || 'Logged In';
-  const userInitial = userEmail ? userEmail[0].toUpperCase() : 'P';
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <Dashboard
-            token={token}
-            refreshTrigger={refreshTrigger}
-            onUndo={handleUndo}
-            onShowToast={showToast}
-            onTransactionMutated={handleTransactionMutated}
-            onNavigateToHistory={handleNavigateToHistory}
-            onNavigateToPeople={handleNavigateToPeople}
-          />
-        );
-      case 'assistant':
-        return (
-          <ConversationLog
-            token={token}
-            onTransactionMutated={handleTransactionMutated}
-            messages={conversationMessages}
-            setMessages={handleUpdateMessages}
-            onClearMessages={handleClearMessages}
-            onBack={() => setActiveTab('dashboard')}
-          />
-        );
-      case 'history':
-        return (
-          <HistoryScreen
-            token={token}
-            refreshTrigger={refreshTrigger}
-            initialFilter={historyFilter}
-            onShowToast={showToast}
-            onTransactionMutated={handleTransactionMutated}
-            onBack={() => {
-              setHistoryFilter(null);
-              setActiveTab('dashboard');
-            }}
-          />
-        );
-      case 'people':
-        return (
-          <PeopleScreen
-            token={token}
-            refreshTrigger={refreshTrigger}
-            initialContactId={selectedPersonId}
-            onShowToast={showToast}
-            onTransactionMutated={handleTransactionMutated}
-            onBack={() => {
-              setSelectedPersonId(null);
-              setActiveTab('dashboard');
-            }}
-          />
-        );
-      default:
-        return null;
-    }
-  };
 
   return (
-    <SafeAreaView testID="home-screen" style={styles.screen}>
-      <StatusBar style="dark" />
+    <View style={styles.container}>
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        {!token ? (
+          <RootStack.Screen name="Auth">
+            {(props) => <AuthScreen {...props} onAuthenticated={handleAuthenticated} />}
+          </RootStack.Screen>
+        ) : (
+          <>
+            <RootStack.Screen name="Main">
+              {(props) => (
+                <MainTabNavigator
+                  {...props}
+                  token={token}
+                  userEmail={userEmail}
+                  refreshTrigger={refreshTrigger}
+                  handleUndo={handleUndo}
+                  showToast={showToast}
+                  handleTransactionMutated={handleTransactionMutated}
+                  historyFilter={historyFilter}
+                  setHistoryFilter={setHistoryFilter}
+                  selectedPersonId={selectedPersonId}
+                  setSelectedPersonId={setSelectedPersonId}
+                  handleClearChatHistory={handleClearChatHistory}
+                  handleSignOut={handleSignOut}
+                  setProfileSheetVisible={setProfileSheetVisible}
+                  setVoiceSheetVisible={setVoiceSheetVisible}
+                  rootNavigation={props.navigation}
+                />
+              )}
+            </RootStack.Screen>
 
-      {/* ── 1. Header with Brand Badge, Wordmark & Language Pill (Stitch) ── */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.brandIconBadge}>
-            <MaterialIcons
-              name={
-                activeTab === 'dashboard'
-                  ? 'account-balance-wallet'
-                  : activeTab === 'assistant'
-                  ? 'mic'
-                  : activeTab === 'history'
-                  ? 'receipt-long'
-                  : 'group'
-              }
-              size={18}
-              color="#FFFFFF"
-            />
-          </View>
-          <View style={styles.headerTitleBox}>
-            <Text style={styles.headerKicker}>Pappu</Text>
-            <Text style={styles.wordmark}>
-              {activeTab === 'dashboard'
-                ? 'Home'
-                : activeTab === 'assistant'
-                ? 'Assistant'
-                : activeTab === 'history'
-                ? 'History'
-                : 'People'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.headerRight}>
-          <View style={styles.langPill}>
-            <MaterialIcons name="translate" size={13} color={colors.text.tertiary} style={{ marginRight: 4 }} />
-            <Text style={styles.langPillText}>EN / മലയാളം</Text>
-          </View>
-
-          {activeTab !== 'assistant' && (
-            <TouchableOpacity
-              testID="header-mic-button"
-              onPress={() => setVoiceSheetVisible(true)}
-              style={styles.headerMicBtn}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Quick voice input"
+            <RootStack.Screen
+              name="Assistant"
+              options={{
+                presentation: 'modal',
+                headerShown: false,
+              }}
             >
-              <MaterialIcons name="mic" size={20} color={colors.brand.default} />
-            </TouchableOpacity>
-          )}
+              {(props) => (
+                <ConversationLog
+                  {...props}
+                  token={token}
+                  onTransactionMutated={handleTransactionMutated}
+                  messages={conversationMessages}
+                  setMessages={handleUpdateMessages}
+                  onClearMessages={handleClearMessages}
+                  onBack={() => props.navigation.goBack()}
+                />
+              )}
+            </RootStack.Screen>
 
-          <TouchableOpacity
-            testID="profile-avatar-button"
-            onPress={() => setProfileSheetVisible(true)}
-            style={styles.avatarButton}
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-          >
-            <Avatar name={userEmail} size={36} />
-          </TouchableOpacity>
-        </View>
-      </View>
+            <RootStack.Screen
+              name="PersonDetail"
+              options={{
+                headerShown: false,
+              }}
+            >
+              {(props) => (
+                <PersonDetailScreen
+                  {...props}
+                  token={token}
+                  onShowToast={showToast}
+                  onTransactionMutated={handleTransactionMutated}
+                />
+              )}
+            </RootStack.Screen>
+          </>
+        )}
+      </RootStack.Navigator>
 
-      {/* ── 2. Active Tab Screen Content ── */}
-      <View style={styles.tabContentContainer}>
-        {renderTabContent()}
-      </View>
-
-      {/* ── 3. Floating Frosted Bottom Navigation Bar ── */}
-      {!keyboardVisible && (
-        <View style={styles.floatingNavContainer} pointerEvents="box-none">
-          <View style={styles.navGlassCard}>
-            <View style={styles.navRow}>
-              {TABS.map((tab) => {
-                const isActive = activeTab === tab.key;
-                const iconColor = isActive ? colors.brand.default : colors.text.tertiary;
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    testID={`tab-${tab.key}`}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: isActive }}
-                    accessibilityLabel={tab.label}
-                    onPress={() => {
-                      if (tab.key !== 'history') setHistoryFilter(null);
-                      if (tab.key !== 'people') setSelectedPersonId(null);
-                      setActiveTab(tab.key);
-                    }}
-                    style={styles.navItem}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      style={[
-                        styles.indicatorPill,
-                        isActive && styles.indicatorPillActive,
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={tab.icon}
-                        size={20}
-                        color={iconColor}
-                        style={styles.navIcon}
-                      />
-                      <Text
-                        style={[
-                          styles.navLabel,
-                          isActive ? styles.navLabelActive : styles.navLabelInactive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {tab.label}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* ── 4. Profile Bottom Sheet ── */}
+      {/* Profile Bottom Sheet */}
       <BottomSheet
         visible={profileSheetVisible}
         onClose={() => setProfileSheetVisible(false)}
@@ -461,7 +511,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
         </View>
       </BottomSheet>
 
-      {/* ── 5. Notification Toast with Undo Action ── */}
+      {/* Toast */}
       <Toast
         testID="home-toast"
         visible={toastVisible}
@@ -471,7 +521,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
         onDismiss={() => setToastVisible(false)}
       />
 
-      {/* ── 6. Voice Listening Sheet from Header Mic (Accessible from Home, History, People) ── */}
+      {/* Voice Listening Sheet */}
       <VoiceListeningSheet
         visible={voiceSheetVisible}
         onClose={() => setVoiceSheetVisible(false)}
@@ -479,11 +529,27 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
         onTransactionMutated={handleTransactionMutated}
         setMessages={handleUpdateMessages}
       />
-    </SafeAreaView>
+    </View>
+  );
+}
+
+export default function HomeScreen(props) {
+  const hasParentNavigation = React.useContext(NavigationContext);
+  if (hasParentNavigation) {
+    return <InnerHomeScreen {...props} />;
+  }
+  return (
+    <NavigationContainer>
+      <InnerHomeScreen {...props} />
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.canvas,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.canvas,

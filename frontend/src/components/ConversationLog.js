@@ -61,6 +61,7 @@ export default function ConversationLog({
   setMessages: externalSetMessages = null,
   onClearMessages = null,
   assistantV2 = true,
+  onBack = null,
 }) {
   const [inputText, setInputText] = useState('');
   const textRef = useRef(inputText);
@@ -596,6 +597,17 @@ export default function ConversationLog({
       {/* ── 1. Top Assistant Context & Status Bar (stitch/assistant.html) ── */}
       <View style={styles.contextStatusBar}>
         <View style={styles.syncStatusLeft}>
+          {onBack && (
+            <TouchableOpacity
+              testID="conversation-back-button"
+              onPress={onBack}
+              style={{ marginRight: 8, padding: 4 }}
+              accessibilityLabel="Close Assistant"
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="close" size={20} color={colors.text.primary} />
+            </TouchableOpacity>
+          )}
           <View style={styles.pulsingDot} />
           <Text style={styles.syncStatusText}>Voice Sync Active</Text>
         </View>
