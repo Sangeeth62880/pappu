@@ -122,11 +122,14 @@ def execute_edit(
         db.commit()
         db.refresh(txn)
 
+        txn_data = serialize_transaction(txn)
+        txn_data["previous"] = previous_state
+
         return ActionResult(
             ok=True,
             action="edit",
             transaction_id=str(txn.id),
-            data=serialize_transaction(txn),
+            data=txn_data,
         )
 
     except Exception as e:

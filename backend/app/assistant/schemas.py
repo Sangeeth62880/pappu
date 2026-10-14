@@ -191,7 +191,7 @@ class PendingSummary(BaseModel):
     id: str
     kind: Literal["confirm", "disambiguate", "contact_confirm", "future_date"]
     question: str
-    candidates: Optional[List[Dict[str, Any]]] = None
+    candidates: Optional[List[Any]] = None
     expires_at: Optional[str] = None
 
 
@@ -205,3 +205,12 @@ class AssistantResponse(BaseModel):
     results: List[Dict[str, Any]] = Field(default_factory=list)
     pending: Optional[PendingSummary] = None
     changed: bool = False
+
+
+class AssistantMessageRequest(BaseModel):
+    """
+    Request body for POST /assistant/message.
+    """
+    text: str
+    input: Literal["typed", "voice"] = "typed"
+    client_msg_id: Optional[str] = None

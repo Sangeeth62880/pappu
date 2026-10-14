@@ -42,13 +42,23 @@ def _load_prompt_template() -> str:
     return PROMPT_FILE_PATH.read_text(encoding="utf-8")
 
 
-def check_fast_path(text: str, context: Optional[AssistantContext]) -> Optional[Plan]:
+def check_fast_path(text: str, context: Any) -> Optional[Plan]:
     """
     Fast path before LLM:
     If a pending item exists and text matches exactly yes, no, ok, cancel, aam, ഉവ്വ് or വേണ്ട,
     returns an answer_pending plan directly.
     """
-    if not context or not context.pending_item:
+    if not context:
+        return None
+
+    # Handle AssistantContext, PendingItemContextItem, or dict
+    pending = getattr(context, "pending_item", None)
+    if pending is None and hasattr(context, "kind"):
+        pending = context
+    elif pending is None and isinstance(context, dict):
+        pending = context.get("pending_item") or context
+
+    if not pending:
         return None
 
     clean = text.strip().lower()

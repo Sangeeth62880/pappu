@@ -10,6 +10,7 @@ tracks the 7 critical regression cases, and writes results to eval_results/<time
 import sys
 import os
 import json
+import uuid
 import time
 import argparse
 from datetime import datetime, timezone
@@ -208,15 +209,237 @@ def create_v2_planner(include_reasoning: bool = False) -> Callable[[str, Dict[st
     return v2_planner
 
 
+from decimal import Decimal
+from datetime import date
+from unittest.mock import patch
+from app.models.profile import Profile
+from app.models.category import Category
+from app.models.contact import Contact
+from app.models.transaction import Transaction
+from app.models.undo_action import UndoAction
+from app.models.pending_action import PendingAction
+from app.assistant.schemas import Plan, AssistantMessageRequest
+from app.assistant.planner import AssistantPlanner
+from app.routers.assistant import handle_assistant_message
+
+
+def create_isolated_eval_db(case: Dict[str, Any]):
+    """
+    Creates an isolated in-memory SQLite database seeded with case context.
+    """
+    import uuid
+    from sqlalchemy import create_engine, event
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from app.database import init_db
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    init_db(bind_engine=engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    session = TestingSessionLocal()
+
+    user_id = uuid.uuid4()
+    profile = Profile(id=user_id, name="Eval User", preferred_language=case.get("language", "en"))
+    session.add(profile)
+    session.commit()
+
+    context = case.get("context", {})
+
+    # Seed contacts
+    contact_map = {}
+    for c in context.get("contacts", []):
+        cid = uuid.uuid4()
+        c_name = c.get("name", "Contact")
+        c_row = Contact(id=cid, user_id=user_id, name=c_name, aliases=c.get("aliases", []))
+        session.add(c_row)
+        contact_map[c_name.lower()] = cid
+        for al in c.get("aliases", []):
+            contact_map[al.lower()] = cid
+    session.commit()
+
+    # Seed categories
+    food_cat = session.query(Category).filter(Category.name == "Food").first()
+    people_cat = session.query(Category).filter(Category.name == "People").first()
+    transport_cat = session.query(Category).filter(Category.name == "Transport").first()
+    other_cat = session.query(Category).filter(Category.name == "Other").first()
+
+    txn_map = {}
+    for t in context.get("seeded_transactions", []):
+        tid = uuid.uuid4()
+        contact_id = None
+        c_needle = t.get("contact")
+        if c_needle and c_needle.lower() in contact_map:
+            contact_id = contact_map[c_needle.lower()]
+
+        cat_id = food_cat.id if food_cat else None
+        if contact_id:
+            cat_id = people_cat.id if people_cat else None
+        elif t.get("category"):
+            c_low = t["category"].lower()
+            if c_low == "transport" and transport_cat:
+                cat_id = transport_cat.id
+            elif c_low == "food" and food_cat:
+                cat_id = food_cat.id
+            elif other_cat:
+                cat_id = other_cat.id
+
+        t_date_str = t.get("txn_date") or context.get("today", "2026-10-14")
+        t_date = date.fromisoformat(t_date_str)
+        t_type = "income" if (t.get("direction") == "received" or t.get("type") == "income") else "expense"
+
+        txn_row = Transaction(
+            id=tid,
+            user_id=user_id,
+            amount=Decimal(str(t.get("amount", 100))),
+            type=t_type,
+            category_id=cat_id,
+            contact_id=contact_id,
+            description=t.get("description"),
+            txn_date=t_date,
+        )
+        session.add(txn_row)
+        t_key = t.get("id") or str(tid)
+        txn_map[t_key] = txn_row
+    session.commit()
+
+    # Seed last touched
+    lt = context.get("last_touched_transaction")
+    if lt:
+        lt_key = lt.get("id")
+        target_txn = txn_map.get(lt_key) if lt_key else None
+        if not target_txn and txn_map:
+            target_txn = list(txn_map.values())[0]
+        if target_txn:
+            undo = UndoAction(
+                user_id=user_id,
+                transaction_id=target_txn.id,
+                action_type="insert",
+                batch_id=uuid.uuid4(),
+            )
+            session.add(undo)
+            session.commit()
+
+    # Seed pending item
+    pi = context.get("pending_item")
+    if pi:
+        plan_j = pi.get("plan_json") or {}
+        if "question" not in plan_j and "question" in pi:
+            plan_j["question"] = pi["question"]
+        pa = PendingAction(
+            user_id=user_id,
+            kind=pi.get("kind", "confirm"),
+            plan_json=plan_j,
+            candidates_json=pi.get("candidates"),
+            status="pending",
+        )
+        session.add(pa)
+        session.commit()
+
+    return session, user_id
+
+
+def compare_end_state(
+    response: Any,
+    expected_end_state: Dict[str, Any],
+    plan: Optional[Plan],
+) -> Tuple[bool, str, str]:
+    """
+    Validates execution end state against expected_end_state.
+    Returns (passed, failure_cause, reason).
+    """
+    if not expected_end_state:
+        return True, "", "Match"
+
+    action = expected_end_state.get("action")
+
+    if action == "added":
+        exp_count = expected_end_state.get("count", 1)
+        added = [r for r in response.results if r.get("action") == "add" and r.get("ok")]
+        if len(added) != exp_count:
+            return False, "executor", f"Expected {exp_count} added, got {len(added)}"
+        if not response.changed:
+            return False, "executor", "Expected changed=True"
+        return True, "", "Match"
+
+    elif action == "query_result":
+        has_query = any(
+            r.get("action") in ("query", "balances", "sum", "count", "biggest", "compare", "list")
+            and r.get("ok")
+            for r in response.results
+        )
+        if not has_query:
+            return False, "executor", "Query produced no successful results"
+        if not response.reply_text:
+            return False, "composer", "Empty query reply text"
+        return True, "", "Match"
+
+    elif action == "edited":
+        edits = [r for r in response.results if r.get("action") == "edit" and r.get("ok")]
+        if not edits:
+            return False, "executor", "Edit failed to execute"
+        return True, "", "Match"
+
+    elif action == "deleted":
+        if response.pending and response.pending.kind == "confirm":
+            return True, "", "Match"
+        if any(r.get("action") == "delete" and r.get("ok") for r in response.results):
+            return True, "", "Match"
+        return False, "executor", "Expected delete confirmation or deletion"
+
+    elif action == "disambiguated":
+        if response.pending and response.pending.kind == "disambiguate":
+            return True, "", "Match"
+        if any("disambiguat" in str(r).lower() for r in response.results):
+            return True, "", "Match"
+        return False, "resolver", "Expected disambiguation pending item"
+
+    elif action == "clarify":
+        if plan and plan.actions and plan.actions[0].op == "clarify":
+            return True, "", "Match"
+        return False, "planner", "Expected clarify action"
+
+    elif action == "reply":
+        if plan and plan.actions and plan.actions[0].op == "chat":
+            return True, "", "Match"
+        return False, "planner", "Expected chat action"
+
+    elif action == "unsupported":
+        if "not available" in response.reply_text.lower() or (
+            plan and plan.actions and getattr(plan.actions[0], "kind", None) == "unsupported"
+        ):
+            return True, "", "Match"
+        return False, "planner", "Expected unsupported action"
+
+    elif action == "undone":
+        if any(r.get("action") == "undo" and r.get("ok") for r in response.results):
+            return True, "", "Match"
+        return False, "executor", "Expected undo to succeed"
+
+    return True, "", "Match"
+
+
 def run_evaluation(
     cases_file: str,
     planner_fn: Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool, float, int]],
     planner_name: str = "baseline",
     max_workers: int = 4,
     output_dir: Optional[str] = None,
+    execute: bool = False,
 ) -> Dict[str, Any]:
     """
     Runs the full evaluation dataset against the pluggable planner.
+    When execute is True, executes the requests end to end and validates end state.
     """
     cases_path = Path(cases_file)
     if not cases_path.exists():
@@ -229,8 +452,9 @@ def run_evaluation(
             if line:
                 cases.append(json.loads(line))
 
+    mode_str = "Execution and End State Mode" if execute else "Plan Only Mode"
     print(f"\n=======================================================")
-    print(f"Starting Evaluation with Planner: {planner_name}")
+    print(f"Starting Evaluation with Planner: {planner_name} ({mode_str})")
     print(f"Loaded {len(cases)} cases from {cases_path.name}")
     print(f"Workers: {max_workers}")
     print(f"=======================================================\n")
@@ -259,6 +483,7 @@ def run_evaluation(
                 "latency_ms": latency_ms,
                 "token_count": token_count,
                 "reason": "Not expressible in legacy schema",
+                "failure_cause": "planner",
                 "actual_plan": None,
                 "expected_plan": expected_plan_dict,
             }
@@ -274,6 +499,7 @@ def run_evaluation(
                 "latency_ms": latency_ms,
                 "token_count": token_count,
                 "reason": "Planner failed to produce an output",
+                "failure_cause": "planner",
                 "actual_plan": None,
                 "expected_plan": expected_plan_dict,
             }
@@ -294,12 +520,60 @@ def run_evaluation(
                 "latency_ms": latency_ms,
                 "token_count": token_count,
                 "reason": f"Schema validation error: {e}",
+                "failure_cause": "planner",
                 "actual_plan": plan_dict,
                 "expected_plan": expected_plan_dict,
             }
 
         # Compare with expected plan
-        passed, reason = compare_plans(actual_plan, expected_plan)
+        plan_passed, plan_reason = compare_plans(actual_plan, expected_plan)
+
+        end_state_passed = True
+        end_state_reason = "Match"
+        failure_cause = None
+
+        if not plan_passed:
+            failure_cause = "planner"
+
+        # End to end execution if requested
+        if execute:
+            db_session, user_id = create_isolated_eval_db(case)
+            try:
+                plan_obj = Plan.model_validate(actual_plan.model_dump())
+                t0_req = time.perf_counter()
+                resp = handle_assistant_message(
+                    body=AssistantMessageRequest(
+                        text=input_text,
+                        input="typed",
+                        client_msg_id=f"eval_{case_id}_{uuid.uuid4().hex[:6]}",
+                    ),
+                    db=db_session,
+                    user_id=user_id,
+                    plan_override=plan_obj,
+                )
+                end_to_end_latency = (time.perf_counter() - t0_req) * 1000.0 + latency_ms
+                latency_ms = round(end_to_end_latency, 1)
+
+                es_ok, es_cause, es_msg = compare_end_state(
+                    response=resp,
+                    expected_end_state=case.get("expected_end_state", {}),
+                    plan=plan_obj,
+                )
+                if not es_ok:
+                    end_state_passed = False
+                    end_state_reason = es_msg
+                    if not failure_cause:
+                        failure_cause = es_cause
+            except Exception as e:
+                end_state_passed = False
+                end_state_reason = f"Execution error: {e}"
+                if not failure_cause:
+                    failure_cause = "executor"
+            finally:
+                db_session.close()
+
+        passed = plan_passed and end_state_passed if execute else plan_passed
+        reason = plan_reason if not plan_passed else (end_state_reason if execute else "Match")
 
         return {
             "id": case_id,
@@ -311,6 +585,7 @@ def run_evaluation(
             "latency_ms": latency_ms,
             "token_count": token_count,
             "reason": reason,
+            "failure_cause": failure_cause if not passed else None,
             "actual_plan": actual_plan.model_dump(),
             "expected_plan": expected_plan_dict,
         }
@@ -323,7 +598,8 @@ def run_evaluation(
             res = future.result()
             results.append(res)
             status_symbol = "✓" if res["passed"] else ("⊘" if not res["expressible"] else "✗")
-            print(f"[{status_symbol}] {res['group']} | {res['id']}: {res['reason']}")
+            cause_tag = f" [{res['failure_cause']}]" if res.get("failure_cause") else ""
+            print(f"[{status_symbol}] {res['group']} | {res['id']}{cause_tag}: {res['reason']}")
 
     elapsed_time = round(time.time() - start_time, 2)
 
@@ -346,6 +622,13 @@ def run_evaluation(
     # Token counts
     tokens_list = [r.get("token_count", 0) for r in results if r.get("token_count", 0) > 0]
     avg_tokens = round(sum(tokens_list) / len(tokens_list), 1) if tokens_list else 0
+
+    # Failures by cause
+    failures_by_cause = {"planner": 0, "resolver": 0, "executor": 0, "composer": 0}
+    for r in results:
+        if not r["passed"] and r["expressible"]:
+            cause = r.get("failure_cause") or "planner"
+            failures_by_cause[cause] = failures_by_cause.get(cause, 0) + 1
 
     for grp in groups:
         grp_results = [r for r in results if r["group"] == grp]
@@ -371,7 +654,7 @@ def run_evaluation(
             regression_summary[r["id"]] = "PASS" if r["passed"] else f"FAIL ({r['reason']})"
 
     print("\n" + "=" * 80)
-    print(f"EVALUATION RESULTS SUMMARY: {planner_name}")
+    print(f"EVALUATION RESULTS SUMMARY: {planner_name} ({mode_str})")
     print("=" * 80)
     print(f"{'Group':<26} | {'Total':<6} | {'Pass':<6} | {'Not Expr':<9} | {'Accuracy':<10} | {'Expr Acc'}")
     print("-" * 80)
@@ -380,9 +663,13 @@ def run_evaluation(
     print("-" * 80)
     print(f"{'OVERALL':<26} | {total_cases:<6} | {total_passed:<6} | {total_inexpressible:<9} | {overall_accuracy:>7.1f}% | {expressible_accuracy:>7.1f}%")
     print(f"Schema Failure Rate: {schema_failure_rate}% ({schema_failures}/{total_cases})")
-    print(f"Parse Latency: p50={p50_latency}ms, p95={p95_latency}ms")
+    print(f"Request Latency: p50={p50_latency}ms, p95={p95_latency}ms")
     print(f"Average Input Tokens: {avg_tokens}")
     print(f"Total Time: {elapsed_time}s")
+    print("-" * 80)
+    print("FAILURES GROUPED BY CAUSE:")
+    for c_name, count in failures_by_cause.items():
+        print(f"  {c_name.capitalize()}: {count}")
     print("-" * 80)
     print("REGRESSION CASES STATUS:")
     for reg_id in REGRESSION_CASES:
@@ -396,6 +683,7 @@ def run_evaluation(
 
     result_payload = {
         "planner": planner_name,
+        "execute_mode": execute,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_cases": total_cases,
         "total_passed": total_passed,
@@ -408,6 +696,7 @@ def run_evaluation(
         "p95_latency_ms": p95_latency,
         "avg_input_tokens": avg_tokens,
         "elapsed_seconds": elapsed_time,
+        "failures_by_cause": failures_by_cause,
         "regression_cases": regression_summary,
         "group_stats": group_stats,
         "results": sorted(results, key=lambda x: x["id"]),
@@ -434,6 +723,7 @@ def main():
     parser.add_argument("--planner", default="baseline", help="Planner name: 'baseline', 'v2', 'v2_reasoning'")
     parser.add_argument("--workers", type=int, default=5, help="Number of concurrent worker threads")
     parser.add_argument("--output-dir", default=None, help="Directory to save evaluation results")
+    parser.add_argument("--execute", action="store_true", help="Execute generated plan and verify end state")
 
     args = parser.parse_args()
 
@@ -452,6 +742,7 @@ def main():
         planner_name=args.planner,
         max_workers=args.workers,
         output_dir=args.output_dir,
+        execute=args.execute,
     )
 
 

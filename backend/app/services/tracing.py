@@ -7,6 +7,7 @@ All traces are strictly scoped to the verified JWT user_id.
 """
 
 import time
+import json
 import uuid
 import logging
 from contextlib import contextmanager
@@ -118,15 +119,20 @@ class AssistantTracer:
         if self.trace_record is not None:
             return self.trace_record
 
+        def _clean_json(obj):
+            if obj is None:
+                return None
+            return json.loads(json.dumps(obj, default=str))
+
         trace = AssistantTrace(
             user_id=self.user_id,
             message_text=self.message_text,
             input_type=self.input_type,
-            context_json=self.context_json,
+            context_json=_clean_json(self.context_json),
             raw_llm_output=self.raw_llm_output,
-            plan_json=self.plan_json,
-            resolver_filters_json=self.resolver_filters_json,
-            result_json=self.result_json,
+            plan_json=_clean_json(self.plan_json),
+            resolver_filters_json=_clean_json(self.resolver_filters_json),
+            result_json=_clean_json(self.result_json),
             latency_ms_per_stage=self.latency_ms_per_stage,
             schema_valid=self.schema_valid,
         )

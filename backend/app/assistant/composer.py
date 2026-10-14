@@ -1,0 +1,416 @@
+"""
+Deterministic Response Composer for Pappu Assistant v2.
+
+Generates user-facing reply_text and spoken_text from execution results,
+pending items, and plans. Never calls an LLM.
+
+Supports English (en), Malayalam (ml), and code-mixed Manglish (mixed).
+Formats numbers in Indian currency format without trailing .00 on whole amounts.
+Enforces Rule 9: Zero em dashes or hyphens used as punctuation.
+"""
+
+from decimal import Decimal
+from datetime import datetime, date
+from typing import List, Dict, Any, Optional, Union, Tuple
+from app.assistant.schemas import Plan, Action, PendingSummary
+
+
+def format_inr(amount: Union[float, int, Decimal, None]) -> str:
+    """
+    Formats a number into Indian currency format:
+    e.g. 250 -> '₹250'
+    2000 -> '₹2,000'
+    150000 -> '₹1,50,000'
+    Whole numbers omit .00.
+    """
+    if amount is None:
+        return "₹0"
+
+    val = round(float(amount), 2)
+    is_whole = val.is_integer()
+    if is_whole:
+        s = str(int(val))
+    else:
+        s = f"{val:.2f}"
+
+    parts = s.split(".")
+    integer_part = parts[0]
+
+    # Handle negative numbers
+    is_negative = integer_part.startswith("-")
+    if is_negative:
+        integer_part = integer_part[1:]
+
+    if len(integer_part) > 3:
+        last_three = integer_part[-3:]
+        remaining = integer_part[:-3]
+        groups = []
+        while len(remaining) > 2:
+            groups.insert(0, remaining[-2:])
+            remaining = remaining[:-2]
+        if remaining:
+            groups.insert(0, remaining)
+        formatted_int = ",".join(groups) + "," + last_three
+    else:
+        formatted_int = integer_part
+
+    prefix = "-₹" if is_negative else "₹"
+    if is_whole:
+        return f"{prefix}{formatted_int}"
+    return f"{prefix}{formatted_int}.{parts[1]}"
+
+
+def format_date_short(d_val: Union[str, date, datetime, None]) -> str:
+    """
+    Formats a date to a clean human string like '13 Oct' or '14 Oct 2026'.
+    """
+    if not d_val:
+        return ""
+    if isinstance(d_val, (date, datetime)):
+        dt = d_val
+    else:
+        try:
+            dt = date.fromisoformat(str(d_val).split("T")[0])
+        except Exception:
+            return str(d_val)
+
+    # e.g. 13 Oct
+    return f"{dt.day} {dt.strftime('%b')}"
+
+
+def _compose_single_add(res: Dict[str, Any], lang: str) -> str:
+    data = res.get("data") or {}
+    kind = data.get("kind") or data.get("type") or "expense"
+    amt = format_inr(data.get("amount", 0))
+    cat = data.get("category_name") or data.get("category") or "expense"
+    contact = data.get("contact_name") or data.get("contact")
+
+    if contact or kind == "person" or cat == "People":
+        # Sent vs Received
+        direction = data.get("direction")
+        is_received = direction == "received" or data.get("type") == "income"
+        if is_received:
+            if lang == "ml":
+                return f"{contact} നിങ്ങൾക്ക് {amt} നൽകി എന്ന് രേഖപ്പെടുത്തി."
+            elif lang == "mixed":
+                return f"{contact} enikku {amt} thannu എന്ന് രേഖപ്പെടുത്തി."
+            return f"{contact} sent you {amt}."
+        else:
+            if lang == "ml":
+                return f"{contact}ന് {amt} നൽകി എന്ന് രേഖപ്പെടുത്തി."
+            elif lang == "mixed":
+                return f"{amt} {contact} ന് sent ചെയ്തു."
+            return f"{amt} sent to {contact}."
+
+    elif kind == "income" or data.get("type") == "income":
+        if lang == "ml":
+            return f"{cat}ലേക്ക് {amt} വരുമാനമായി ചേർത്തു."
+        elif lang == "mixed":
+            return f"{amt} {cat} income ആയി add ചെയ്തു."
+        return f"Added {amt} {cat} income."
+
+    else:
+        if lang == "ml":
+            return f"{cat}ലേക്ക് {amt} ചേർത്തു."
+        elif lang == "mixed":
+            return f"{cat} ലേക്ക് {amt} add ചെയ്തു."
+        return f"Added {amt} to {cat}."
+
+
+def _compose_single_edit(res: Dict[str, Any], lang: str) -> str:
+    data = res.get("data") or {}
+    prev = data.get("previous") or {}
+    amt_new = format_inr(data.get("amount", 0))
+    amt_prev = format_inr(prev.get("amount", 0))
+    cat = data.get("category_name") or data.get("category") or "Food"
+
+    if prev and "amount" in prev and amt_prev != amt_new:
+        if lang == "ml":
+            return f"{cat} {amt_prev} എന്നത് {amt_new} ആക്കി മാറ്റി. മാറ്റം റദ്ദാക്കാൻ undo എന്ന് പറയുക."
+        elif lang == "mixed":
+            return f"{cat} {amt_prev} എന്നത് {amt_new} aakki maatti. Say undo to revert."
+        return f"Changed {cat} {amt_prev} to {amt_new}. Say undo to revert."
+
+    return f"Updated {cat} transaction. Say undo to revert."
+
+
+def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
+    data = res.get("data") or {}
+    q_kind = res.get("status") or data.get("query_kind") or res.get("action") or "list"
+    if q_kind == "query":
+        q_kind = res.get("status") or data.get("query_kind", "list")
+
+    if q_kind == "balances":
+        per_contact = data.get("balances") or data.get("per_contact") or []
+        if not per_contact:
+            empty_msg = "Nobody owes you anything right now."
+            if lang == "ml":
+                empty_msg = "ഇപ്പോൾ ആരും നിങ്ങൾക്ക് പണം തരാനില്ല."
+            elif lang == "mixed":
+                empty_msg = "Aarum ningalkku paisa tharaanilla."
+            return empty_msg, empty_msg
+
+        sentences = []
+        for c in per_contact:
+            name = c.get("contact_name") or c.get("name")
+            net = float(c.get("net_balance", 0))
+            if net > 0:
+                sentences.append(f"{name} owes you {format_inr(net)}.")
+            elif net < 0:
+                sentences.append(f"You owe {name} {format_inr(abs(net))}.")
+            else:
+                sentences.append(f"Settled up with {name}.")
+
+        full_text = " ".join(sentences)
+        return full_text, full_text
+
+    elif q_kind == "sum":
+        total_val = data.get("sum", data.get("total", 0))
+        total = format_inr(total_val)
+        filters = data.get("filters_used") or {}
+        cat = data.get("category") or filters.get("category")
+        if cat:
+            txt = f"Total {cat} spending is {total}."
+        else:
+            txt = f"Total is {total}."
+        return txt, txt
+
+    elif q_kind == "count":
+        cnt = data.get("count", 0)
+        txt = f"Found {cnt} transactions." if cnt != 1 else "Found 1 transaction."
+        return txt, txt
+
+    elif q_kind == "biggest":
+        row = data.get("biggest") or data.get("transaction")
+        if not row:
+            return "No transactions found.", "No transactions found."
+        amt = format_inr(row.get("amount", 0))
+        cat = row.get("category_name") or row.get("category") or "Food"
+        dt = format_date_short(row.get("txn_date"))
+        date_part = f" on {dt}" if dt else ""
+        txt = f"Biggest transaction is {amt} {cat}{date_part}."
+        return txt, txt
+
+    elif q_kind == "compare":
+        # e.g. "This month ₹8,200, last month ₹6,900, up ₹1,300."
+        p1_total = format_inr(data.get("sum_1", data.get("period1_total", 0)))
+        p2_total = format_inr(data.get("sum_2", data.get("period2_total", 0)))
+        diff = float(data.get("delta", data.get("difference", 0)))
+        diff_str = format_inr(abs(diff))
+        direction = "up" if diff >= 0 else "down"
+
+        p1_lbl = data.get("period1_label", "This month")
+        p2_lbl = data.get("period2_label", "last month")
+        txt = f"{p1_lbl} {p1_total}, {p2_lbl} {p2_total}, {direction} {diff_str}."
+        return txt, txt
+
+    elif q_kind == "list":
+        rows = data.get("transactions") or []
+        if not rows:
+            return "No transactions found.", "No transactions found."
+
+        items = []
+        for r in rows:
+            amt = format_inr(r.get("amount", 0))
+            cat = r.get("category_name") or r.get("category") or ""
+            dt = format_date_short(r.get("txn_date"))
+            items.append(f"{amt} {cat} on {dt}".strip())
+
+        full_reply = "Found: " + ", ".join(items) + "."
+        # Spoken text speaks the top 3 only
+        top3 = items[:3]
+        spoken_reply = "Top transactions: " + ", ".join(top3) + "."
+        return full_reply, spoken_reply
+
+    return "Query completed.", "Query completed."
+
+
+def _compose_single_undo(res: Dict[str, Any], lang: str) -> str:
+    if res.get("ok"):
+        if lang == "ml":
+            return "അവസാനത്തെ പ്രവർത്തനം റദ്ദാക്കി."
+        elif lang == "mixed":
+            return "Last action undo ചെയ്തു."
+        return "Undone last action."
+    return "Nothing to undo."
+
+
+def _compose_resolver_none(filters: Optional[Dict[str, Any]], lang: str) -> str:
+    if not filters:
+        return "Transaction not found."
+
+    # Edge case: "it" or "last_touched" with no previous transaction
+    if filters.get("ref") == "last_touched":
+        return "I don't know which transaction you mean."
+
+    cat = filters.get("category")
+    amt = filters.get("amount")
+    dt_val = filters.get("date") or filters.get("date_from")
+    contact = filters.get("contact")
+
+    parts = []
+    if cat:
+        parts.append(str(cat))
+    if amt is not None:
+        amt_str = format_inr(amt)
+        if cat:
+            parts.append(f"expense of {amt_str}")
+        else:
+            parts.append(f"transaction of {amt_str}")
+    elif cat:
+        parts.append("expense")
+    else:
+        parts.append("transaction")
+
+    if dt_val:
+        parts.append(f"on {format_date_short(dt_val)}")
+    if contact:
+        parts.append(f"with {contact}")
+
+    desc = " ".join(parts)
+    return f"No {desc} found."
+
+
+def compose_reply(
+    plan: Optional[Plan],
+    results: List[Dict[str, Any]],
+    pending: Optional[PendingSummary] = None,
+    language: str = "en",
+    filters_used: Optional[Dict[str, Any]] = None,
+) -> Tuple[str, str]:
+    """
+    Main composer function. Returns (reply_text, spoken_text).
+    Guarantees deterministic, beautifully phrased template output.
+    """
+    lang = (language or "en").lower()
+    if lang not in ("en", "ml", "mixed"):
+        lang = "en"
+
+    # 1. Active Pending Item takes precedence for question asking
+    if pending:
+        if pending.kind == "confirm":
+            q = pending.question
+            return q, q
+        elif pending.kind == "disambiguate":
+            candidates = pending.candidates or []
+            if candidates:
+                cand_strs = []
+                for idx, c in enumerate(candidates, 1):
+                    amt = format_inr(c.get("amount", 0))
+                    cat = c.get("category_name") or c.get("category") or ""
+                    dt = format_date_short(c.get("date") or c.get("txn_date"))
+                    cand_strs.append(f"{idx}) {cat} {amt} on {dt}".strip())
+                reply = "Which one? " + ", ".join(cand_strs)
+                # Spoken text speaks options concisely
+                spoken = "Which one? " + ", ".join(cand_strs[:3])
+                return reply, spoken
+            return pending.question, pending.question
+        elif pending.kind == "contact_confirm":
+            return pending.question, pending.question
+
+    # 2. Check for Plan-level Clarify or Chat
+    if plan and plan.actions:
+        first_act = plan.actions[0]
+        if first_act.op == "clarify":
+            q = first_act.question or "Could you clarify that?"
+            return q, q
+
+        elif first_act.op == "chat":
+            kind = first_act.kind
+            if kind == "greeting":
+                g = "Hello! How can I help you manage your expenses today?"
+                if lang == "ml":
+                    g = "നമസ്കാരം! നിങ്ങളുടെ ചിലവുകൾ കൈകാര്യം ചെയ്യാൻ ഞാൻ എങ്ങനെ സഹായിക്കണം?"
+                elif lang == "mixed":
+                    g = "Hello! Expense track cheyyaan njan engane sahayikkannam?"
+                return g, g
+            elif kind == "help":
+                h = "I can help you track expenses, check balances, and search transactions. For example, say 'Spent 250 on lunch' or 'Who owes me money'."
+                return h, h
+            elif kind == "off_topic":
+                ot = "I can only help with your money."
+                if lang == "ml":
+                    ot = "പണവുമായി ബന്ധപ്പെട്ട കാര്യങ്ങളിൽ മാത്രമേ എനിക്ക് സഹായിക്കാൻ കഴിയൂ."
+                elif lang == "mixed":
+                    ot = "Paisa sambandhichulla karyangalil maathrame enikku sahayikkaan kazhiyu."
+                return ot, ot
+            elif kind == "unsupported":
+                u = "Budgets are not available yet."
+                return u, u
+
+    # 3. Process Execution Results
+    if not results:
+        # Check if resolver found nothing
+        msg = _compose_resolver_none(filters_used, lang)
+        return msg, msg
+
+    success_sentences: List[str] = []
+    failure_sentences: List[str] = []
+    spoken_sentences: List[str] = []
+
+    for r in results:
+        ok = r.get("ok", False)
+        act = r.get("action", "")
+
+        if ok:
+            if act == "add":
+                sent = _compose_single_add(r, lang)
+                success_sentences.append(sent)
+                spoken_sentences.append(sent)
+            elif act == "edit":
+                sent = _compose_single_edit(r, lang)
+                success_sentences.append(sent)
+                spoken_sentences.append(sent)
+            elif act == "delete":
+                sent = "Deleted transaction."
+                success_sentences.append(sent)
+                spoken_sentences.append(sent)
+            elif act in ("query", "balances", "sum", "count", "biggest", "compare", "list"):
+                full_s, spk_s = _compose_single_query(r, lang)
+                success_sentences.append(full_s)
+                spoken_sentences.append(spk_s)
+            elif act == "undo":
+                sent = _compose_single_undo(r, lang)
+                success_sentences.append(sent)
+                spoken_sentences.append(sent)
+            else:
+                success_sentences.append("Operation completed.")
+                spoken_sentences.append("Operation completed.")
+        else:
+            err = r.get("error") or "Failed to process"
+            filters = r.get("filters_used") or filters_used
+            if "not found" in err.lower():
+                sent = _compose_resolver_none(filters, lang)
+                failure_sentences.append(sent)
+            elif "disambiguation" in err.lower():
+                failure_sentences.append("Multiple transactions matched.")
+            else:
+                target = r.get("action", "transaction")
+                failure_sentences.append(f"I couldn't record {target} because {err}.")
+
+    # Combine multi-action sentences
+    full_parts = []
+    if success_sentences:
+        if len(success_sentences) == 1:
+            full_parts.append(success_sentences[0])
+        else:
+            combined = " and ".join(s.rstrip(".") for s in success_sentences) + "."
+            full_parts.append(combined)
+    if failure_sentences:
+        full_parts.append(" ".join(failure_sentences))
+
+    reply_text = " ".join(full_parts) if full_parts else "Done."
+
+    spoken_parts = []
+    if spoken_sentences:
+        if len(spoken_sentences) == 1:
+            spoken_parts.append(spoken_sentences[0])
+        else:
+            combined_spk = " and ".join(s.rstrip(".") for s in spoken_sentences) + "."
+            spoken_parts.append(combined_spk)
+    if failure_sentences:
+        spoken_parts.append(" ".join(failure_sentences))
+
+    spoken_text = " ".join(spoken_parts) if spoken_parts else "Done."
+
+    return reply_text, spoken_text
