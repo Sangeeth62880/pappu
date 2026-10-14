@@ -63,6 +63,7 @@ def check_fast_path(text: str, context: Any) -> Optional[Plan]:
         return None
 
     clean = text.strip().lower()
+    clean = clean.rstrip(".").rstrip("!").rstrip("?")
     if clean in FAST_PATH_EXACT_MATCHES:
         resolved_value = FAST_PATH_EXACT_MATCHES[clean]
         return Plan(actions=[AnswerPendingAction(value=resolved_value)])

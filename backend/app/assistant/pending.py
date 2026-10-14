@@ -77,6 +77,63 @@ def format_delete_confirmation_question(row_or_candidate: Any) -> str:
     return f"Delete {label} {amt_str} on {dt_str}?"
 
 
+def format_superseded_message(item: PendingAction) -> str:
+    """
+    Formats a user-facing cancellation sentence when an active pending item
+    is superseded by an unrelated new message.
+    Example: 'I cancelled the pending delete of രാഹുൽ ₹300.'
+    """
+    plan_json = item.plan_json or {}
+    action = plan_json.get("action") or {}
+    op = action.get("op") or ("add" if item.kind == "contact_confirm" else "action")
+    q = plan_json.get("question") or item.question or ""
+
+    cands = item.candidates_json or []
+    first_cand = cands[0] if (cands and isinstance(cands, list) and isinstance(cands[0], dict)) else {}
+
+    amt_str = None
+    if "amount" in first_cand:
+        amt_str = format_inr(first_cand["amount"])
+    elif "amount" in action:
+        amt_str = format_inr(action["amount"])
+
+    label = None
+    contact_name = (
+        first_cand.get("contact_name")
+        or first_cand.get("contact")
+        or action.get("contact")
+        or (action.get("selector") or {}).get("contact")
+    )
+    category_name = (
+        first_cand.get("category_name")
+        or first_cand.get("category")
+        or action.get("category")
+        or (action.get("selector") or {}).get("category")
+    )
+
+    if contact_name and str(contact_name).strip():
+        label = str(contact_name).strip()
+    elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
+        label = str(category_name).strip()
+    elif first_cand.get("type") == "income" or action.get("kind") == "income":
+        label = "income"
+    elif first_cand.get("type") == "expense" or action.get("kind") == "expense":
+        label = "expense"
+
+    if label and amt_str:
+        subject = f"{label} {amt_str}"
+    elif label:
+        subject = label
+    elif amt_str:
+        subject = amt_str
+    elif q and q.startswith("Delete ") and " on " in q:
+        subject = q.removeprefix("Delete ").removesuffix("?").rsplit(" on ", 1)[0].strip()
+    else:
+        subject = "transaction"
+
+    return f"I cancelled the pending {op} of {subject}."
+
+
 def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
     if dt is None:
         return None

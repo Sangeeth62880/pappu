@@ -518,6 +518,8 @@ def compose_reply(
                 failure_sentences.append(sent)
             elif "disambiguation" in err.lower():
                 failure_sentences.append("Multiple transactions matched.")
+            elif "nothing is waiting for confirmation" in err.lower() or r.get("action") == "answer_pending":
+                failure_sentences.append("Nothing is waiting for confirmation.")
             else:
                 target = r.get("action", "transaction")
                 failure_sentences.append(f"I couldn't record {target} because {err}.")

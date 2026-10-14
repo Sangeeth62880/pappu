@@ -33,16 +33,18 @@ from app.assistant.schemas import (
     AnswerPendingAction,
 )
 from app.assistant.context import load_assistant_context
-from app.assistant.planner import AssistantPlanner, check_fast_path
+from app.assistant.planner import AssistantPlanner, check_fast_path, FAST_PATH_EXACT_MATCHES
 from app.assistant.resolver import resolve
 from app.assistant.last_touched import get_last_touched_id
 from app.assistant.pending import (
     create_pending,
     get_active_pending,
     get_pending_by_id,
+    supersede_pending,
     handle_answer_pending,
     format_pending_summary,
     format_delete_confirmation_question,
+    format_superseded_message,
 )
 from app.assistant.sanitizer import sanitize_plan
 from app.assistant.executors.add import execute_add
@@ -164,6 +166,10 @@ def handle_assistant_message(
         # 4. Fast Path check
         with tracer.time_stage("fast_path"):
             fast_plan = check_fast_path(body.text, ctx)
+            if not fast_plan:
+                clean_text = body.text.strip().lower().rstrip(".!?")
+                if clean_text in FAST_PATH_EXACT_MATCHES:
+                    fast_plan = Plan(actions=[AnswerPendingAction(value=FAST_PATH_EXACT_MATCHES[clean_text])])
 
         # 5. Planner: Single LLM call (unless fast path or override)
         if plan_override:
@@ -179,8 +185,17 @@ def handle_assistant_message(
                 planner = AssistantPlanner()
                 plan = planner.plan(body.text, ctx, tracer=tracer, include_reasoning=False)
 
-        # 6. Sanitize descriptions and Deterministic Execution
+        # 6. Sanitize descriptions, supersession check, and deterministic execution
         plan = sanitize_plan(plan, body.text)
+
+        superseded_notice: Optional[str] = None
+        is_answer_pending = any(a.op == "answer_pending" for a in plan.actions)
+        if not is_answer_pending:
+            active_p = get_active_pending(db, user_id)
+            if active_p:
+                superseded_notice = format_superseded_message(active_p)
+                supersede_pending(db, user_id)
+
         with tracer.time_stage("execution"):
             ref_date = getattr(ctx, "today", None)
             last_touched_id = get_last_touched_id(db, user_id)
@@ -391,6 +406,14 @@ def handle_assistant_message(
                 language=lang,
                 filters_used=last_filters_used,
             )
+
+            if superseded_notice:
+                if reply_text and reply_text != "Done.":
+                    reply_text = f"{superseded_notice} {reply_text}"
+                    spoken_text = f"{superseded_notice} {spoken_text}"
+                else:
+                    reply_text = superseded_notice
+                    spoken_text = superseded_notice
 
             if multi_action_pending_dropped:
                 drop_msg = " I have asked about the first transaction. Please repeat the second request after confirming."
