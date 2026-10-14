@@ -45,6 +45,7 @@ class CategoryBreakdownItem(BaseModel):
     type: str
     total_amount: Decimal
     count: int
+    percentage: Optional[float] = None
 
 # ─── New Period Analytics Schemas ───
 
@@ -62,11 +63,21 @@ class TopContactItem(BaseModel):
     id: uuid.UUID
     name: str
     net_balance: Decimal
+    status: Optional[str] = None
+
+class PeopleCounts(BaseModel):
+    owed_to_you: int = 0
+    you_owe: int = 0
+    settled: int = 0
+    total: int = 0
 
 class PeoplePeriodBlock(BaseModel):
-    total_owed_to_user: Decimal
-    total_user_owes: Decimal
-    top_contacts: List[TopContactItem]
+    total_owed_to_user: Decimal = Decimal("0.00")
+    total_user_owes: Decimal = Decimal("0.00")
+    owed_to_you: Decimal = Decimal("0.00")
+    you_owe: Decimal = Decimal("0.00")
+    counts: PeopleCounts = Field(default_factory=PeopleCounts)
+    top_contacts: List[TopContactItem] = Field(default_factory=list)
 
 class TopExpenseItem(BaseModel):
     id: uuid.UUID
@@ -85,12 +96,20 @@ class SummaryResponse(BaseModel):
     net: Decimal = Decimal("0.00")
     previous_period_spent: Decimal = Decimal("0.00")
     spent_delta_percentage: Optional[float] = None
+    delta_pct: Optional[float] = None
+    delta_abs: Decimal = Decimal("0.00")
+    avg_per_day: Decimal = Decimal("0.00")
+    max_day: Optional[DailyBucket] = None
+    mood: Literal["neutral", "worried"] = "neutral"
     daily_buckets: List[DailyBucket] = Field(default_factory=list)
     categories: List[ExpenseCategoryItem] = Field(default_factory=list)
     people: PeoplePeriodBlock = Field(
         default_factory=lambda: PeoplePeriodBlock(
             total_owed_to_user=Decimal("0.00"),
             total_user_owes=Decimal("0.00"),
+            owed_to_you=Decimal("0.00"),
+            you_owe=Decimal("0.00"),
+            counts=PeopleCounts(),
             top_contacts=[],
         )
     )

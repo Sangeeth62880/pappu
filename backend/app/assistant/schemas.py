@@ -221,6 +221,7 @@ class AssistantResponse(BaseModel):
     results: List[Dict[str, Any]] = Field(default_factory=list)
     pending: Optional[PendingSummary] = None
     changed: bool = False
+    mood: Literal["neutral", "happy", "excited", "concerned", "confused"] = "neutral"
 
 
 class AssistantMessageRequest(BaseModel):

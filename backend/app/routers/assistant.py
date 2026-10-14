@@ -53,7 +53,7 @@ from app.assistant.executors.edit import execute_edit
 from app.assistant.executors.query import execute_query
 from app.assistant.executors.undo import execute_undo
 from app.assistant.executors.base import serialize_transaction
-from app.assistant.composer import compose_reply, format_inr, format_date_short
+from app.assistant.composer import compose_reply, format_inr, format_date_short, derive_mood
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -532,6 +532,8 @@ def handle_assistant_message(
         tracer.set_result({"results": results, "changed": changed})
         tracer.set_reply(reply_text=reply_text, spoken_text=spoken_text)
 
+        mood = derive_mood(results=results, plan=plan, pending=pending_summary)
+
         response_obj = AssistantResponse(
             reply_text=reply_text,
             spoken_text=spoken_text,
@@ -539,6 +541,7 @@ def handle_assistant_message(
             results=results,
             pending=pending_summary,
             changed=changed,
+            mood=mood,
         )
 
         # 11. Record Idempotency and Commit

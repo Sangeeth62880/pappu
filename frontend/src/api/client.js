@@ -262,7 +262,21 @@ export async function clearChatHistory(token) {
 }
 
 /**
+ * @typedef {'neutral' | 'happy' | 'excited' | 'concerned' | 'confused'} AssistantMood
+ *
+ * @typedef {Object} AssistantResponse
+ * @property {string} reply_text - Display text formatted for user bubble
+ * @property {string} spoken_text - Concise spoken text for TTS
+ * @property {string} language - Response language code ('en', 'ml', 'mixed')
+ * @property {Array<Object>} results - Executed action results
+ * @property {Object|null} pending - Active pending item awaiting confirmation or disambiguation
+ * @property {boolean} changed - Whether financial state changed
+ * @property {AssistantMood} mood - Pappu mascot mood derived from result kinds
+ */
+
+/**
  * POST /assistant/message - Unified message endpoint for Assistant v2.
+ * @returns {Promise<AssistantResponse>}
  */
 export async function sendAssistantMessage(token, { text, input = 'typed', client_msg_id = null }) {
   const body = { text, input };
@@ -278,6 +292,7 @@ export async function sendAssistantMessage(token, { text, input = 'typed', clien
 
 /**
  * POST /assistant/pending/{id}/answer - Deterministically resolves an active pending item.
+ * @returns {Promise<AssistantResponse>}
  */
 export async function answerPending(token, pendingId, answer, index = null) {
   const body = { answer };
@@ -296,6 +311,16 @@ export async function answerPending(token, pendingId, answer, index = null) {
  */
 export async function fetchActivePending(token) {
   return request('/assistant/pending', {
+    method: 'GET',
+    token,
+  });
+}
+
+/**
+ * GET /profile - Fetches read-only user profile (name, email, language).
+ */
+export async function fetchProfile(token) {
+  return request('/profile', {
     method: 'GET',
     token,
   });

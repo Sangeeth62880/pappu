@@ -16,13 +16,14 @@ from app.services.date_utils import (
     get_current_ist_datetime,
     IST,
 )
-from app.services.balances import _compute_contact_balance
+from app.services.balances import _compute_contact_balance, balances
 from app.services.spending import is_spending_txn
 from app.schemas.transaction import (
     SummaryResponse,
     DailyBucket,
     ExpenseCategoryItem,
     TopContactItem,
+    PeopleCounts,
     PeoplePeriodBlock,
     TopExpenseItem,
     CategoryBreakdownItem,
@@ -152,13 +153,32 @@ def get_summary(
         if is_spending_txn(txn, allow_people=False):
             prev_spent += txn.amount
 
-    # Delta percentage
+    # Delta absolute change (always present: total_spent - prev_spent)
+    delta_abs = total_spent - prev_spent
+
+    # Delta percentage (null when previous_total is below 500 rupees)
     spent_delta_pct: Optional[float] = None
-    if prev_spent > Decimal("0.00"):
+    if prev_spent >= Decimal("500.00"):
         delta = ((total_spent - prev_spent) / prev_spent) * Decimal("100")
         spent_delta_pct = float(round(delta, 2))
 
-    # Expense Category Breakdown (Top 5 + Other)
+    # Mood: worried when this period's spend is more than 1.5 times previous period and above 500 rupees, otherwise neutral
+    summary_mood: Literal["neutral", "worried"] = "neutral"
+    if is_period_scoped and total_spent > Decimal("1.5") * prev_spent and total_spent > Decimal("500.00"):
+        summary_mood = "worried"
+
+    # Average spending per day
+    if is_period_scoped:
+        num_days = max(1, (curr_end - curr_start).days + 1)
+        avg_per_day = round(total_spent / Decimal(num_days), 2)
+    elif curr_txns:
+        all_dates = [t.txn_date for t in curr_txns]
+        num_days = max(1, (max(all_dates) - min(all_dates)).days + 1)
+        avg_per_day = round(total_spent / Decimal(num_days), 2)
+    else:
+        avg_per_day = Decimal("0.00")
+
+    # Expense Category Breakdown (Top 5 + Other) using single shared spending definition
     sorted_cats = sorted(
         expense_category_totals.items(), key=lambda item: item[1], reverse=True
     )
@@ -183,6 +203,14 @@ def get_summary(
             ExpenseCategoryItem(category="Other", amount=other_total, percentage=other_pct)
         )
 
+    # Populate percentage on legacy category breakdown
+    for item in legacy_breakdown_map.values():
+        item.percentage = (
+            float(round((item.total_amount / total_spent) * Decimal("100"), 2))
+            if total_spent > 0
+            else 0.0
+        )
+
     # Top 3 largest single expenses in the period
     sorted_expenses = sorted(expense_txns_for_top, key=lambda t: t.amount, reverse=True)[:3]
     top_expenses_list = [
@@ -196,43 +224,50 @@ def get_summary(
         for t in sorted_expenses
     ]
 
-    # People Block (Reuse existing net balance logic)
-    contacts = db.query(Contact).filter(Contact.user_id == current_user_id).all()
+    # People Block (Using the shared balances service)
+    all_contact_balances = balances(db, current_user_id, include_settled=True)
     total_owed_to_user = Decimal("0.00")
     total_user_owes = Decimal("0.00")
-    contact_items: List[TopContactItem] = []
+    owed_to_you_count = 0
+    you_owe_count = 0
+    settled_count = 0
+    nonzero_contact_items: List[TopContactItem] = []
 
-    for contact in contacts:
-        contact_txns = (
-            db.query(Transaction)
-            .filter(
-                Transaction.user_id == current_user_id,
-                Transaction.contact_id == contact.id,
-            )
-            .all()
-        )
-        item = _compute_contact_balance(contact, contact_txns)
-        if item.net_balance > Decimal("0.00"):
-            total_owed_to_user += item.net_balance
-        elif item.net_balance < Decimal("0.00"):
-            total_user_owes += abs(item.net_balance)
+    for c_bal in all_contact_balances:
+        if c_bal.net_balance > Decimal("0.00"):
+            total_owed_to_user += c_bal.net_balance
+            owed_to_you_count += 1
+        elif c_bal.net_balance < Decimal("0.00"):
+            total_user_owes += abs(c_bal.net_balance)
+            you_owe_count += 1
+        else:
+            settled_count += 1
 
-        if item.net_balance != Decimal("0.00"):
-            contact_items.append(
+        if c_bal.net_balance != Decimal("0.00"):
+            nonzero_contact_items.append(
                 TopContactItem(
-                    id=contact.id,
-                    name=contact.name,
-                    net_balance=item.net_balance,
+                    id=c_bal.contact_id,
+                    name=c_bal.contact_name,
+                    net_balance=c_bal.net_balance,
+                    status=c_bal.status,
                 )
             )
 
     # Top 3 contacts by absolute net balance
-    contact_items.sort(key=lambda c: abs(c.net_balance), reverse=True)
-    top_contacts = contact_items[:3]
+    nonzero_contact_items.sort(key=lambda c: abs(c.net_balance), reverse=True)
+    top_contacts = nonzero_contact_items[:3]
 
     people_block = PeoplePeriodBlock(
         total_owed_to_user=total_owed_to_user,
         total_user_owes=total_user_owes,
+        owed_to_you=total_owed_to_user,
+        you_owe=total_user_owes,
+        counts=PeopleCounts(
+            owed_to_you=owed_to_you_count,
+            you_owe=you_owe_count,
+            settled=settled_count,
+            total=len(all_contact_balances),
+        ),
         top_contacts=top_contacts,
     )
 
@@ -268,6 +303,11 @@ def get_summary(
         for b in buckets_data
     ]
 
+    # Max day (peak spending bucket in the period)
+    max_day: Optional[DailyBucket] = None
+    if daily_buckets and any(b.amount > Decimal("0.00") for b in daily_buckets):
+        max_day = max(daily_buckets, key=lambda b: b.amount)
+
     return SummaryResponse(
         period=period_label,
         period_start=period_start_str,
@@ -277,6 +317,11 @@ def get_summary(
         net=net,
         previous_period_spent=prev_spent,
         spent_delta_percentage=spent_delta_pct,
+        delta_pct=spent_delta_pct,
+        delta_abs=delta_abs,
+        avg_per_day=avg_per_day,
+        max_day=max_day,
+        mood=summary_mood,
         daily_buckets=daily_buckets,
         categories=categories_list,
         people=people_block,

@@ -11,7 +11,7 @@ Enforces Rule 9: Zero em dashes or hyphens used as punctuation.
 
 from decimal import Decimal
 from datetime import datetime, date
-from typing import List, Dict, Any, Optional, Union, Tuple
+from typing import List, Dict, Any, Optional, Union, Tuple, Literal
 from app.assistant.schemas import Plan, Action, PendingSummary
 
 
@@ -619,3 +619,72 @@ def compose_reply(
     spoken_text = " ".join(spoken_parts) if spoken_parts else "Done."
 
     return reply_text, spoken_text
+
+
+def derive_mood(
+    results: Optional[List[Dict[str, Any]]] = None,
+    plan: Optional[Any] = None,
+    pending: Optional[Any] = None,
+) -> Literal["neutral", "happy", "excited", "concerned", "confused"]:
+    """
+    Derives Pappu mascot mood from result kinds only.
+    - Expense added is happy
+    - Income added is excited
+    - Pending delete or edit is concerned
+    - Unsupported or clarify is confused
+    - Everything else is neutral
+    """
+    # 1. Unsupported or Clarify -> confused
+    if plan and getattr(plan, "actions", None):
+        for act in plan.actions:
+            if getattr(act, "op", None) == "clarify":
+                return "confused"
+            if getattr(act, "op", None) == "chat" and getattr(act, "kind", None) in ("unsupported", "unsupported_bulk"):
+                return "confused"
+
+    if results:
+        for r in results:
+            err = str(r.get("error") or "").lower()
+            if "unsupported" in err or "budget" in err or "clarify" in err:
+                return "confused"
+            if r.get("action") == "clarify":
+                return "confused"
+
+    # 2. Pending delete or edit -> concerned
+    if pending:
+        p_kind = getattr(pending, "kind", None) or (pending.get("kind") if isinstance(pending, dict) else None)
+        p_q = str(getattr(pending, "question", None) or (pending.get("question") if isinstance(pending, dict) else "") or "").lower()
+        plan_j = getattr(pending, "plan_json", None) or (pending.get("plan_json") if isinstance(pending, dict) else None) or {}
+        p_action = plan_j.get("action") or {}
+        p_op = p_action.get("op") if isinstance(p_action, dict) else getattr(p_action, "op", None)
+
+        if p_op in ("delete", "edit"):
+            return "concerned"
+        if p_kind in ("confirm", "disambiguate"):
+            if "delete" in p_q or "change" in p_q or "edit" in p_q:
+                return "concerned"
+
+    if results:
+        for r in results:
+            if r.get("status") == "needs_confirmation" and r.get("action") in ("delete", "edit"):
+                return "concerned"
+
+    # 3. Income added -> excited
+    # 4. Expense added -> happy
+    if results:
+        for r in results:
+            if r.get("ok") and r.get("action") == "add":
+                data = r.get("data") or {}
+                t_type = str(data.get("type") or r.get("type") or "").lower()
+                if t_type == "income":
+                    return "excited"
+                elif t_type in ("expense", "sent"):
+                    return "happy"
+                direction = str(data.get("direction") or r.get("direction") or "").lower()
+                if direction == "received":
+                    return "excited"
+                elif direction == "sent":
+                    return "happy"
+                return "happy"
+
+    return "neutral"
