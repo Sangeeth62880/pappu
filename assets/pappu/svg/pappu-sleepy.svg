@@ -1,0 +1,31 @@
+<svg width="84" height="92" viewBox="0 0 100 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g id="legs">
+    <rect x="40" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+    <rect x="54" y="80" width="6" height="18" rx="3" fill="#1F2937" />
+    <ellipse cx="38" cy="99" rx="7" ry="5" fill="#1F2937" />
+    <ellipse cx="62" cy="99" rx="7" ry="5" fill="#1F2937" />
+  </g>
+  <g id="arms">
+    <rect x="18" y="52" width="6" height="30" rx="3" fill="#1F2937" />
+    <ellipse cx="21" cy="84" rx="4.5" ry="4.5" fill="#1F2937" />
+    <rect x="76" y="52" width="6" height="30" rx="3" fill="#1F2937" />
+    <ellipse cx="79" cy="84" rx="4.5" ry="4.5" fill="#1F2937" />
+  </g>
+  <g id="extras">
+    <text x="70" y="24" font-family="'Nunito', sans-serif" font-weight="700" font-size="12" fill="#6B7280" text-anchor="middle">z</text>
+    <text x="80" y="14" font-family="'Nunito', sans-serif" font-weight="700" font-size="15" fill="#6B7280" text-anchor="middle">Z</text>
+  </g>
+  <g id="body">
+    <circle cx="50" cy="52" r="36" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+    <circle cx="50" cy="52" r="28" stroke="#D99A00" stroke-width="2" fill="none" />
+    <text x="50" y="36" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="14" fill="#D99A00" text-anchor="middle">₹</text>
+  </g>
+  <g id="eyes">
+    <path d="M 37 50 Q 41 54 45 50" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+    <path d="M 55 50 Q 59 54 63 50" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  </g>
+  <g id="mouth">
+    <path d="M 47 62 Q 50 63 53 62" stroke="#1F2937" stroke-width="2" stroke-linecap="round" fill="none" />
+    <circle cx="56" cy="59" r="3" fill="#FFF8E7" stroke="#38BDF8" stroke-width="1.5" />
+  </g>
+</svg>
