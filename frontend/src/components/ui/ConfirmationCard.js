@@ -88,8 +88,8 @@ export default function ConfirmationCard({
         </View>
       )}
 
-      {/* Confirmation buttons */}
-      {type === 'confirmation' && (
+      {/* Confirmation and Action buttons */}
+      {(type === 'confirmation' || type === 'disambiguation') && (isHistorical || onConfirm || (secondaryAction && onSecondaryAction)) && (
         <View style={styles.buttonRow}>
           {isHistorical ? (
             <View testID="resolved-badge" style={styles.resolvedBadge}>

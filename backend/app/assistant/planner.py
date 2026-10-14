@@ -38,6 +38,14 @@ FAST_PATH_EXACT_MATCHES = {
     "വേണ്ട": "no",
 }
 
+FAST_PATH_CONTACT_CONFIRM = {
+    "new": "yes",
+    "yeah": "yes",
+    "yep": "yes",
+    "haan": "yes",
+    "nope": "no",
+}
+
 
 def _load_prompt_template() -> str:
     return PROMPT_FILE_PATH.read_text(encoding="utf-8")
@@ -48,6 +56,8 @@ def check_fast_path(text: str, context: Any) -> Optional[Plan]:
     Fast path before LLM:
     If a pending item exists and text matches exactly yes, no, ok, cancel, aam, ഉവ്വ് or വേണ്ട,
     returns an answer_pending plan directly.
+    For contact_confirm items, also fast paths "new", "yeah", "yep", "haan" to "yes"
+    and "nope" to "no".
     """
     if not context:
         return None
@@ -64,6 +74,17 @@ def check_fast_path(text: str, context: Any) -> Optional[Plan]:
 
     clean = text.strip().lower()
     clean = clean.rstrip(".").rstrip("!").rstrip("?")
+
+    kind = getattr(pending, "kind", None)
+    if not kind and hasattr(pending, "action_type"):
+        kind = getattr(pending, "action_type", None)
+    if not kind and isinstance(pending, dict):
+        kind = pending.get("kind") or pending.get("action_type")
+
+    if kind == "contact_confirm" and clean in FAST_PATH_CONTACT_CONFIRM:
+        resolved_value = FAST_PATH_CONTACT_CONFIRM[clean]
+        return Plan(actions=[AnswerPendingAction(value=resolved_value)])
+
     if clean in FAST_PATH_EXACT_MATCHES:
         resolved_value = FAST_PATH_EXACT_MATCHES[clean]
         return Plan(actions=[AnswerPendingAction(value=resolved_value)])

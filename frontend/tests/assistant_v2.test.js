@@ -269,7 +269,7 @@ describe('Assistant V2 UI and Endpoints', () => {
 
     expect(await findByText('Did you mean Arjun Nair?')).toBeTruthy();
     expect(await findByText('✓ Yes, Arjun Nair')).toBeTruthy();
-    expect(await findByText('+ Add new')).toBeTruthy();
+    expect(await findByText('No')).toBeTruthy();
 
     fireEvent.press(await findByText('✓ Yes, Arjun Nair'));
 

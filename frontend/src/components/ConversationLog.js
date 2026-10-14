@@ -402,7 +402,11 @@ export default function ConversationLog({
                     idx
                   )
           }
-          actionLabel={kind || 'choose'}
+          actionLabel="Yes"
+          onConfirm={isHistorical ? null : () => handleAnswerPending(pending.id, 'yes', 0)}
+          secondaryAction={!isHistorical}
+          secondaryLabel="No"
+          onSecondaryAction={() => handleAnswerPending(pending.id, 'no')}
         />
       );
     }
@@ -418,15 +422,15 @@ export default function ConversationLog({
           prompt={promptText}
           type="confirmation"
           isHistorical={isHistorical}
-          actionLabel={isHistorical ? 'Resolved' : `Yes, ${contactName}`}
+          actionLabel={isHistorical ? 'Resolved' : (contactName && contactName !== 'contact' ? `Yes, ${contactName}` : 'Yes')}
           onConfirm={
             isHistorical
               ? null
               : () => handleAnswerPending(pending.id, 'yes', 0)
           }
           secondaryAction={!isHistorical}
-          secondaryLabel="+ Add new"
-          onSecondaryAction={() => handleAnswerPending(pending.id, 'new')}
+          secondaryLabel="No"
+          onSecondaryAction={() => handleAnswerPending(pending.id, 'no')}
         />
       );
     }

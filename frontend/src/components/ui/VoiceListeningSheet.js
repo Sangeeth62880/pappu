@@ -295,27 +295,27 @@ export default function VoiceListeningSheet({
                       idx
                     )
                   }
-                  actionLabel={kind || 'choose'}
+                  actionLabel="Yes"
+                  onConfirm={() => handleV2Answer(v2Pending.id, 'yes', 0)}
+                  secondaryAction={true}
+                  secondaryLabel="No"
+                  onSecondaryAction={() => handleV2Answer(v2Pending.id, 'no')}
                 />
               </View>
             );
           }
 
           if (kind === 'contact_confirm') {
-            const suggestedContact = v2Pending.candidates?.[0] || v2Pending.target_transaction;
-            const contactName = typeof suggestedContact === 'object' && suggestedContact !== null
-              ? (suggestedContact.name || 'confirm')
-              : 'confirm';
             return (
               <View style={styles.cardContainer}>
                 <ConfirmationCard
                   prompt={promptText}
                   type="confirmation"
-                  actionLabel={`Yes, ${contactName}`}
+                  actionLabel="Yes"
                   onConfirm={() => handleV2Answer(v2Pending.id, 'yes', 0)}
                   secondaryAction={true}
-                  secondaryLabel="+ Add new"
-                  onSecondaryAction={() => handleV2Answer(v2Pending.id, 'new')}
+                  secondaryLabel="No"
+                  onSecondaryAction={() => handleV2Answer(v2Pending.id, 'no')}
                 />
               </View>
             );
