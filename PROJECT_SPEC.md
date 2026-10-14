@@ -240,6 +240,14 @@ This is implemented as a single routing function the backend calls before any wr
 - **Dashboard Category Breakdown**:
   - "People" appears in the category breakdown on Dashboard like any other category (showing aggregate expense/income under People). Individual contact net balances and transaction histories are accessed via the dedicated People tab/screen.
 
+### System-Wide Spending Definition
+
+Spending has a single consistent definition across the entire codebase (defined in backend/app/services/spending.py):
+* Transaction type must be expense.
+* The People category and any transaction with a contact attached are excluded from spending, unless the user explicitly asks about a person (selector specifies contact) or explicitly asks about money sent (selector specifies People).
+* Biggest expense queries strictly use this definition: they only inspect expense transactions excluding People (unless a person is requested), ensuring income rows such as Salary and transfers to contacts are never returned.
+* The same rule applies to sum, biggest, category breakdown / group by, and the Home dashboard summary calculations so that all reported metrics match exactly.
+
 ---
 
 ## 8. API Contracts (Backend)

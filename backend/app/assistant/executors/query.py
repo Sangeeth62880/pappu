@@ -20,6 +20,7 @@ from app.assistant.schemas import QueryOp, Selector
 from app.services.balances import balances
 from app.assistant.resolver import resolve
 from app.assistant.executors.base import ActionResult, serialize_transaction
+from app.services.spending import is_spending_txn, should_allow_people
 
 
 def execute_query(
@@ -50,14 +51,20 @@ def execute_query(
 
         elif kind == "sum":
             res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
-            total = sum((Decimal(str(r.amount)) for r in res.rows), Decimal("0.00"))
+            direction = res.filters_used.get("direction")
+            allow_people = should_allow_people(op.selector)
+            if direction == "received":
+                rows = [r for r in res.rows if r.type == "income"]
+            else:
+                rows = [r for r in res.rows if is_spending_txn(r, allow_people=allow_people)]
+            total = sum((Decimal(str(r.amount)) for r in rows), Decimal("0.00"))
             return ActionResult(
                 ok=True,
                 action="query",
                 status="sum",
                 data={
                     "sum": float(total),
-                    "count": len(res.rows),
+                    "count": len(rows),
                     "filters_used": res.filters_used,
                 },
                 filters_used=res.filters_used,
@@ -79,12 +86,20 @@ def execute_query(
 
         elif kind == "count":
             res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
+            direction = res.filters_used.get("direction")
+            allow_people = should_allow_people(op.selector)
+            if direction == "received":
+                rows = [r for r in res.rows if r.type == "income"]
+            elif direction == "sent" or not direction:
+                rows = [r for r in res.rows if is_spending_txn(r, allow_people=allow_people)]
+            else:
+                rows = res.rows
             return ActionResult(
                 ok=True,
                 action="query",
                 status="count",
                 data={
-                    "count": len(res.rows),
+                    "count": len(rows),
                     "filters_used": res.filters_used,
                 },
                 filters_used=res.filters_used,
@@ -92,7 +107,14 @@ def execute_query(
 
         elif kind == "biggest":
             res = resolve(db, user_id, op.selector, last_touched_id, ref_date=ref_date)
-            if not res.rows:
+            direction = res.filters_used.get("direction")
+            allow_people = should_allow_people(op.selector)
+            if direction == "received":
+                rows = [r for r in res.rows if r.type == "income"]
+            else:
+                rows = [r for r in res.rows if is_spending_txn(r, allow_people=allow_people)]
+
+            if not rows:
                 return ActionResult(
                     ok=True,
                     action="query",
@@ -103,7 +125,7 @@ def execute_query(
                     },
                     filters_used=res.filters_used,
                 )
-            sorted_txns = sorted(res.rows, key=lambda r: r.amount, reverse=True)
+            sorted_txns = sorted(rows, key=lambda r: r.amount, reverse=True)
             biggest_txn = sorted_txns[0]
             return ActionResult(
                 ok=True,
@@ -123,8 +145,23 @@ def execute_query(
             res_1 = resolve(db, user_id, selector_1, last_touched_id, ref_date=ref_date)
             res_2 = resolve(db, user_id, selector_2, last_touched_id, ref_date=ref_date)
 
-            sum_1 = sum((Decimal(str(r.amount)) for r in res_1.rows), Decimal("0.00"))
-            sum_2 = sum((Decimal(str(r.amount)) for r in res_2.rows), Decimal("0.00"))
+            dir_1 = res_1.filters_used.get("direction")
+            dir_2 = res_2.filters_used.get("direction")
+            allow_people_1 = should_allow_people(selector_1)
+            allow_people_2 = should_allow_people(selector_2)
+
+            if dir_1 == "received":
+                rows_1 = [r for r in res_1.rows if r.type == "income"]
+            else:
+                rows_1 = [r for r in res_1.rows if is_spending_txn(r, allow_people=allow_people_1)]
+
+            if dir_2 == "received":
+                rows_2 = [r for r in res_2.rows if r.type == "income"]
+            else:
+                rows_2 = [r for r in res_2.rows if is_spending_txn(r, allow_people=allow_people_2)]
+
+            sum_1 = sum((Decimal(str(r.amount)) for r in rows_1), Decimal("0.00"))
+            sum_2 = sum((Decimal(str(r.amount)) for r in rows_2), Decimal("0.00"))
 
             delta = sum_1 - sum_2
             delta_pct = (

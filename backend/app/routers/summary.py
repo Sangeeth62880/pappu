@@ -15,6 +15,7 @@ from app.services.date_utils import (
     IST,
 )
 from app.services.balances import _compute_contact_balance
+from app.services.spending import is_spending_txn
 from app.schemas.transaction import (
     SummaryResponse,
     DailyBucket,
@@ -120,37 +121,33 @@ def get_summary(
         legacy_breakdown_map[cat_id].count += 1
 
         # Period analytics totals
-        if txn.type == "expense":
-            if not is_people or not is_period_scoped:
-                total_spent += txn.amount
-                expense_category_totals[cat_name] = (
-                    expense_category_totals.get(cat_name, Decimal("0.00")) + txn.amount
-                )
-                expense_txns_for_top.append(txn)
+        if is_spending_txn(txn, allow_people=False):
+            total_spent += txn.amount
+            expense_category_totals[cat_name] = (
+                expense_category_totals.get(cat_name, Decimal("0.00")) + txn.amount
+            )
+            expense_txns_for_top.append(txn)
 
-                if is_period_scoped:
-                    bucket_key = (
-                        txn.txn_date.strftime("%Y-%m")
-                        if period == "year"
-                        else txn.txn_date.isoformat()
+            if is_period_scoped:
+                bucket_key = (
+                    txn.txn_date.strftime("%Y-%m")
+                    if period == "year"
+                    else txn.txn_date.isoformat()
+                )
+                if bucket_key in bucket_map:
+                    idx = bucket_map[bucket_key]
+                    buckets_data[idx]["amount"] = float(
+                        Decimal(str(buckets_data[idx]["amount"])) + txn.amount
                     )
-                    if bucket_key in bucket_map:
-                        idx = bucket_map[bucket_key]
-                        buckets_data[idx]["amount"] = float(
-                            Decimal(str(buckets_data[idx]["amount"])) + txn.amount
-                        )
-        elif txn.type == "income":
-            if not is_people or not is_period_scoped:
-                total_income += txn.amount
+        elif txn.type == "income" and not is_people:
+            total_income += txn.amount
 
     net = total_income - total_spent
 
     # Previous period spent (excluding People)
     prev_spent = Decimal("0.00")
     for txn in prev_txns:
-        cat_name = txn.category.name if txn.category else "Other"
-        is_people = (cat_name.lower() == "people") or (txn.contact_id is not None)
-        if txn.type == "expense" and not is_people:
+        if is_spending_txn(txn, allow_people=False):
             prev_spent += txn.amount
 
     # Delta percentage
