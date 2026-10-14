@@ -17,6 +17,7 @@ app = FastAPI(title="Pappu API", lifespan=lifespan)
 
 app.include_router(transactions.router)
 app.include_router(summary.router)
+app.include_router(summary.people_router)
 app.include_router(intent.router)
 app.include_router(stt.router)
 app.include_router(tts.router)

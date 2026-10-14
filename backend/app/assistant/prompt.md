@@ -101,7 +101,7 @@ Selector Object Fields:
 
 1. Description: Never invent or assume a description. Only populate description with words the user explicitly spoke. If the user only said an amount and category or contact, leave description null.
 2. Recency: "last" or "latest" or "അവസാനത്തെ" means selector recency is "latest".
-3. Contacts: Use a contact only if the user explicitly mentioned that person. Match against the provided Contacts list and return the name exactly as listed in contacts. If a person is mentioned giving or receiving money, always use kind "person" with contact, never generic expense or income.
+3. Contacts: Use a contact only if the user explicitly mentioned that person. Match against the provided Contacts list and return the name exactly as listed in contacts. If the person is not in the contacts list, return the exact name spoken by the user in the exact script they spoke or typed (e.g. Malayalam script 'റോണിക്ക്'). NEVER transliterate, anglicize, or translate contact names into Latin characters if spoken in Malayalam or another Indic script. If a person is mentioned giving or receiving money, always use kind "person" with contact, never generic expense or income.
 4. Multi Action: If the user requests two or more distinct actions in a single sentence, output multiple separate action objects in the ops array (maximum 5).
 5. Relative Periods and Dates:
    - When the user uses a relative range, output selector period: today, yesterday, this_week, last_week, this_month, last_month, last_7_days, last_30_days, this_year.
@@ -220,6 +220,11 @@ Example 14: Contact balance query (Malayalam script)
 User: "പൂജയ്ക്ക് എത്ര രൂപ കൊടുക്കാനുണ്ട്"
 Response:
 {"ops": [{"op": "query", "query_kind": "balances", "selector": {"contact": "Pooja"}}]}
+
+Example 14b: Malayalam contact addition (Malayalam script)
+User: "റോണിക്ക് 500 കൊടുത്തു"
+Response:
+{"ops": [{"op": "add", "kind": "person", "direction": "sent", "amount": 500, "contact": "റോണിക്ക്"}]}
 
 Example 15: Total money lent query (English)
 User: "Total money lent to Kiran"

@@ -226,14 +226,23 @@ def handle_assistant_message(
 
                 if op_name == "add":
                     batch_id = uuid.uuid4()
-                    res = execute_add(db, user_id, action, batch_id, confirmed=False)
+                    ask_new = False
+                    if action.contact:
+                        if body.input == "voice" or any(ord(c) > 127 for c in action.contact):
+                            ask_new = True
+                    res = execute_add(db, user_id, action, batch_id, confirmed=False, ask_new_contact=ask_new)
 
                     if res.needs_confirmation:
                         if not created_pending:
                             if res.status == "contact_confirm" and res.candidates:
                                 cand = res.candidates[0]
-                                cand_name = cand.get("candidate_name", "contact")
-                                q = f"Is this {cand_name}?"
+                                is_new = bool(cand.get("is_new"))
+                                if is_new:
+                                    spoken = cand.get("spoken_name") or "contact"
+                                    q = f"New contact: {spoken}. Add them?"
+                                else:
+                                    cand_name = cand.get("candidate_name", "contact")
+                                    q = f"Is this {cand_name}?"
                                 created_pending, _ = create_pending(
                                     db=db,
                                     user_id=user_id,
@@ -241,6 +250,7 @@ def handle_assistant_message(
                                     plan_json={
                                         "target_contact_id": cand.get("candidate_id"),
                                         "spoken_name": cand.get("spoken_name"),
+                                        "is_new": is_new,
                                         "action": action.model_dump(),
                                         "question": q,
                                     },

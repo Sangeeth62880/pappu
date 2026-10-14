@@ -13,10 +13,11 @@ import uuid
 import difflib
 import unicodedata
 from dataclasses import dataclass
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.models.contact import Contact
+from app.models.transaction import Transaction
 from app.services.contact_matcher import find_similar_contacts
 
 SIMILARITY_THRESHOLD = 0.65
@@ -175,3 +176,84 @@ def add_alias_to_contact(
         db.flush()
 
     return contact
+
+
+def merge_contacts(
+    db: Session,
+    user_id: uuid.UUID,
+    primary_id: uuid.UUID,
+    secondary_id: uuid.UUID,
+) -> Dict[str, Any]:
+    """
+    Merges contact B (secondary) into contact A (primary) for user_id:
+    1. Validates both contacts belong to user_id.
+    2. Moves all transactions referencing secondary_id to primary_id.
+    3. Adds secondary name and aliases to primary aliases avoiding duplicates.
+    4. Deletes secondary contact.
+    5. Returns summary of merged contact.
+    """
+    if primary_id == secondary_id:
+        raise ValueError("Cannot merge a contact into itself.")
+
+    primary = (
+        db.query(Contact)
+        .filter(Contact.id == primary_id, Contact.user_id == user_id)
+        .first()
+    )
+    if not primary:
+        raise ValueError("Primary contact not found.")
+
+    secondary = (
+        db.query(Contact)
+        .filter(Contact.id == secondary_id, Contact.user_id == user_id)
+        .first()
+    )
+    if not secondary:
+        raise ValueError("Secondary contact not found.")
+
+    # 1. Move transactions referencing secondary to primary
+    txns = (
+        db.query(Transaction)
+        .filter(Transaction.contact_id == secondary.id, Transaction.user_id == user_id)
+        .all()
+    )
+    for t in txns:
+        t.contact_id = primary.id
+    db.flush()
+    secondary.transactions = []
+
+    # 2. Collect existing primary identifiers
+    existing_aliases = set(normalize_name(a).lower() for a in (primary.aliases or []))
+    existing_aliases.add(normalize_name(primary.name).lower())
+
+    new_aliases = list(primary.aliases or [])
+
+    # Add secondary name as alias
+    sec_name = normalize_name(secondary.name)
+    if sec_name and sec_name.lower() not in existing_aliases:
+        new_aliases.append(sec_name)
+        existing_aliases.add(sec_name.lower())
+
+    # Add secondary existing aliases
+    for alias in (secondary.aliases or []):
+        norm_a = normalize_name(str(alias))
+        if norm_a and norm_a.lower() not in existing_aliases:
+            new_aliases.append(norm_a)
+            existing_aliases.add(norm_a.lower())
+
+    primary.aliases = new_aliases
+
+    # 3. Delete secondary contact
+    db.delete(secondary)
+    db.commit()
+    db.refresh(primary)
+
+    return {
+        "primary_id": str(primary.id),
+        "primary_name": primary.name,
+        "secondary_id": str(secondary_id),
+        "secondary_name": secondary.name,
+        "transactions_moved": len(txns),
+        "aliases": primary.aliases,
+    }
+

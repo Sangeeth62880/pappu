@@ -2,12 +2,14 @@ import uuid
 from decimal import Decimal
 from datetime import datetime, date
 from typing import Dict, List, Optional, Literal
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth import get_current_user_id
 from app.models import Transaction, Contact, Category
+from app.assistant.contacts import merge_contacts
 from app.services.date_utils import (
     get_period_bounds,
     generate_zero_filled_buckets,
@@ -394,3 +396,48 @@ def get_contact_detail(
         display_text=summary_item.display_text,
         transactions=formatted_txns,
     )
+
+
+class MergeContactsRequest(BaseModel):
+    primary_contact_id: uuid.UUID
+    secondary_contact_id: uuid.UUID
+
+
+@router.post("/people/merge")
+def merge_people_contacts(
+    body: MergeContactsRequest,
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """
+    Merges contact B into contact A for the authenticated user.
+    Moves all transactions, adds B name and aliases to A, and deletes B.
+    """
+    try:
+        return merge_contacts(
+            db=db,
+            user_id=current_user_id,
+            primary_id=body.primary_contact_id,
+            secondary_id=body.secondary_contact_id,
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)
+
+
+people_router = APIRouter(prefix="/people", tags=["people"])
+
+
+@people_router.post("/merge")
+def merge_people_contacts_direct(
+    body: MergeContactsRequest,
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """
+    Direct alias route for merging contact B into contact A.
+    """
+    return merge_people_contacts(body=body, db=db, current_user_id=current_user_id)
+

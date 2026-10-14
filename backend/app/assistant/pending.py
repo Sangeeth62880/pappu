@@ -330,8 +330,21 @@ def handle_answer_pending(
     # 3. Answer: NO or CANCEL
     if clean_answer in ("no", "cancel"):
         if item.kind == "contact_confirm":
-            # On 'no' for contact_confirm: create a new contact with the spoken name
             plan_payload = item.plan_json or {}
+            is_new = plan_payload.get("is_new", False)
+            if is_new:
+                item.status = "cancelled"
+                db.commit()
+                return AssistantResponse(
+                    reply_text="Cancelled.",
+                    spoken_text="Cancelled.",
+                    language="en",
+                    results=[],
+                    pending=None,
+                    changed=False,
+                )
+
+            # On 'no' for fuzzy contact_confirm: create a new contact with the spoken name
             action_data = plan_payload.get("action") or {}
             spoken_name = plan_payload.get("spoken_name") or action_data.get("contact") or "Unknown"
 
@@ -414,37 +427,56 @@ def handle_answer_pending(
 
         elif item.kind == "contact_confirm":
             plan_payload = item.plan_json or {}
+            is_new = plan_payload.get("is_new", False)
             target_contact_id_str = plan_payload.get("target_contact_id")
             spoken_name = plan_payload.get("spoken_name", "")
             action_data = plan_payload.get("action") or {}
 
-            target_contact = None
-            if target_contact_id_str:
-                target_contact = (
-                    db.query(Contact)
-                    .filter(Contact.id == uuid.UUID(target_contact_id_str), Contact.user_id == user_id)
-                    .first()
+            if is_new:
+                new_contact = create_contact(db, user_id, spoken_name)
+                action_data["contact"] = new_contact.name
+                add_op = AddAction.model_validate(action_data)
+                results = execute_ops(db, user_id, [add_op], confirmed=True)
+                item.status = "resolved"
+                db.commit()
+
+                reply = f"Created contact {new_contact.name} and recorded transaction."
+                return AssistantResponse(
+                    reply_text=reply,
+                    spoken_text=reply,
+                    language="en",
+                    results=[r.model_dump() for r in results],
+                    pending=None,
+                    changed=True,
                 )
+            else:
+                target_contact = None
+                if target_contact_id_str:
+                    target_contact = (
+                        db.query(Contact)
+                        .filter(Contact.id == uuid.UUID(target_contact_id_str), Contact.user_id == user_id)
+                        .first()
+                    )
 
-            if target_contact and spoken_name:
-                add_alias_to_contact(db, target_contact.id, user_id, spoken_name)
-                action_data["contact"] = target_contact.name
+                if target_contact and spoken_name:
+                    add_alias_to_contact(db, target_contact.id, user_id, spoken_name)
+                    action_data["contact"] = target_contact.name
 
-            add_op = AddAction.model_validate(action_data)
-            results = execute_ops(db, user_id, [add_op], confirmed=True)
-            item.status = "resolved"
-            db.commit()
+                add_op = AddAction.model_validate(action_data)
+                results = execute_ops(db, user_id, [add_op], confirmed=True)
+                item.status = "resolved"
+                db.commit()
 
-            contact_label = target_contact.name if target_contact else "contact"
-            reply = f"Saved alias for {contact_label} and recorded transaction."
-            return AssistantResponse(
-                reply_text=reply,
-                spoken_text=reply,
-                language="en",
-                results=[r.model_dump() for r in results],
-                pending=None,
-                changed=True,
-            )
+                contact_label = target_contact.name if target_contact else "contact"
+                reply = f"Saved alias for {contact_label} and recorded transaction."
+                return AssistantResponse(
+                    reply_text=reply,
+                    spoken_text=reply,
+                    language="en",
+                    results=[r.model_dump() for r in results],
+                    pending=None,
+                    changed=True,
+                )
 
         elif item.kind == "disambiguate":
             candidates = item.candidates_json or []

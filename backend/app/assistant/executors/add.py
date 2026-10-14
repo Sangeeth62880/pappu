@@ -25,7 +25,7 @@ from app.assistant.validation import (
 from app.assistant.executors.base import ActionResult, serialize_transaction
 
 
-from app.assistant.contacts import resolve_contact, create_contact
+from app.assistant.contacts import resolve_contact, create_contact, add_alias_to_contact
 
 
 def execute_add(
@@ -34,11 +34,13 @@ def execute_add(
     op: AddOp,
     batch_id: uuid.UUID,
     confirmed: bool = False,
+    ask_new_contact: bool = False,
 ) -> ActionResult:
     """
     Executes an Add operation for user_id and logs UndoAction with batch_id.
     If date is in the future and confirmed is False, returns needs_confirmation.
     If contact matches fuzzily and confirmed is False, returns needs_confirmation for contact_confirm.
+    If contact is new, ask_new_contact is True, and confirmed is False, returns needs_confirmation.
     """
     try:
         amount = validate_amount(op.amount)
@@ -76,12 +78,28 @@ def execute_add(
                         "candidate_name": res.candidate.name,
                         "spoken_name": res.spoken_name,
                         "similarity": res.similarity,
+                        "is_new": False,
+                    }],
+                )
+            elif res.status == "new" and ask_new_contact and not confirmed:
+                return ActionResult(
+                    ok=False,
+                    action="add",
+                    needs_confirmation=True,
+                    status="contact_confirm",
+                    candidates=[{
+                        "candidate_id": None,
+                        "candidate_name": None,
+                        "spoken_name": res.spoken_name,
+                        "similarity": 0.0,
+                        "is_new": True,
                     }],
                 )
             elif res.status == "exact":
                 contact = res.contact
             elif res.status == "fuzzy" and confirmed:
                 contact = res.candidate
+                add_alias_to_contact(db, contact.id, user_id, res.spoken_name)
             else:
                 contact = create_contact(db, user_id, res.spoken_name)
 
@@ -128,12 +146,28 @@ def execute_add(
                             "candidate_name": res.candidate.name,
                             "spoken_name": res.spoken_name,
                             "similarity": res.similarity,
+                            "is_new": False,
+                        }],
+                    )
+                elif res.status == "new" and ask_new_contact and not confirmed:
+                    return ActionResult(
+                        ok=False,
+                        action="add",
+                        needs_confirmation=True,
+                        status="contact_confirm",
+                        candidates=[{
+                            "candidate_id": None,
+                            "candidate_name": None,
+                            "spoken_name": res.spoken_name,
+                            "similarity": 0.0,
+                            "is_new": True,
                         }],
                     )
                 elif res.status == "exact":
                     contact = res.contact
                 elif res.status == "fuzzy" and confirmed:
                     contact = res.candidate
+                    add_alias_to_contact(db, contact.id, user_id, res.spoken_name)
                 else:
                     contact = create_contact(db, user_id, res.spoken_name)
         else:
