@@ -229,9 +229,9 @@ def test_answer_pending_yes_and_no_flow_for_delete(test_db_session):
         plan_json={"action": {"op": "delete", "selector": {"amount": 300}}},
     )
 
-    # 4. Answer "yes" executes delete
+    # 4. Answer "yes" executes delete and says what was deleted
     resp_yes = handle_answer_pending(test_db_session, user_id, p2.id, answer="yes")
-    assert resp_yes.reply_text == "Deleted transaction."
+    assert resp_yes.reply_text.startswith("Deleted expense ₹300")
     assert resp_yes.changed is True
 
     test_db_session.refresh(p2)
@@ -294,7 +294,7 @@ def test_answer_pending_pick_flow_for_disambiguation(test_db_session):
     # Confirm the selected delete
     new_pending_id = uuid.UUID(resp.pending.id)
     resp_confirm = handle_answer_pending(test_db_session, user_id, new_pending_id, answer="yes")
-    assert resp_confirm.reply_text == "Deleted transaction."
+    assert resp_confirm.reply_text == "Deleted Food ₹150 on 14 Oct."
     assert resp_confirm.changed is True
 
     # Verify txn2 is deleted and txn1 is preserved

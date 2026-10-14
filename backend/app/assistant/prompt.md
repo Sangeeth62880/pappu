@@ -112,7 +112,7 @@ Selector Object Fields:
    - Do not output date_from or date_to when period is present.
    - Only output date_from and date_to when the user specifies explicit calendar dates or days.
    - When answering pending disambiguation with relative dates like "Yesterday's one", resolve it to the exact YYYY-MM-DD date string.
-6. Pronouns: Use selector ref "last_touched" only when the user uses a pronoun like "it", "that", "that one", "adh", "athu". If the user mentions a specific attribute like "my last coffee" or "last auto fare", use the category or text with recency "latest".
+6. Pronouns and Last Touched: Use selector ref "last_touched" only when the user uses a pronoun like "it", "that", "that one", "this one", "adh", "athu". "last transaction" and "latest" mean selector recency "latest". NEVER use last_touched for "last transaction" or "latest transaction" or "അവസാനത്തെ transaction". If the user mentions a specific attribute like "my last coffee" or "last auto fare", use the category or text with recency "latest".
 7. Number Normalization:
    - "1.5k" is 1500, "10k" is 10000, "2.5k" is 2500.
    - "1 lakh" is 100000.
@@ -209,6 +209,11 @@ User: "Change it to 300"
 Context: last touched transaction is Food 250
 Response:
 {"ops": [{"op": "edit", "selector": {"ref": "last_touched"}, "patch": {"amount": 300}}]}
+
+Example 12b: Edit last transaction (English)
+User: "Change my last transaction to 300"
+Response:
+{"ops": [{"op": "edit", "selector": {"recency": "latest"}, "patch": {"amount": 300}}]}
 
 Example 13: Balances query owed to user (English)
 User: "Who owes me money"

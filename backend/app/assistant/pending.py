@@ -29,7 +29,7 @@ from app.assistant.schemas import (
 from app.assistant.executors.coordinator import execute_ops
 from app.assistant.executors.base import ActionResult
 from app.assistant.contacts import add_alias_to_contact, create_contact, normalize_name
-from app.assistant.composer import format_inr, format_date_short
+from app.assistant.composer import format_inr, format_date_short, _compose_single_delete, _compose_single_edit
 
 DEFAULT_EXPIRY_SECONDS = 300  # 5 minutes
 
@@ -75,6 +75,48 @@ def format_delete_confirmation_question(row_or_candidate: Any) -> str:
         label = "income" if is_income else "expense"
 
     return f"Delete {label} {amt_str} on {dt_str}?"
+
+
+def format_edit_confirmation_question(row_or_candidate: Any, patch: Dict[str, Any]) -> str:
+    """
+    Formatter for pending edit question:
+    contact name or category, previous amount, date, and target change.
+    Example: Change Shopping ₹350 on 15 Sep to ₹300?
+    """
+    amt_val = getattr(row_or_candidate, "amount", None)
+    if amt_val is None and isinstance(row_or_candidate, dict):
+        amt_val = row_or_candidate.get("amount")
+    amt_str = format_inr(amt_val or 0)
+
+    dt_val = getattr(row_or_candidate, "txn_date", None)
+    if dt_val is None and isinstance(row_or_candidate, dict):
+        dt_val = row_or_candidate.get("date") or row_or_candidate.get("txn_date")
+    dt_str = format_date_short(dt_val)
+    date_part = f" on {dt_str}" if dt_str else ""
+
+    contact_name = None
+    if hasattr(row_or_candidate, "contact") and row_or_candidate.contact:
+        contact_name = getattr(row_or_candidate.contact, "name", None)
+    elif isinstance(row_or_candidate, dict):
+        contact_name = row_or_candidate.get("contact_name") or row_or_candidate.get("contact")
+
+    category_name = None
+    if hasattr(row_or_candidate, "category") and row_or_candidate.category:
+        category_name = getattr(row_or_candidate.category, "name", None)
+    elif isinstance(row_or_candidate, dict):
+        category_name = row_or_candidate.get("category_name") or row_or_candidate.get("category")
+
+    if contact_name and str(contact_name).strip():
+        label = str(contact_name).strip()
+    elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
+        label = str(category_name).strip()
+    else:
+        label = "transaction"
+
+    if patch and "amount" in patch and patch["amount"] is not None:
+        amt_new = format_inr(patch["amount"])
+        return f"Change {label} {amt_str}{date_part} to {amt_new}?"
+    return f"Change {label} {amt_str}{date_part}?"
 
 
 def format_superseded_message(item: PendingAction) -> str:
@@ -399,7 +441,41 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
-                reply = "Deleted transaction."
+                # Compose reply from deleted data or candidate
+                cands = item.candidates_json or []
+                del_cand = cands[0] if (cands and isinstance(cands, list) and isinstance(cands[0], dict)) else {}
+                res_data = results[0].data if (results and results[0].data) else {}
+                merged_info = {**del_cand, **res_data}
+
+                reply = _compose_single_delete({"data": merged_info}, "en")
+                return AssistantResponse(
+                    reply_text=reply,
+                    spoken_text=reply,
+                    language="en",
+                    results=[r.model_dump() for r in results],
+                    pending=None,
+                    changed=True,
+                )
+
+            elif op_type == "edit":
+                target_id_str = plan_payload.get("target_id")
+                target_uuid = uuid.UUID(target_id_str) if target_id_str else None
+                edit_op = EditAction.model_validate(op_data)
+                results = execute_ops(
+                    db,
+                    user_id,
+                    [edit_op],
+                    last_touched_id=target_uuid,
+                )
+                item.status = "resolved"
+                db.commit()
+
+                edit_res = results[0] if results else None
+                if edit_res and edit_res.ok:
+                    reply = _compose_single_edit(edit_res.model_dump(), "en")
+                else:
+                    reply = "Updated transaction. Say undo to revert."
+
                 return AssistantResponse(
                     reply_text=reply,
                     spoken_text=reply,

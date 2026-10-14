@@ -465,7 +465,7 @@ def test_regression_edit_change_to_300(test_db_session):
     assert res.status_code == 200
     data = res.json()
     assert data["changed"] is True
-    assert "Changed Food ₹250 to ₹300. Say undo to revert." in data["reply_text"]
+    assert "Changed Food ₹250 on 14 Oct to ₹300. Say undo to revert." in data["reply_text"]
 
     test_db_session.refresh(t1)
     assert t1.amount == Decimal("300.00")

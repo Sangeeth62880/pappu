@@ -177,16 +177,45 @@ def _compose_single_edit(res: Dict[str, Any], lang: str) -> str:
     prev = data.get("previous") or {}
     amt_new = format_inr(data.get("amount", 0))
     amt_prev = format_inr(prev.get("amount", 0))
-    cat = data.get("category_name") or data.get("category") or "Food"
+    contact = data.get("contact_name") or data.get("contact")
+    cat = data.get("category_name") or data.get("category") or "Shopping"
+    label = contact if contact and str(contact).strip() else cat
+
+    dt_str = format_date_short(data.get("txn_date") or data.get("date") or prev.get("txn_date"))
+    date_part = f" on {dt_str}" if dt_str else ""
 
     if prev and "amount" in prev and amt_prev != amt_new:
         if lang == "ml":
-            return f"{cat} {amt_prev} എന്നത് {amt_new} ആക്കി മാറ്റി. മാറ്റം റദ്ദാക്കാൻ undo എന്ന് പറയുക."
+            return f"{label} {amt_prev}{date_part} എന്നത് {amt_new} ആക്കി മാറ്റി. മാറ്റം റദ്ദാക്കാൻ undo എന്ന് പറയുക."
         elif lang == "mixed":
-            return f"{cat} {amt_prev} എന്നത് {amt_new} aakki maatti. Say undo to revert."
-        return f"Changed {cat} {amt_prev} to {amt_new}. Say undo to revert."
+            return f"{label} {amt_prev}{date_part} എന്നത് {amt_new} aakki maatti. Say undo to revert."
+        return f"Changed {label} {amt_prev}{date_part} to {amt_new}. Say undo to revert."
 
-    return f"Updated {cat} transaction. Say undo to revert."
+    return f"Updated {label} transaction. Say undo to revert."
+
+
+def _compose_single_delete(res: Dict[str, Any], lang: str) -> str:
+    data = res.get("data") or {}
+    contact = data.get("contact_name") or data.get("contact")
+    cat = data.get("category_name") or data.get("category")
+    amt_val = data.get("amount")
+    amt = format_inr(amt_val) if amt_val is not None else ""
+    dt_str = format_date_short(data.get("txn_date") or data.get("date"))
+    is_income = str(data.get("type", "")).strip().lower() == "income"
+
+    if contact and str(contact).strip():
+        label = str(contact).strip()
+    elif cat and str(cat).strip() and str(cat).strip().lower() not in ("people", "other", "expense", "income"):
+        label = str(cat).strip()
+    elif amt:
+        label = "income" if is_income else "expense"
+    else:
+        return "Deleted transaction."
+
+    date_part = f" on {dt_str}" if dt_str else ""
+    if amt:
+        return f"Deleted {label} {amt}{date_part}."
+    return f"Deleted {label}{date_part}."
 
 
 def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
@@ -496,7 +525,7 @@ def compose_reply(
                 success_sentences.append(sent)
                 spoken_sentences.append(sent)
             elif act == "delete":
-                sent = "Deleted transaction."
+                sent = _compose_single_delete(r, lang)
                 success_sentences.append(sent)
                 spoken_sentences.append(sent)
             elif act in ("query", "balances", "sum", "count", "biggest", "compare", "list"):

@@ -35,7 +35,7 @@ from app.assistant.schemas import (
 from app.assistant.context import load_assistant_context
 from app.assistant.planner import AssistantPlanner, check_fast_path, FAST_PATH_EXACT_MATCHES
 from app.assistant.resolver import resolve
-from app.assistant.last_touched import get_last_touched_id
+from app.assistant.last_touched import get_last_touched_id, is_recent_or_touched
 from app.assistant.pending import (
     create_pending,
     get_active_pending,
@@ -44,6 +44,7 @@ from app.assistant.pending import (
     handle_answer_pending,
     format_pending_summary,
     format_delete_confirmation_question,
+    format_edit_confirmation_question,
     format_superseded_message,
 )
 from app.assistant.sanitizer import sanitize_plan
@@ -318,18 +319,38 @@ def handle_assistant_message(
                         else:
                             multi_action_pending_dropped = True
                     else:
-                        # Exactly one row matched: execute edit immediately with undo
-                        batch_id = uuid.uuid4()
-                        res = execute_edit(
-                            db,
-                            user_id,
-                            action,
-                            batch_id,
-                            last_touched_id=last_touched_id,
-                        )
-                        if res.ok:
-                            changed = True
-                        results.append(res.model_dump())
+                        target_row = resolve_res.rows[0]
+                        # If target was not created or touched in last 10 minutes, ask for confirmation first
+                        if not is_recent_or_touched(db, target_row, user_id):
+                            if not created_pending:
+                                q = format_edit_confirmation_question(target_row, action.patch)
+                                created_pending, _ = create_pending(
+                                    db=db,
+                                    user_id=user_id,
+                                    kind="confirm",
+                                    plan_json={
+                                        "action": action.model_dump(),
+                                        "target_id": str(target_row.id),
+                                        "question": q,
+                                    },
+                                    candidates=[serialize_transaction(target_row)],
+                                    question=q,
+                                )
+                            else:
+                                multi_action_pending_dropped = True
+                        else:
+                            # Exactly one row matched created or touched in last 10 minutes: execute edit immediately with undo
+                            batch_id = uuid.uuid4()
+                            res = execute_edit(
+                                db,
+                                user_id,
+                                action,
+                                batch_id,
+                                last_touched_id=last_touched_id,
+                            )
+                            if res.ok:
+                                changed = True
+                            results.append(res.model_dump())
 
                 elif op_name == "delete":
                     resolve_res = resolve(db, user_id, action.selector, last_touched_id, ref_date=ref_date, for_mutation=True)
