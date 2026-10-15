@@ -66,20 +66,23 @@ export default function SpendingChart({
   }, [normalizedBuckets, maxAmount]);
 
   // Internal selection state
+  const isControlled = selectedBarIndex !== null && selectedBarIndex !== undefined;
   const [internalSelectedIndex, setInternalSelectedIndex] = useState(() => {
-    if (selectedBarIndex !== null && selectedBarIndex !== undefined) {
+    if (isControlled) {
       return selectedBarIndex;
     }
-    return peakIndex;
+    return peakIndex >= 0 ? peakIndex : 0;
   });
 
+  const prevPeriodRef = useRef(period);
   useEffect(() => {
-    if (selectedBarIndex !== null && selectedBarIndex !== undefined) {
+    if (isControlled) {
       setInternalSelectedIndex(selectedBarIndex);
-    } else {
-      setInternalSelectedIndex(peakIndex);
+    } else if (prevPeriodRef.current !== period) {
+      prevPeriodRef.current = period;
+      setInternalSelectedIndex(peakIndex >= 0 ? peakIndex : 0);
     }
-  }, [selectedBarIndex, peakIndex, period]);
+  }, [isControlled, selectedBarIndex, period, peakIndex]);
 
   const activeIndex = internalSelectedIndex;
   const selectedBucket = activeIndex >= 0 && activeIndex < numBars ? normalizedBuckets[activeIndex] : null;
@@ -120,7 +123,16 @@ export default function SpendingChart({
       if (isTest || reduceMotion) {
         tooltipScale.setValue(1);
         tooltipTranslateY.setValue(0);
-        tooltipOpacity.setValue(1);
+        if (reduceMotion && !isTest) {
+          tooltipOpacity.setValue(0);
+          Animated.timing(tooltipOpacity, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }).start();
+        } else {
+          tooltipOpacity.setValue(1);
+        }
       } else {
         tooltipScale.setValue(0.8);
         tooltipTranslateY.setValue(4);
@@ -164,21 +176,40 @@ export default function SpendingChart({
   const barRadius = numBars > 14 ? 3 : 6;
   const stubRadius = numBars > 14 ? 2 : 4;
 
-  // Tooltip positioning
-  const columnWidth = numBars > 0 ? containerWidth / numBars : 0;
-  const selectedBarCenter = activeIndex >= 0 ? (activeIndex + 0.5) * columnWidth : 0;
+  // Exact bar layout and positioning (accounting for barsArea paddingHorizontal: 4)
+  const innerBarsWidth = Math.max(0, containerWidth - 8);
+  const columnWidth = numBars > 0 ? innerBarsWidth / numBars : 0;
+  const selectedBarCenter = activeIndex >= 0 ? 4 + (activeIndex + 0.5) * columnWidth : 0;
+
+  // Selected bar height & top edge
+  const selectedAmt = selectedBucket ? Number(selectedBucket.amount || 0) : 0;
+  let selectedBarHeight = ZERO_STUB_HEIGHT;
+  if (selectedAmt > 0 && maxAmount > 0) {
+    selectedBarHeight = Math.max(ZERO_STUB_HEIGHT, Math.round((selectedAmt / maxAmount) * MAX_BAR_HEIGHT));
+  }
+  const barTopY = HEADROOM_HEIGHT + (MAX_BAR_HEIGHT - selectedBarHeight);
+
+  // Tooltip dimensions & vertical headroom placement
+  const tooltipHeight = 26; // 20px pill + ~6px arrow
+  const arrowGap = 4; // Gap between arrow tip and bar top edge
+  const idealTop = barTopY - tooltipHeight - arrowGap;
+  // Keep tooltip strictly inside headroom (top between 4 and 22 so it never overlaps any bar)
+  const tooltipTop = Math.max(4, Math.min(HEADROOM_HEIGHT - tooltipHeight, idealTop));
 
   // Tooltip width estimate based on formatted amount length
   const tooltipText = selectedBucket ? `₹${formatAmount(selectedBucket.amount)}` : '';
   const estimatedTooltipWidth = Math.max(54, tooltipText.length * 9 + 20);
   const halfTooltipWidth = estimatedTooltipWidth / 2;
 
-  // Clamp tooltip within container padding
-  const clampedTooltipCenter = Math.max(
-    halfTooltipWidth + 4,
-    Math.min(containerWidth - halfTooltipWidth - 4, selectedBarCenter)
-  );
-  const arrowOffset = Math.max(-halfTooltipWidth + 10, Math.min(halfTooltipWidth - 10, selectedBarCenter - clampedTooltipCenter));
+  // Clamp tooltip inside card inner padding (4px margin from card boundaries)
+  const minCenter = halfTooltipWidth + 4;
+  const maxCenter = Math.max(minCenter, containerWidth - halfTooltipWidth - 4);
+  const clampedTooltipCenter = Math.max(minCenter, Math.min(maxCenter, selectedBarCenter));
+
+  // Arrow offset relative to tooltip pill center: ensures arrow center equals selectedBarCenter
+  const rawArrowOffset = selectedBarCenter - clampedTooltipCenter;
+  const maxArrowOffset = Math.max(0, halfTooltipWidth - 4);
+  const arrowOffset = Math.max(-maxArrowOffset, Math.min(maxArrowOffset, rawArrowOffset));
 
   return (
     <View
@@ -191,7 +222,7 @@ export default function SpendingChart({
         }
       }}
     >
-      {/* Tooltip in 48px headroom */}
+      {/* Tooltip in headroom pointing at selected bar */}
       {selectedBucket && activeIndex >= 0 ? (
         <Animated.View
           testID="chart-tooltip"
@@ -199,6 +230,7 @@ export default function SpendingChart({
             styles.tooltipContainer,
             {
               left: clampedTooltipCenter,
+              top: tooltipTop,
               opacity: tooltipOpacity,
               transform: [
                 { translateX: -halfTooltipWidth },
@@ -208,7 +240,7 @@ export default function SpendingChart({
             },
           ]}
         >
-          <View style={styles.tooltipPill}>
+          <View testID="chart-tooltip-pill" style={styles.tooltipPill}>
             <Text
               testID="chart-tooltip-amount"
               style={styles.tooltipText}
@@ -217,7 +249,10 @@ export default function SpendingChart({
               {tooltipText}
             </Text>
           </View>
-          <View style={[styles.tooltipArrow, { marginLeft: arrowOffset }]} />
+          <View
+            testID="chart-tooltip-arrow"
+            style={[styles.tooltipArrow, { marginLeft: arrowOffset }]}
+          />
         </Animated.View>
       ) : null}
 
@@ -322,7 +357,6 @@ const styles = StyleSheet.create({
   },
   tooltipContainer: {
     position: 'absolute',
-    top: 4,
     zIndex: 20,
     alignItems: 'center',
   },
