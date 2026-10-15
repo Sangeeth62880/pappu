@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: pappu-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    plan: free
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        value: https://mvobtveaewxgiczulyrq.supabase.co
+      - key: SUPABASE_JWKS_URL
+        value: https://mvobtveaewxgiczulyrq.supabase.co/auth/v1/.well-known/jwks.json
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: SARVAM_MODEL
+        value: sarvam-105b
+      - key: SARVAM_API_URL
+        value: https://api.sarvam.ai/v1/chat/completions
+      - key: SARVAM_STT_MODEL
+        value: saaras:v3
+      - key: SARVAM_STT_API_URL
+        value: https://api.sarvam.ai/speech-to-text
+      - key: SARVAM_TTS_MODEL
+        value: bulbul:v3
+      - key: SARVAM_TTS_API_URL
+        value: https://api.sarvam.ai/text-to-speech
+      - key: SARVAM_TTS_DEFAULT_SPEAKER
+        value: kavitha
