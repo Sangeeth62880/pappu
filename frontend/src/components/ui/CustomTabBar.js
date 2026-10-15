@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Feather from '@expo/vector-icons/Feather';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useReduceMotion } from '../../utils/reduceMotion';
@@ -76,7 +77,7 @@ function TabSlot({ tab, isActive, onPress }) {
 
 /**
  * Custom Tab Bar strictly adhering to Stitch specification.
- * Height: 84px, white surface, 2px solid border #F0E4C8 top border.
+ * Height: 64px content area + insets.bottom padding, white surface, 2px solid border #F0E4C8 top border.
  * 5 slots: Home, History, [center raised coin button], People, Me.
  * Active tab shows ink icon and label with 6px gold dot underneath.
  * Inactive tabs show ink_muted.
@@ -89,6 +90,10 @@ export default function CustomTabBar({
   onOpenAssistant,
   initialTooltipVisible = null,
 }) {
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets?.bottom || 0;
+  const barHeight = 64 + bottomInset;
+
   const currentTabName = state.routes[state.index]?.name;
 
   const handleOpenAssistant = (data) => {
@@ -102,8 +107,21 @@ export default function CustomTabBar({
   };
 
   return (
-    <View style={styles.tabBarContainer} pointerEvents="box-none">
-      <View style={styles.tabBarBackground}>
+    <View
+      testID="tab-bar-container"
+      style={[styles.tabBarContainer, { height: barHeight }]}
+      pointerEvents="box-none"
+    >
+      <View
+        testID="tab-bar-background"
+        style={[
+          styles.tabBarBackground,
+          {
+            height: barHeight,
+            paddingBottom: bottomInset,
+          },
+        ]}
+      >
         {/* Slot 1: Home */}
         <TabSlot
           tab={LEFT_TABS[0]}
@@ -151,24 +169,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 84,
     zIndex: 40,
   },
   tabBarBackground: {
     width: '100%',
-    height: 84,
     backgroundColor: colors.surface,
     borderTopWidth: 2,
     borderTopColor: colors.border,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingBottom: 18,
   },
   tabSlot: {
     flex: 1,
-    height: '100%',
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 8,
@@ -203,6 +218,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    height: '100%',
+    height: 64,
   },
 });

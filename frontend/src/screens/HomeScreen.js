@@ -29,6 +29,8 @@ import { colors, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
 import { undoTransaction, clearChatHistory } from '../api/client';
 import { queryClient } from '../data/queryClient';
+import { queryKeys } from '../data/queryKeys';
+import { removeChunkedItem } from '../utils/chunkedSecureStore';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -51,19 +53,21 @@ function MainTabNavigator({
   initialTooltipVisible = null,
 }) {
   const [currentTab, setCurrentTab] = useState('Home');
+  const [historySearchTrigger, setHistorySearchTrigger] = useState(0);
+  const [addPersonTrigger, setAddPersonTrigger] = useState(0);
 
   return (
-    <SafeAreaView testID="home-screen" style={styles.screen}>
+    <SafeAreaView testID="home-screen" style={styles.screen} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
 
       {/* ── App Header (identical on Home, History, People and Me per Stitch) ── */}
       <AppHeader
         screen={currentTab.toLowerCase()}
         onSearchPress={() => {
-          // Focus search on History screen
+          setHistorySearchTrigger((prev) => prev + 1);
         }}
         onAddPersonPress={() => {
-          // Open add contact on People screen
+          setAddPersonTrigger((prev) => prev + 1);
         }}
       />
 
@@ -114,6 +118,7 @@ function MainTabNavigator({
                 token={token}
                 refreshTrigger={refreshTrigger}
                 initialFilter={historyFilter}
+                searchTrigger={historySearchTrigger}
                 onShowToast={showToast}
                 onTransactionMutated={handleTransactionMutated}
                 onBack={() => {
@@ -130,6 +135,8 @@ function MainTabNavigator({
                 {...props}
                 token={token}
                 refreshTrigger={refreshTrigger}
+                addPersonTrigger={addPersonTrigger}
+                showHeader={false}
                 initialContactId={selectedPersonId}
                 onShowToast={showToast}
                 onTransactionMutated={handleTransactionMutated}
@@ -148,6 +155,7 @@ function MainTabNavigator({
             {(props) => (
               <MeScreen
                 {...props}
+                token={token}
                 userEmail={userEmail}
                 onClearChatHistory={handleClearChatHistory}
                 onSignOut={handleSignOut}
@@ -219,6 +227,7 @@ function InnerHomeScreen({
 
   const handleClearChatHistory = async () => {
     await handleClearMessages();
+    queryClient.invalidateQueries({ queryKey: queryKeys.chatHistory() });
     showToast('Chat history cleared');
   };
 
@@ -261,6 +270,10 @@ function InnerHomeScreen({
       await signOut();
       queryClient.clear();
       await handleClearMessages();
+      // Clear session chunks from secure store
+      try {
+        await removeChunkedItem('supabase-auth-token');
+      } catch (_e) {}
       setSession(null);
       setToken(null);
       setHistoryFilter(null);
