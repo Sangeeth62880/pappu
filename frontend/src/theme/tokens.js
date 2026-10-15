@@ -29,6 +29,13 @@ export const colors = {
   // Secondary Accent & Interactive Links
   teal: '#0E7C86',
 
+  // Status & Banner Semantics
+  warning: '#D97706',
+  warningBg: '#FEF3C7',
+  warningBorder: '#FDE68A',
+  errorBg: '#FFF1F2',
+  errorBorder: '#FECACA',
+
   // Flat Scrim (zero blur)
   dim_overlay: 'rgba(31, 41, 55, 0.40)',
   dimOverlay: 'rgba(31, 41, 55, 0.40)',
@@ -39,11 +46,17 @@ export const colors = {
     shopping: '#0E7C86',
     transport: '#38BDF8',
     people: '#8B5CF6',
+    salary: '#1F8A5B',
+    bills: '#D97706',
+    entertainment: '#9333EA',
     other: '#9CA3AF',
     Food: '#F97316',
     Shopping: '#0E7C86',
     Transport: '#38BDF8',
     People: '#8B5CF6',
+    Salary: '#1F8A5B',
+    Bills: '#D97706',
+    Entertainment: '#9333EA',
     Other: '#9CA3AF',
   },
 

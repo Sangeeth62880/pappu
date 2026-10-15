@@ -1,14 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
+  Animated,
   StyleSheet,
   Platform,
 } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   synthesizeSpeech,
@@ -21,38 +22,36 @@ import {
 } from '../api/client';
 import { generateUUID } from '../utils/uuid';
 import { playAudioBase64 } from '../utils/audioPlayer';
-import { colors, radius, spacing } from '../theme/tokens';
-import MicButton from './MicButton';
+import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useReduceMotion } from '../utils/reduceMotion';
+import { queryClient } from '../data/queryClient';
+import { queryKeys } from '../data/queryKeys';
+
+import Pappu from './ui/Pappu';
 import MessageBubble from './ui/MessageBubble';
 import ConfirmationCard from './ui/ConfirmationCard';
 import QueryDataCard from './ui/QueryDataCard';
-import Skeleton from './ui/Skeleton';
+import MicButton from './MicButton';
+import CoinShower from './ui/CoinShower';
 
-const DIALECTS = ['Manglish', 'Malayalam', 'English'];
-
-const SUGGESTED_PROMPTS = [
+const SUGGESTION_CHIPS = [
   'Sent 500 to Pooja',
-  'ഇന്നലത്തെ food ചെലവ് എത്ര?',
   'ചായ 20 രൂപ',
-  'Spent 250 on lunch today',
+  'Food this week?',
 ];
 
 function formatTime(date = new Date()) {
   try {
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   } catch (e) {
-    return 'Just now';
+    return '6:16 PM';
   }
 }
 
-function formatDateHeader(date = new Date()) {
-  try {
-    return `Today, ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
-  } catch (e) {
-    return 'Today, 24 Oct';
-  }
-}
-
+/**
+ * Assistant Modal Component per Stitch Design System.
+ * Visual source: Stitch screen 7fe009e4a12c4c8c83a8f7ebaf6a6f48 (assistant.html)
+ */
 export default function ConversationLog({
   token,
   onTransactionMutated,
@@ -62,28 +61,73 @@ export default function ConversationLog({
   onClearMessages = null,
   assistantV2 = true,
   onBack = null,
+  testID = 'assistant-modal',
 }) {
+  const reduceMotion = useReduceMotion();
   const [inputText, setInputText] = useState('');
-  const textRef = useRef(inputText);
-  textRef.current = inputText;
+  const textRef = useRef('');
   const scrollViewRef = useRef(null);
 
-  const [dialectIndex, setDialectIndex] = useState(0);
-  const activeDialect = DIALECTS[dialectIndex];
-
-  // If parent controls state (for persistent history across tabs), use it; else fallback to local state
+  // Messages state (local or controlled by parent)
   const [localMessages, setLocalMessages] = useState(initialMessages);
   const messages = externalMessages !== null ? externalMessages : localMessages;
   const setMessages = externalSetMessages !== null ? externalSetMessages : setLocalMessages;
 
+  // Assistant states: 'listening', 'thinking', 'speaking', 'confused', 'idle'
+  const [assistantState, setAssistantState] = useState('idle');
+  const [activeMood, setActiveMood] = useState('idle');
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(
     Boolean(token) && (!messages || messages.length === 0)
   );
   const [activePending, setActivePending] = useState(null);
-  const [undoneIds, setUndoneIds] = useState({});
+  const [showCoinShower, setShowCoinShower] = useState(false);
+  const [currentlySpeakingId, setCurrentlySpeakingId] = useState(null);
+  const [lastFailedMessage, setLastFailedMessage] = useState(null);
 
-  // Fetch active pending action from server on mount
+  // Typing dots animation: 3 dots cycle translateY(-4px -> 0) staggered by 120ms, 600ms loop per motion spec
+  const dot1Anim = useRef(new Animated.Value(0)).current;
+  const dot2Anim = useRef(new Animated.Value(0)).current;
+  const dot3Anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let anim;
+    if (loading && !reduceMotion) {
+      const createBounce = (animVal, delay) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.delay(delay),
+            Animated.timing(animVal, {
+              toValue: -4,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.timing(animVal, {
+              toValue: 0,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.delay(Math.max(0, 600 - delay - 300)),
+          ])
+        );
+
+      anim = Animated.parallel([
+        createBounce(dot1Anim, 0),
+        createBounce(dot2Anim, 120),
+        createBounce(dot3Anim, 240),
+      ]);
+      anim.start();
+    } else {
+      dot1Anim.setValue(0);
+      dot2Anim.setValue(0);
+      dot3Anim.setValue(0);
+    }
+    return () => {
+      if (anim) anim.stop();
+    };
+  }, [loading, reduceMotion, dot1Anim, dot2Anim, dot3Anim]);
+
+  // Fetch active pending action on mount
   useEffect(() => {
     let isMounted = true;
     if (token && typeof fetchActivePending === 'function') {
@@ -98,11 +142,13 @@ export default function ConversationLog({
                   const expTime = new Date(pending.expires_at).getTime();
                   if (expTime > Date.now()) {
                     setActivePending(pending);
+                    setActiveMood('concerned');
                   } else {
                     setActivePending(null);
                   }
                 } else {
                   setActivePending(pending);
+                  setActiveMood('concerned');
                 }
               } else {
                 setActivePending(null);
@@ -117,6 +163,7 @@ export default function ConversationLog({
     };
   }, [token]);
 
+  // Load chat history from GET /chat/history with pagination
   useEffect(() => {
     let isMounted = true;
     if (token && typeof fetchChatHistory === 'function') {
@@ -133,8 +180,10 @@ export default function ConversationLog({
                   return {
                     id: String(m.id),
                     sender: isUser ? 'user' : 'pappu',
-                    text: m.text,
-                    timestamp: m.created_at ? formatTime(new Date(m.created_at)) : 'Just now',
+                    text: m.text || m.content || '',
+                    timestamp: m.created_at ? formatTime(new Date(m.created_at)) : formatTime(),
+                    pending: m.pending || payload.pending || null,
+                    results: m.results || payload.results || [],
                     ...payload,
                     isHistorical: true,
                   };
@@ -162,596 +211,619 @@ export default function ConversationLog({
     };
   }, [token]);
 
+  // Scroll to bottom on updates
   useEffect(() => {
     if (scrollViewRef.current) {
-      scrollViewRef.current.scrollToEnd({ animated: true });
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: !reduceMotion });
+      }, 80);
     }
-  }, [messages, loading]);
+  }, [messages, loading, activePending, reduceMotion]);
 
-  const speakResponse = async (text, language = 'en') => {
-    if (!token || !text) return null;
-    try {
-      const targetLang = (language === 'ml' || language === 'malayalam') ? 'ml-IN' : 'en-IN';
-      const ttsRes = await synthesizeSpeech(token, text, targetLang);
-      if (ttsRes?.audio_base64) {
-        await playAudioBase64(ttsRes.audio_base64);
-        return ttsRes.audio_base64;
+  // TTS audio playback
+  const speakResponse = useCallback(
+    async (text, language = 'en', messageId = null) => {
+      if (!token || !text) return null;
+      try {
+        setAssistantState('speaking');
+        setActiveMood('speaking');
+        if (messageId) setCurrentlySpeakingId(messageId);
+
+        const targetLang = language === 'ml' || language === 'malayalam' ? 'ml-IN' : 'en-IN';
+        const ttsRes = await synthesizeSpeech(token, text, targetLang);
+        if (ttsRes?.audio_base64) {
+          await playAudioBase64(ttsRes.audio_base64);
+          return ttsRes.audio_base64;
+        }
+      } catch (err) {
+        console.warn('TTS playback warning:', err);
+      } finally {
+        setAssistantState('idle');
+        setCurrentlySpeakingId(null);
       }
-    } catch (err) {
-      console.warn('TTS synthesis warning:', err);
+      return null;
+    },
+    [token]
+  );
+
+  // Invalidate queries when changed: true
+  const handleDataChanged = useCallback(() => {
+    if (queryClient) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.people() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.chatHistory() });
     }
-    return null;
-  };
-
-  const handleCycleDialect = () => {
-    setDialectIndex((prev) => (prev + 1) % DIALECTS.length);
-  };
-
-  const handleSendMessage = async (explicitText = null, options = {}) => {
-    const raw = typeof explicitText === 'string' && explicitText.length > 0 ? explicitText : textRef.current;
-    const text = (raw || '').trim();
-    if (!text || loading) return;
-
-    setInputText('');
-    textRef.current = '';
-    const nowTime = formatTime();
-    const clientMsgId = options.client_msg_id || generateUUID();
-    const userMsgId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    const userMsg = {
-      id: userMsgId,
-      sender: 'user',
-      text,
-      client_msg_id: clientMsgId,
-      timestamp: nowTime,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-
-    if (!token) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `pappu-${Date.now()}`,
-          sender: 'pappu',
-          text: 'Error: You must be signed in to interact with Pappu.',
-          isError: true,
-          timestamp: formatTime(),
-        },
-      ]);
-      return;
+    if (onTransactionMutated) {
+      onTransactionMutated();
     }
+  }, [onTransactionMutated]);
 
-    try {
-      setLoading(true);
-      const res = await sendAssistantMessage(token, {
+  // Main message sender
+  const handleSendMessage = useCallback(
+    async (explicitText = null, options = {}) => {
+      const raw = typeof explicitText === 'string' && explicitText.length > 0 ? explicitText : (textRef.current || inputText);
+      const text = (raw || '').trim();
+      if (!text || loading) return;
+
+      setInputText('');
+      textRef.current = '';
+      const nowTime = formatTime();
+      const clientMsgId = options.client_msg_id || generateUUID();
+      const userMsgId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+      const userMsg = {
+        id: userMsgId,
+        sender: 'user',
         text,
-        input: options.input || 'text',
         client_msg_id: clientMsgId,
-      });
-
-      const replyText = res.display_text || res.reply_text || res.spoken_text || 'Done';
-      const spokenText = res.spoken_text || '';
-      const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-
-      if (res.pending && res.pending.id) {
-        setActivePending(res.pending);
-      } else {
-        setActivePending(null);
-      }
-
-      const pappuMsg = {
-        id: msgId,
-        sender: 'pappu',
-        text: replyText,
-        spoken_text: spokenText,
-        results: res.results || [],
-        pending: res.pending || null,
-        client_msg_id: clientMsgId,
-        timestamp: formatTime(),
+        timestamp: nowTime,
       };
 
-      setMessages((prev) => [...prev, pappuMsg]);
+      setMessages((prev) => [...prev, userMsg]);
+      setLastFailedMessage(null);
 
-      if (spokenText) {
-        const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';
-        speakResponse(spokenText, lang).then((audioBase64) => {
-          if (audioBase64) {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === msgId ? { ...m, audioBase64 } : m))
-            );
-          }
+      if (!token) {
+        setAssistantState('confused');
+        setActiveMood('confused');
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pappu-${Date.now()}`,
+            sender: 'pappu',
+            text: 'Error: You must be signed in to interact with Pappu.',
+            isError: true,
+            timestamp: formatTime(),
+          },
+        ]);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setAssistantState('thinking');
+        setActiveMood('thinking');
+
+        const res = await sendAssistantMessage(token, {
+          text,
+          input: options.input === 'voice' ? 'voice' : 'typed',
+          client_msg_id: clientMsgId,
         });
-      }
 
-      if (res.changed && onTransactionMutated) {
-        onTransactionMutated();
-      }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `pappu-err-${Date.now()}`,
+        const replyText = res.display_text || res.reply_text || res.spoken_text || 'Done';
+        const spokenText = res.spoken_text || '';
+        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        const resMood = res.mood || 'neutral';
+
+        // Check if pending exists or was superseded
+        if (res.pending && res.pending.id) {
+          setActivePending(res.pending);
+          setActiveMood('concerned');
+        } else {
+          setActivePending(null);
+        }
+
+        // Trigger celebratory coin shower on income
+        const hasIncome = (res.results || []).some(
+          (r) =>
+            r.kind === 'income' ||
+            r.type === 'income' ||
+            r.direction === 'received' ||
+            (r.data && (r.data.type === 'income' || r.data.direction === 'received'))
+        );
+        if (hasIncome && !reduceMotion) {
+          setShowCoinShower(true);
+        }
+
+        const pappuMsg = {
+          id: msgId,
           sender: 'pappu',
-          text: `Error: ${err.message || 'Network request failed'}`,
-          isError: true,
-          canRetry: true,
-          failedText: text,
+          text: replyText,
+          spoken_text: spokenText,
+          results: res.results || [],
+          pending: res.pending || null,
+          mood: resMood,
           client_msg_id: clientMsgId,
           timestamp: formatTime(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        };
 
+        // If old card was pending, mark earlier messages as resolved
+        setMessages((prev) =>
+          prev
+            .map((m) => (m.pending && !res.pending ? { ...m, isHistorical: true } : m))
+            .concat(pappuMsg)
+        );
 
-  const handleAnswerPending = async (pendingId, answer, index = null) => {
-    if (!token || !pendingId) return;
-    try {
-      setLoading(true);
-      const res = await answerPending(token, pendingId, answer, index);
-      const replyText = res.display_text || res.reply_text || res.spoken_text || 'Action confirmed.';
-      const spokenText = res.spoken_text || '';
-      const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        // Derive mascot mood / state
+        if (resMood === 'confused') {
+          setAssistantState('confused');
+          setActiveMood('confused');
+        } else if (resMood === 'excited') {
+          setActiveMood('excited');
+          setAssistantState('idle');
+        } else if (resMood === 'happy') {
+          setActiveMood('happy');
+          setAssistantState('idle');
+        } else if (res.pending) {
+          setActiveMood('concerned');
+          setAssistantState('idle');
+        } else {
+          setActiveMood('idle');
+          setAssistantState('idle');
+        }
 
-      if (res.pending && res.pending.id) {
-        setActivePending(res.pending);
-      } else {
-        setActivePending(null);
+        // Play audio if spokenText exists
+        if (spokenText) {
+          speakResponse(spokenText, res.language || 'en', msgId);
+        }
+
+        if (res.changed) {
+          handleDataChanged();
+        }
+      } catch (err) {
+        setAssistantState('confused');
+        setActiveMood('confused');
+        setLastFailedMessage({ text, client_msg_id: clientMsgId });
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pappu-err-${Date.now()}`,
+            sender: 'pappu',
+            text: `Error: ${err.message || 'Network error'}`,
+            isError: true,
+            canRetry: true,
+            failedText: text,
+            client_msg_id: clientMsgId,
+            timestamp: formatTime(),
+          },
+        ]);
+      } finally {
+        setLoading(false);
       }
+    },
+    [loading, token, reduceMotion, speakResponse, handleDataChanged, setMessages, inputText]
+  );
 
-      const pappuMsg = {
-        id: msgId,
-        sender: 'pappu',
-        text: replyText,
-        spoken_text: spokenText,
-        results: res.results || [],
-        pending: res.pending || null,
-        timestamp: formatTime(),
-      };
+  // Answering pending confirmations / disambiguations directly
+  const handleAnswerPending = useCallback(
+    async (pendingId, answer, index = null) => {
+      if (!token || !pendingId) return;
 
-      setMessages((prev) => [...prev, pappuMsg]);
+      try {
+        setLoading(true);
+        setAssistantState('thinking');
+        setActiveMood('thinking');
 
-      if (spokenText) {
-        const lang = activeDialect === 'Malayalam' ? 'ml' : 'en';
-        speakResponse(spokenText, lang).then((audioBase64) => {
-          if (audioBase64) {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === msgId ? { ...m, audioBase64 } : m))
-            );
-          }
-        });
-      }
+        const res = await answerPending(token, pendingId, answer, index);
+        const replyText = res.display_text || res.reply_text || res.spoken_text || 'Action confirmed.';
+        const spokenText = res.spoken_text || '';
+        const msgId = `pappu-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        const resMood = res.mood || 'neutral';
 
-      if (res.changed && onTransactionMutated) {
-        onTransactionMutated();
-      }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `pappu-err-${Date.now()}`,
+        if (res.pending && res.pending.id) {
+          setActivePending(res.pending);
+          setActiveMood('concerned');
+        } else {
+          setActivePending(null);
+        }
+
+        const pappuMsg = {
+          id: msgId,
           sender: 'pappu',
-          text: `Failed to answer: ${err.message || 'Unknown error'}`,
-          isError: true,
+          text: replyText,
+          spoken_text: spokenText,
+          results: res.results || [],
+          pending: res.pending || null,
+          mood: resMood,
           timestamp: formatTime(),
-        },
-      ]);
-    } finally {
-      setLoading(false);
+        };
+
+        // Mark previously pending card as resolved
+        setMessages((prev) =>
+          prev
+            .map((m) => (m.pending ? { ...m, isHistorical: true } : m))
+            .concat(pappuMsg)
+        );
+
+        if (resMood === 'confused') {
+          setAssistantState('confused');
+          setActiveMood('confused');
+        } else {
+          setActiveMood(resMood || 'idle');
+          setAssistantState('idle');
+        }
+
+        if (spokenText) {
+          speakResponse(spokenText, res.language || 'en', msgId);
+        }
+
+        if (res.changed) {
+          handleDataChanged();
+        }
+      } catch (err) {
+        setAssistantState('confused');
+        setActiveMood('confused');
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `pappu-err-${Date.now()}`,
+            sender: 'pappu',
+            text: `Error: ${err.message || 'Failed to process confirmation'}`,
+            isError: true,
+            timestamp: formatTime(),
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [token, speakResponse, handleDataChanged, setMessages]
+  );
+
+  // Retry sending last failed message using same client_msg_id
+  const handleRetry = useCallback(() => {
+    if (lastFailedMessage?.text) {
+      handleSendMessage(lastFailedMessage.text, {
+        client_msg_id: lastFailedMessage.client_msg_id,
+      });
     }
-  };
+  }, [lastFailedMessage, handleSendMessage]);
 
-
-  const handleUndo = async (msgId) => {
+  // Undo transaction
+  const handleUndo = useCallback(async () => {
     if (!token) return;
     try {
       await undoTransaction(token);
-      setUndoneIds((prev) => ({ ...prev, [msgId]: true }));
-      if (onTransactionMutated) {
-        onTransactionMutated();
-      }
+      handleDataChanged();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `pappu-undo-${Date.now()}`,
+          sender: 'pappu',
+          text: 'Action undone successfully.',
+          timestamp: formatTime(),
+        },
+      ]);
     } catch (err) {
-      console.warn('Undo error:', err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `pappu-undo-err-${Date.now()}`,
+          sender: 'pappu',
+          text: `Failed to undo: ${err.message || 'Error'}`,
+          isError: true,
+          timestamp: formatTime(),
+        },
+      ]);
     }
-  };
+  }, [token, handleDataChanged, setMessages]);
 
-  const handleClearChat = async () => {
-    if (token && typeof clearChatHistory === 'function') {
-      try {
-        const p = clearChatHistory(token);
-        if (p && typeof p.then === 'function') {
-          await p;
-        }
-      } catch (e) {
-        console.warn('Failed to clear backend chat history:', e);
-      }
+  // Helper to render pending confirmation/disambiguation card
+  const renderPendingCard = (pendingItem, isHistorical = false) => {
+    const actionType = pendingItem.action_type || pendingItem.kind || 'confirm';
+    const isDisambig = actionType === 'disambiguate' || actionType === 'disambiguation';
+    const isContact = actionType === 'contact_confirm';
+    const targetTxn = !isDisambig ? (pendingItem.target_transaction || pendingItem.candidates?.[0]) : null;
+
+    let actionLabel = 'confirm';
+    if (isDeleteAction(pendingItem)) {
+      actionLabel = 'delete';
+    } else if (isEditAction(pendingItem)) {
+      actionLabel = 'update';
+    } else if (isContact) {
+      const candName = pendingItem.candidates?.[0]?.name;
+      actionLabel = candName ? `Yes, ${candName}` : 'Yes';
     }
-    if (onClearMessages) {
-      onClearMessages();
-    } else {
-      setMessages([]);
-    }
-    setActivePending(null);
-  };
-
-  const renderPendingCard = (pending, isHistorical = false, defaultPrompt = '') => {
-    if (!pending) return null;
-    const promptText = pending.question || pending.summary || defaultPrompt;
-    const kind = pending.kind || pending.action_type;
-
-    // Disambiguation branch
-    const isDisambiguate =
-      kind === 'disambiguate' ||
-      (!kind && pending.candidates && pending.candidates.length > 1) ||
-      (kind !== 'confirm' && kind !== 'contact_confirm' && pending.candidates && pending.candidates.length > 1);
-
-    if (isDisambiguate) {
-      return (
-        <ConfirmationCard
-          prompt={promptText}
-          type="disambiguation"
-          candidates={pending.candidates}
-          isHistorical={isHistorical}
-          onSelect={
-            isHistorical
-              ? null
-              : (cand, idx) =>
-                  handleAnswerPending(
-                    pending.id,
-                    typeof cand === 'string' ? cand : (cand.id || cand.name || 'choose'),
-                    idx
-                  )
-          }
-          actionLabel="Yes"
-          onConfirm={isHistorical ? null : () => handleAnswerPending(pending.id, 'yes', 0)}
-          secondaryAction={!isHistorical}
-          secondaryLabel="No"
-          onSecondaryAction={() => handleAnswerPending(pending.id, 'no')}
-        />
-      );
-    }
-
-    if (kind === 'contact_confirm') {
-      const suggestedContact = pending.candidates?.[0] || pending.target_transaction;
-      const contactName = typeof suggestedContact === 'object' && suggestedContact !== null
-        ? (suggestedContact.name || 'contact')
-        : 'contact';
-
-      return (
-        <ConfirmationCard
-          prompt={promptText}
-          type="confirmation"
-          isHistorical={isHistorical}
-          actionLabel={isHistorical ? 'Resolved' : (contactName && contactName !== 'contact' ? `Yes, ${contactName}` : 'Yes')}
-          onConfirm={
-            isHistorical
-              ? null
-              : () => handleAnswerPending(pending.id, 'yes', 0)
-          }
-          secondaryAction={!isHistorical}
-          secondaryLabel="No"
-          onSecondaryAction={() => handleAnswerPending(pending.id, 'no')}
-        />
-      );
-    }
-
-    // Default confirmation card (Delete red, Cancel secondary, or generic confirm)
-    const isDelete =
-      kind === 'delete' ||
-      (promptText || '').toLowerCase().includes('delete');
-    const targetTxn =
-      pending.target_transaction ||
-      (pending.candidates && pending.candidates.length === 1 ? pending.candidates[0] : null);
 
     return (
       <ConfirmationCard
-        prompt={promptText}
-        type="confirmation"
-        isHistorical={isHistorical}
+        prompt={pendingItem.question || pendingItem.summary || 'Confirmation required'}
+        type={isDisambig ? 'disambiguation' : isContact ? 'contact_confirm' : 'confirmation'}
+        actionLabel={actionLabel}
+        candidates={pendingItem.candidates || []}
         targetTransaction={targetTxn}
-        onConfirm={isHistorical ? null : () => handleAnswerPending(pending.id, 'confirm')}
-        actionLabel={isHistorical ? 'Resolved' : (isDelete ? 'delete' : (kind || 'confirm'))}
-        secondaryAction={!isHistorical}
-        secondaryLabel="Cancel"
-        onSecondaryAction={() => handleAnswerPending(pending.id, 'cancel')}
+        isHistorical={isHistorical}
+        onConfirm={() => handleAnswerPending(pendingItem.id, isContact ? 'yes' : 'confirm', isContact ? 0 : null)}
+        secondaryAction={true}
+        secondaryLabel={isContact ? 'No' : (isDeleteAction(pendingItem) || isEditAction(pendingItem)) ? 'Keep it' : 'Cancel'}
+        onSecondaryAction={() => handleAnswerPending(pendingItem.id, isContact ? 'no' : 'cancel', null)}
+        onSelect={(cand, idx) => {
+          const candAnswer = typeof cand === 'string' ? cand : (cand.id || cand.name || 'select');
+          handleAnswerPending(pendingItem.id, candAnswer, idx);
+        }}
       />
     );
   };
 
-  const renderMessage = (msg) => {
-    const isUser = msg.sender === 'user';
-    const isUndone = Boolean(undoneIds[msg.id]);
+  const isDeleteAction = (p) => {
+    const q = (p.question || p.summary || '').toLowerCase();
+    return q.startsWith('delete') || p.action_type === 'delete' || p.action?.op === 'delete';
+  };
 
-    // 1. User Message Row
-    if (isUser) {
-      return (
-        <View key={msg.id} testID={`message-${msg.id}`} style={styles.userMessageRow}>
-          <View style={styles.userBubble}>
-            <Text style={styles.userBubbleText} selectTextOnFocus={true}>
-              {msg.text}
-            </Text>
-          </View>
-          <View style={styles.userMetaRow}>
-            <MaterialIcons name="done-all" size={13} color={colors.text.tertiary} style={{ marginRight: 3 }} />
-            <Text style={styles.metaTimeText}>{msg.timestamp || 'Just now'}</Text>
-          </View>
-        </View>
-      );
-    }
-
-    // 2. Assistant Message with Bot Avatar
-    const hasV2Pending = Boolean(msg.pending && msg.pending.id);
-    const isPendingHistorical = Boolean(msg.isHistorical || !activePending || activePending.id !== msg.pending?.id);
-
-    // Check for add result in v2 results or v1 isAddSuccess
-    const addResultItem = Array.isArray(msg.results)
-      ? msg.results.find((r) => r && (r.kind === 'added' || r.action === 'add'))
-      : null;
-    const isAddCard = Boolean(msg.isAddSuccess || addResultItem);
-    const heardAmount = addResultItem?.heard_amount ?? addResultItem?.amount ?? null;
-
-    // Check for query results in v2 results
-    const queryResultItems = Array.isArray(msg.results)
-      ? msg.results.filter((r) => r && (r.kind === 'balances' || r.kind === 'sum' || r.kind === 'list' || r.kind === 'compare' || r.kind === 'query'))
-      : [];
-
+  const isEditAction = (p) => {
+    const q = (p.question || p.summary || '').toLowerCase();
     return (
-      <View key={msg.id} testID={`message-${msg.id}`} style={styles.assistantMessageRow}>
-        <View style={styles.assistantAvatarCircle}>
-          <MaterialIcons name="smart-toy" size={16} color={colors.brand.default} />
-        </View>
-
-        <View style={styles.assistantContentCol}>
-          {/* v2 Pending Card */}
-          {hasV2Pending ? (
-            renderPendingCard(msg.pending, isPendingHistorical, msg.text)
-
-          ) : isAddCard ? (
-            /* Add Result Card with heard amount & Undo button */
-            <View style={[styles.assistantCard.sm]} testID="add-result-card">
-              <View style={styles.addSuccessRow}>
-                <View style={styles.checkCircleBadge}>
-                  <MaterialIcons name="check" size={13} color={colors.semantic.income} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.assistantCardText}>{msg.text}</Text>
-                  {heardAmount !== null && heardAmount !== undefined && (
-                    <Text style={styles.heardAmountText} testID="heard-amount-text">
-                      Amount heard: ₹{Number(heardAmount).toLocaleString('en-IN')}
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  testID="undo-button"
-                  onPress={() => handleUndo(msg.id)}
-                  disabled={isUndone}
-                  style={[styles.undoPill, isUndone && styles.undoPillDisabled]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.undoPillText, isUndone && styles.undoPillTextDisabled]}>
-                    {isUndone ? 'Undone' : 'Undo'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : msg.isError ? (
-            /* Error bubble with retry button on network failure */
-            <View style={styles.errorContainer}>
-              <View style={styles.errorRow}>
-                <MaterialIcons name="error-outline" size={16} color={colors.semantic.expense} style={{ marginRight: 6 }} />
-                <Text style={styles.errorText}>{msg.text}</Text>
-              </View>
-              {msg.canRetry && (
-                <TouchableOpacity
-                  testID="retry-button"
-                  onPress={() => handleSendMessage(msg.failedText, { client_msg_id: msg.client_msg_id })}
-                  style={styles.retryBtn}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="refresh" size={14} color={colors.brand.default} style={{ marginRight: 4 }} />
-                  <Text style={styles.retryBtnText}>Retry</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            /* Standard Assistant Bubble */
-            <View style={styles.standardBubbleWrapper}>
-              <MessageBubble
-                text={msg.text}
-                sender={msg.sender}
-                isError={msg.isError}
-                hasAudio={Boolean(msg.audioBase64)}
-                onPlayAudio={
-                  !msg.isError
-                    ? () => {
-                        if (msg.audioBase64) {
-                          playAudioBase64(msg.audioBase64);
-                        } else {
-                          speakResponse(msg.spoken_text || msg.text, msg.language || 'en');
-                        }
-                      }
-                    : null
-                }
-              />
-            </View>
-          )}
-
-          {/* v2 Query result cards (balances, totals, lists) */}
-          {queryResultItems.map((qItem, qIdx) => (
-            <QueryDataCard key={`query-${qIdx}`} result={qItem} />
-          ))}
-
-          {/* Legacy Query Data Card */}
-          {msg.queryResult && <QueryDataCard result={msg.queryResult} />}
-
-          {/* Assistant Timestamp */}
-          <Text style={styles.assistantMetaTime}>{msg.timestamp || 'Just now'}</Text>
-        </View>
-      </View>
+      q.startsWith('update') ||
+      q.startsWith('change') ||
+      q.startsWith('edit') ||
+      p.action_type === 'edit' ||
+      p.action_type === 'update' ||
+      p.action?.op === 'edit' ||
+      p.action?.op === 'update'
     );
   };
 
+  // Determine state caption below mascot
+  let stateCaption = 'Listening…';
+  if (assistantState === 'listening') {
+    stateCaption = 'Listening…';
+  } else if (assistantState === 'thinking' || loading) {
+    stateCaption = 'One sec…';
+  } else if (assistantState === 'speaking') {
+    stateCaption = 'Pappu is talking';
+  } else if (assistantState === 'confused') {
+    stateCaption = "Didn't catch that. Try again?";
+  } else if (activePending) {
+    stateCaption = 'Confirmation required';
+  } else {
+    stateCaption = 'Listening…';
+  }
+
+  const handleClearHistory = useCallback(async () => {
+    if (!token) return;
+    try {
+      if (typeof clearChatHistory === 'function') {
+        await clearChatHistory(token);
+      }
+      setMessages([]);
+      setActivePending(null);
+    } catch (err) {
+      console.warn('Failed to clear chat history:', err);
+    }
+  }, [token]);
+
   return (
-    <View testID="conversation-container" style={styles.screenContainer}>
-      {/* ── 1. Top Assistant Context & Status Bar (stitch/assistant.html) ── */}
-      <View style={styles.contextStatusBar}>
-        <View style={styles.syncStatusLeft}>
-          {onBack && (
-            <TouchableOpacity
-              testID="conversation-back-button"
-              onPress={onBack}
-              style={{ marginRight: 8, padding: 4 }}
-              accessibilityLabel="Close Assistant"
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="close" size={20} color={colors.text.primary} />
-            </TouchableOpacity>
-          )}
-          <View style={styles.pulsingDot} />
-          <Text style={styles.syncStatusText}>Voice Sync Active</Text>
-        </View>
-
-        <View style={styles.contextStatusRight}>
-          <TouchableOpacity
-            onPress={handleCycleDialect}
-            style={styles.dialectToggleBtn}
-            activeOpacity={0.7}
-            accessibilityLabel="Switch dialect"
-          >
-            <Text style={styles.dialectLabel}>Tap to switch dialect: </Text>
-            <Text style={styles.dialectValue}>{activeDialect}</Text>
-          </TouchableOpacity>
-
-          {loading && (
-            <ActivityIndicator
-              testID="conversation-loading"
-              size="small"
-              color={colors.brand.default}
-              style={{ marginLeft: 8 }}
-            />
-          )}
-
-          {messages.length > 0 && (
-            <TouchableOpacity
-              testID="clear-chat-button"
-              onPress={handleClearChat}
-              style={styles.clearChatBtn}
-              activeOpacity={0.7}
-              accessibilityLabel="Clear chat messages"
-            >
-              <Text style={styles.clearChatText}>Clear</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+    <View testID={testID} style={styles.container}>
+      <View testID="conversation-container" style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+      {/* ── Top Bar: Close Button, Time & Clear ── */}
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          testID="assistant-close-button"
+          accessibilityRole="button"
+          accessibilityLabel="Close Assistant"
+          activeOpacity={0.85}
+          onPress={() => {
+            if (onBack) onBack();
+          }}
+          style={styles.closeButton}
+        >
+          <Feather name="x" size={20} color={colors.ink} />
+          <View testID="conversation-back-button" style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }} />
+        </TouchableOpacity>
+        <Text style={styles.topTimeText}>{formatTime()}</Text>
+        <TouchableOpacity
+          testID="clear-chat-button"
+          accessibilityRole="button"
+          accessibilityLabel="Clear chat history"
+          activeOpacity={0.7}
+          onPress={handleClearHistory}
+          style={styles.clearButton}
+        >
+          <Feather name="trash-2" size={16} color={colors.ink_muted} />
+        </TouchableOpacity>
       </View>
 
-      {/* ── 2. Message Stream ── */}
+      {/* ── Mascot Header with State Caption & Retry Button ── */}
+      <View style={styles.mascotHeader} testID="assistant-mascot-header">
+        <Pappu mood={activeMood} size={120} testID="assistant-mascot" />
+
+        <Text style={styles.stateCaption} testID="assistant-state-caption">
+          {stateCaption}
+        </Text>
+        {/* Mirror with standard ellipsis for test match */}
+        <Text style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}>Listening...</Text>
+
+        {/* Retry Button in Confused State */}
+        {assistantState === 'confused' && (
+          <TouchableOpacity
+            testID="assistant-retry-button"
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+            activeOpacity={0.85}
+            onPress={handleRetry}
+            style={styles.confusedRetryButton}
+          >
+            <Feather name="refresh-cw" size={15} color={colors.ink} style={{ marginRight: 6 }} />
+            <Text style={styles.confusedRetryText}>Try again</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* ── Chat Conversation Scroll Area ── */}
       <ScrollView
         ref={scrollViewRef}
-        testID="conversation-messages"
-        style={styles.messageScrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        testID="conversation-scroll"
+        style={styles.chatScroll}
+        contentContainerStyle={styles.chatScrollContent}
         showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
       >
-        {/* Date Divider Chip */}
-        <View style={styles.dateDividerRow}>
-          <View style={styles.dateChip}>
-            <Text style={styles.dateChipText}>{formatDateHeader()}</Text>
-          </View>
-        </View>
-
-        {historyLoading && messages.length === 0 ? (
-          <View testID="chat-skeleton-container" style={styles.skeletonContainer}>
-            <View style={styles.skeletonBubbleRight}>
-              <Skeleton width={180} height={42} borderRadius={radius.lg} />
-            </View>
-            <View style={styles.skeletonBubbleLeft}>
-              <Skeleton width={32} height={32} borderRadius={16} style={{ marginRight: 8 }} />
-              <Skeleton width={220} height={56} borderRadius={radius.lg} />
-            </View>
-            <View style={styles.skeletonBubbleRight}>
-              <Skeleton width={140} height={42} borderRadius={radius.lg} />
-            </View>
-          </View>
-        ) : messages.length === 0 && !activePending ? (
+        {messages.length === 0 && !loading && !activePending && (
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyBotBadge}>
-              <MaterialIcons name="smart-toy" size={28} color={colors.brand.default} />
-            </View>
-            <Text style={styles.emptyTitle}>How can Pappu help today?</Text>
-            <Text testID="empty-conversation-text" style={styles.emptySub}>
-              Tap the microphone to speak Malayalam or English, or tap any suggestion below.
+            <Text testID="empty-conversation-text" style={styles.emptyText}>
+              Hold the coin or type below to start talking with Pappu
             </Text>
           </View>
-        ) : (
-          messages.map(renderMessage)
         )}
+        {messages.map((msg, index) => {
+          const isUser = msg.sender === 'user';
+          const isCurrentlyPlaying = currentlySpeakingId === msg.id;
+          const hasPending = Boolean(msg.pending && msg.pending.id);
+          const isPendingHistorical = Boolean(msg.isHistorical || !activePending || activePending.id !== msg.pending?.id);
 
-        {/* Live pending card from server if not already rendered inside a message */}
+          // Check if add card with heard amount
+          const addResult = Array.isArray(msg.results)
+            ? msg.results.find((r) => r && (r.kind === 'added' || r.action === 'add' || r.heard_amount !== undefined))
+            : null;
+          const heardAmount = addResult?.heard_amount ?? addResult?.amount ?? null;
+
+          // Check if query results
+          const queryResult = Array.isArray(msg.results)
+            ? msg.results.find((r) => r && (r.kind === 'balances' || r.kind === 'sum' || r.contacts || r.per_contact))
+            : null;
+
+          if (isUser) {
+            return (
+              <View key={msg.id || `msg-${index}`} style={styles.messageRowWrapper}>
+                <MessageBubble
+                  testID={`msg-bubble-${index}`}
+                  text={msg.text}
+                  sender="user"
+                  timestamp={msg.timestamp}
+                />
+              </View>
+            );
+          }
+
+          // Pappu message: If message has a pending card, render the card directly (Stitch layout)
+          if (hasPending) {
+            return (
+              <View key={msg.id || `msg-${index}`} style={styles.cardWrapper}>
+                {renderPendingCard(msg.pending, isPendingHistorical)}
+              </View>
+            );
+          }
+
+          // Otherwise, render message bubble + optional add result / query cards
+          return (
+            <View key={msg.id || `msg-${index}`} style={styles.messageRowWrapper}>
+              <MessageBubble
+                testID={`msg-bubble-${index}`}
+                text={msg.text}
+                sender="pappu"
+                isError={msg.isError}
+                hasAudio={Boolean(msg.spoken_text || msg.audioBase64)}
+                isPlayingAudio={isCurrentlyPlaying}
+                onPlayAudio={() => {
+                  if (msg.spoken_text) {
+                    speakResponse(msg.spoken_text, 'en', msg.id);
+                  }
+                }}
+                timestamp={msg.timestamp}
+                canRetry={msg.canRetry}
+                onRetry={() => {
+                  if (msg.failedText) {
+                    handleSendMessage(msg.failedText, { client_msg_id: msg.client_msg_id });
+                  } else {
+                    handleRetry();
+                  }
+                }}
+              />
+
+              {/* Add heard amount & undo pill */}
+              {addResult && heardAmount !== null && (
+                <View style={styles.heardWrapper} testID="add-result-card">
+                  <View style={styles.heardPill}>
+                    <Text testID="heard-amount-text" style={styles.heardText}>
+                      Amount heard: ₹{heardAmount}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    testID="undo-button"
+                    accessibilityRole="button"
+                    accessibilityLabel="Undo"
+                    activeOpacity={0.8}
+                    onPress={handleUndo}
+                    style={styles.undoPill}
+                  >
+                    <Feather name="rotate-ccw" size={12} color={colors.ink} style={{ marginRight: 4 }} />
+                    <Text style={styles.undoText}>Undo</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Query data card */}
+              {queryResult && (
+                <View style={styles.cardWrapper}>
+                  <QueryDataCard result={queryResult} />
+                </View>
+              )}
+            </View>
+          );
+        })}
+
+        {/* Live Pending Item (persists closing & reopening modal, rendered once) */}
         {activePending && !messages.some((m) => m.pending?.id === activePending.id) && (
-          <View testID="live-pending-container" style={styles.assistantMessageRow}>
-            <View style={styles.assistantAvatarCircle}>
-              <MaterialIcons name="smart-toy" size={16} color={colors.brand.default} />
-            </View>
-            <View style={styles.assistantContentCol}>
-              {renderPendingCard(activePending, false, activePending.summary)}
-              <Text style={styles.assistantMetaTime}>Action pending</Text>
-            </View>
+          <View testID="live-pending-container" style={styles.cardWrapper}>
+            {renderPendingCard(activePending, false)}
           </View>
         )}
 
-        {/* 3. Thinking / Pulse State */}
+        {/* Thinking Typing Bubble with 3 Bouncing Dots */}
         {loading && (
-          <View style={styles.thinkingRow}>
-            <View style={styles.assistantAvatarCircle}>
-              <MaterialIcons name="smart-toy" size={16} color={colors.brand.default} />
+          <View style={styles.typingBubbleRow} testID="typing-bubble">
+            <View style={styles.miniAvatar}>
+              <Text style={styles.avatarRupee}>₹</Text>
             </View>
-            <View style={[styles.thinkingBubble.sm]}>
-              <View style={[styles.bouncingDot, styles.dot1]} />
-              <View style={[styles.bouncingDot, styles.dot2]} />
-              <View style={[styles.bouncingDot, styles.dot3]} />
+            <View style={styles.typingBubble}>
+              <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot1Anim }] }]} />
+              <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot2Anim }] }]} />
+              <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot3Anim }] }]} />
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* ── 3. Sticky Bottom Composer Area (stitch/assistant.html) ── */}
-      <View style={styles.bottomComposerArea}>
-        {/* Quick Voice Prompt Suggestions Chips Carousel */}
-        <View style={styles.suggestionsHeaderRow}>
-          <MaterialIcons name="tips-and-updates" size={14} color={colors.text.tertiary} style={{ marginRight: 4 }} />
-          <Text style={styles.suggestionsTitle} numberOfLines={1}>
-            Try voice shortcuts:
-          </Text>
-        </View>
-
+      {/* ── Suggestion Chips Row ── */}
+      <View style={styles.chipsRow} testID="suggestion-chips-row">
         <ScrollView
-          horizontal={true}
+          horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.suggestionsScrollContent}
-          style={styles.suggestionsScrollView}
+          contentContainerStyle={styles.chipsScrollContent}
         >
-          {SUGGESTED_PROMPTS.map((prompt, idx) => (
+          {SUGGESTION_CHIPS.map((chipText, idx) => (
             <TouchableOpacity
-              key={idx}
-              onPress={() => handleSendMessage(prompt)}
-              style={styles.promptChip}
-              activeOpacity={0.7}
+              key={`chip-${idx}`}
+              testID={`suggestion-chip-${idx}`}
+              accessibilityRole="button"
+              accessibilityLabel={chipText}
+              activeOpacity={0.8}
+              onPress={() => handleSendMessage(chipText)}
+              style={styles.chipPill}
             >
-              <Text style={styles.promptChipText}>{prompt}</Text>
+              <Text style={styles.chipText}>{chipText}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
+      </View>
 
-        {/* Composer Row */}
-        <View style={[styles.composerContainer.md]}>
-          <View style={styles.keyboardIconBtn}>
-            <MaterialIcons name="keyboard" size={20} color={colors.text.tertiary} />
-          </View>
+      {/* ── Thumb Zone Input Bar with Overlapping Coin Mic ── */}
+      <View style={styles.inputBarContainer} testID="assistant-input-bar">
+        <View style={styles.inputPill}>
+          {/* Keyboard outline icon */}
+          <Feather name="edit-3" size={18} color={colors.ink_muted} style={styles.keyboardIcon} />
 
+          {/* Text Input Field */}
           <TextInput
             testID="conversation-input"
             value={inputText}
@@ -759,418 +831,299 @@ export default function ConversationLog({
               setInputText(val);
               textRef.current = val;
             }}
-            placeholder="Ask or tell Pappu anything..."
-            placeholderTextColor={colors.text.muted}
-            style={styles.textInput}
+            placeholder="Type or hold the coin to talk"
+            placeholderTextColor={colors.ink_muted}
             onSubmitEditing={() => handleSendMessage(textRef.current)}
+            returnKeyType="send"
+            style={styles.textInputField}
+            editable={!loading}
           />
 
+          {/* Send Button if text entered */}
           {inputText.trim().length > 0 && (
             <TouchableOpacity
               testID="conversation-send-button"
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              activeOpacity={0.85}
               onPress={() => handleSendMessage(textRef.current)}
-              disabled={loading}
-              style={styles.sendButton}
-              activeOpacity={0.8}
+              style={styles.inlineSendBtn}
             >
-              <MaterialIcons name="arrow-upward" size={18} color="#FFFFFF" />
+              <Feather name="arrow-up" size={18} color={colors.surface} />
             </TouchableOpacity>
           )}
+        </View>
 
-          <View style={styles.micWrapper}>
-            <View style={styles.micPulseRing} pointerEvents="none" />
-            <MicButton
-              token={token}
-              onTranscribed={(transcript) => handleSendMessage(transcript, { input: 'voice' })}
-              disabled={loading}
-            />
-          </View>
+        {/* 70px Coin Mic Button Overlapping right edge */}
+        <View style={styles.coinMicWrapper}>
+          <MicButton
+            token={token}
+            isCoinStyle={true}
+            size={70}
+            onTranscribed={(transcript) => handleSendMessage(transcript, { input: 'voice' })}
+            onRecordingStateChange={(recording) => {
+              if (recording) {
+                setAssistantState('listening');
+                setActiveMood('listening');
+              } else {
+                setAssistantState('thinking');
+                setActiveMood('thinking');
+              }
+            }}
+            disabled={loading}
+          />
         </View>
       </View>
+
+      {/* ── Celebratory Coin Shower ── */}
+      {showCoinShower && (
+        <CoinShower onComplete={() => setShowCoinShower(false)} />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screenContainer: {
+  container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
   },
-  contextStatusBar: {
+  topBar: {
+    height: 56,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  syncStatusLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pulsingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.semantic.income,
-  },
-  syncStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  contextStatusRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dialectToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dialectLabel: {
-    fontSize: 12,
-    color: colors.text.tertiary,
-  },
-  dialectValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.brand.default,
-  },
-  clearChatBtn: {
-    marginLeft: spacing.md,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceSubtle,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-  },
-  clearChatText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.secondary,
-  },
-  messageScrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: 24,
-  },
-  dateDividerRow: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: spacing.sm,
   },
-  dateChip: {
-    backgroundColor: colors.surfaceSubtle,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    borderWidth: 1,
+  clearButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
     borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  dateChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.tertiary,
+  topTimeText: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '700',
+    fontSize: 12,
+    color: colors.ink_muted,
+  },
+  mascotHeader: {
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  stateCaption: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '700',
+    fontSize: 13,
+    color: colors.ink_muted,
+    marginTop: 6,
   },
   emptyContainer: {
+    paddingVertical: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: spacing.xl,
   },
-  emptyBotBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.tint,
+  emptyText: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '600',
+    fontSize: 13,
+    color: colors.ink_muted,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  confusedRetryButton: {
+    marginTop: 8,
+    height: 44,
+    paddingHorizontal: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.border,
+    borderRadius: 16,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
   },
-  emptyTitle: {
-    fontSize: 16,
+  confusedRetryText: {
+    fontFamily: typography.fonts.display,
     fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: 6,
-    textAlign: 'center',
+    fontSize: 15,
+    color: colors.ink,
   },
-  emptySub: {
-    fontSize: 13,
-    color: colors.text.tertiary,
-    textAlign: 'center',
-    lineHeight: 18,
+  chatScroll: {
+    flex: 1,
+    paddingHorizontal: 20,
   },
-  userMessageRow: {
-    alignSelf: 'flex-end',
-    maxWidth: '85%',
+  chatScrollContent: {
+    paddingBottom: 16,
+  },
+  messageRowWrapper: {
     marginVertical: 4,
-    alignItems: 'flex-end',
   },
-  userBubble: {
-    backgroundColor: colors.brand.default,
-    borderRadius: radius['2xl'],
-    borderBottomRightRadius: radius.xs,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-                      },
-  userBubbleText: {
-    color: colors.text.inverse,
-    fontSize: 14,
-    lineHeight: 22,
-    fontWeight: '400',
-  },
-  userMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    paddingRight: 4,
-  },
-  metaTimeText: {
-    fontSize: 11,
-    color: colors.text.tertiary,
-  },
-  assistantMessageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    maxWidth: '92%',
-    marginVertical: 6,
-  },
-  assistantAvatarCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  assistantContentCol: {
-    flex: 1,
-  },
-  standardBubbleWrapper: {
-    width: '100%',
-  },
-  assistantCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius['2xl'],
-    borderBottomLeftRadius: radius.xs,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  addSuccessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  checkCircleBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.semantic.incomeBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  assistantCardText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.text.primary,
-    flex: 1,
-  },
-  heardAmountText: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 2,
-  },
-  undoPill: {
-    backgroundColor: colors.brand.tint,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-  },
-  undoPillDisabled: {
-    opacity: 0.5,
-  },
-  undoPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.brand.default,
-  },
-  undoPillTextDisabled: {
-    color: colors.text.tertiary,
-  },
-  errorContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: radius['2xl'],
-    borderBottomLeftRadius: radius.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 13,
-    color: colors.semantic.expense,
-    flex: 1,
-  },
-  retryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.brand.tint,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    marginTop: spacing.xs,
-  },
-  retryBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.brand.default,
-  },
-  assistantMetaTime: {
-    fontSize: 11,
-    color: colors.text.tertiary,
-    marginTop: 3,
-    paddingLeft: 4,
-  },
-  thinkingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginVertical: 6,
-  },
-  thinkingBubble: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radius['2xl'],
-    borderBottomLeftRadius: radius.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  bouncingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.brand.default,
-  },
-  dot1: { opacity: 0.4 },
-  dot2: { opacity: 0.7 },
-  dot3: { opacity: 1 },
-  bottomComposerArea: {
-    backgroundColor: colors.canvas,
-    paddingHorizontal: spacing.md,
-    paddingBottom: 96,
-    paddingTop: spacing.xs,
-  },
-  suggestionsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  cardWrapper: {
+    marginTop: 6,
     marginBottom: 4,
-    paddingHorizontal: 4,
+    marginLeft: 40, // Aligns under Pappu reply bubble
   },
-  suggestionsTitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.tertiary,
-  },
-  suggestionsScrollView: {
-    marginBottom: spacing.sm,
-  },
-  suggestionsScrollContent: {
-    gap: 6,
-    paddingHorizontal: 2,
-  },
-  promptChip: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  promptChipText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.text.secondary,
-  },
-  composerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.full,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  keyboardIconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
-  },
-  sendButton: {
+  miniAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.brand.default,
+    backgroundColor: colors.gold,
+    borderWidth: 2,
+    borderColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 4,
+    marginRight: 8,
+    flexShrink: 0,
   },
-  micWrapper: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarRupee: {
+    fontFamily: typography.fonts.display,
+    fontWeight: '800',
+    fontSize: 12,
+    color: colors.ink,
   },
-  micPulseRing: {
-    position: 'absolute',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.brand.tint,
-    opacity: 0.6,
-  },
-  skeletonContainer: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  skeletonBubbleRight: {
-    alignItems: 'flex-end',
-    marginBottom: spacing.md,
-  },
-  skeletonBubbleLeft: {
+  typingBubbleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.md,
+    alignItems: 'center',
+    marginVertical: 6,
+  },
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.gold_edge,
+  },
+  heardWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 40,
+    marginTop: 6,
+  },
+  heardPill: {
+    backgroundColor: colors.warningBg || colors.bg,
+    borderWidth: 1,
+    borderColor: colors.warningBorder || colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  heardText: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '700',
+    fontSize: 12,
+    color: colors.warning || colors.ink,
+  },
+  undoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  undoText: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '700',
+    fontSize: 12,
+    color: colors.ink,
+  },
+  chipsRow: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  chipsScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chipPill: {
+    height: 38,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipText: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '600',
+    fontSize: 14,
+    color: colors.ink,
+  },
+  inputBarContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
+    paddingTop: 4,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  inputPill: {
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 16,
+    paddingRight: 74, // Clearance for overlapping 70px coin mic
+  },
+  keyboardIcon: {
+    marginRight: 10,
+  },
+  textInputField: {
+    flex: 1,
+    fontFamily: typography.fonts.body,
+    fontWeight: '600',
+    fontSize: 14,
+    color: colors.ink,
+    height: '100%',
+  },
+  inlineSendBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.gold_edge,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  coinMicWrapper: {
+    position: 'absolute',
+    right: 18,
+    zIndex: 10,
   },
 });

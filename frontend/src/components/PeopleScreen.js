@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,31 +7,102 @@ import {
   TextInput,
   ActivityIndicator,
   StyleSheet,
+  Share,
+  Animated,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Dimensions,
 } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { fetchPeopleSummary, fetchContactDetail } from '../api/client';
-import { colors, radius, spacing } from '../theme/tokens';
-import Card from './ui/Card';
+import {
+  fetchPeopleSummary,
+  fetchContactDetail,
+  createContact,
+  fetchContactRemindText,
+} from '../api/client';
+import { colors, radius, spacing, typography } from '../theme/tokens';
+import EmptyState from './ui/EmptyState';
 import TransactionEditSheet from './ui/TransactionEditSheet';
+import Pappu from './ui/Pappu';
+import { useReduceMotion } from '../utils/reduceMotion';
+import { queryClient } from '../data/queryClient';
+import { queryKeys, invalidateOnTransactionChange } from '../data/queryKeys';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const isTest = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || typeof jest !== 'undefined';
+const KeyboardWrapper = Platform.OS === 'ios' && !isTest ? KeyboardAvoidingView : View;
+
+/**
+ * Returns correctly pluralized friend count ("1 friend", "2 friends", "0 friends").
+ */
+export function formatFriendCount(count) {
+  const n = Number(count) || 0;
+  return `${n} ${n === 1 ? 'friend' : 'friends'}`;
+}
+
+/**
+ * Returns correctly pluralized transaction count ("1 transaction", "2 transactions").
+ */
+export function formatTransactionCount(count) {
+  const n = Number(count) || 0;
+  return `${n} ${n === 1 ? 'transaction' : 'transactions'}`;
+}
 
 export default function PeopleScreen({
   token,
   refreshTrigger = 0,
+  addPersonTrigger = 0,
   initialContactId = null,
+  showHeader = true,
   onBack = null,
   onShowToast = null,
   onTransactionMutated = null,
+  onSelectPerson = null,
 }) {
+  const reduceMotion = useReduceMotion();
+
+  // State
   const [peopleData, setPeopleData] = useState(null);
   const [selectedContactId, setSelectedContactId] = useState(initialContactId);
   const [contactDetail, setContactDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'owed' | 'owe' | 'settled'
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'owed' | 'owe'
+
+  // Add Person Sheet
+  const [addSheetVisible, setAddSheetVisible] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addPhone, setAddPhone] = useState('');
+  const [addUpiId, setAddUpiId] = useState('');
+  const [addError, setAddError] = useState(null);
+  const [savingContact, setSavingContact] = useState(false);
+
+  // Transaction Edit Sheet
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
+
+  // Remind loading
+  const [remindLoading, setRemindLoading] = useState(false);
+
+  // Animation values
+  const sheetAnim = useRef(new Animated.Value(isTest || reduceMotion ? 0 : SCREEN_HEIGHT)).current;
+  const rowFadeAnim = useRef(new Animated.Value(isTest || reduceMotion ? 1 : 0)).current;
+
+  // React to addPersonTrigger from external header if provided
+  useEffect(() => {
+    if (addPersonTrigger > 0) {
+      setAddError(null);
+      setAddSheetVisible(true);
+    }
+  }, [addPersonTrigger]);
 
   // Load people list
   const loadPeople = async () => {
@@ -44,6 +115,14 @@ export default function PeopleScreen({
       setError(null);
       const data = await fetchPeopleSummary(token);
       setPeopleData(data);
+      if (!reduceMotion && !isTest) {
+        rowFadeAnim.setValue(0);
+        Animated.timing(rowFadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }
     } catch (err) {
       setError(err.message || 'Failed to load people summary');
     } finally {
@@ -61,1064 +140,1372 @@ export default function PeopleScreen({
     }
   }, [initialContactId]);
 
-  // Load detail when a contact is selected
-  useEffect(() => {
-    if (!selectedContactId || !token) {
+  // Load contact detail when selected
+  const loadDetail = async (contactId) => {
+    if (!contactId || !token) {
       setContactDetail(null);
       return;
     }
+    try {
+      setDetailLoading(true);
+      const data = await fetchContactDetail(token, contactId);
+      setContactDetail(data);
+    } catch (err) {
+      setError(err.message || 'Failed to load contact details');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
-    const loadDetail = async () => {
-      try {
-        setDetailLoading(true);
-        const data = await fetchContactDetail(token, selectedContactId);
-        setContactDetail(data);
-      } catch (err) {
-        setError(err.message || 'Failed to load contact details');
-      } finally {
-        setDetailLoading(false);
-      }
-    };
-
-    loadDetail();
+  useEffect(() => {
+    if (selectedContactId) {
+      loadDetail(selectedContactId);
+    } else {
+      setContactDetail(null);
+    }
   }, [selectedContactId, token, refreshTrigger]);
 
-  if (loading && !peopleData) {
-    return (
-      <View testID="people-loading" style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color={colors.brand.default} />
-        <Text style={styles.loadingText}>Loading people…</Text>
-      </View>
-    );
-  }
+  // Animate bottom sheet open/close
+  useEffect(() => {
+    if (isTest) return;
+    if (addSheetVisible) {
+      if (reduceMotion) {
+        sheetAnim.setValue(0);
+      } else {
+        Animated.spring(sheetAnim, {
+          toValue: 0,
+          damping: 24,
+          stiffness: 260,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else {
+      if (reduceMotion) {
+        sheetAnim.setValue(SCREEN_HEIGHT);
+      } else {
+        Animated.timing(sheetAnim, {
+          toValue: SCREEN_HEIGHT,
+          duration: 180,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+  }, [addSheetVisible, reduceMotion]);
 
-  // ── Contact Detail View (stitch/contact_detail_pooja.html) ──
-  if (selectedContactId && contactDetail) {
-    const isOwed = contactDetail.net_balance > 0;
-    const youOwe = contactDetail.net_balance < 0;
-    const txns = contactDetail.transactions || [];
+  // Close Add Sheet helper
+  const handleCloseAddSheet = () => {
+    setAddSheetVisible(false);
+    setAddName('');
+    setAddPhone('');
+    setAddUpiId('');
+    setAddError(null);
+  };
 
-    return (
-      <ScrollView
-        testID="contact-detail-view"
-        style={styles.container}
-        contentContainerStyle={styles.detailContentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Top Header Row with Back Button */}
-        <View style={styles.detailHeaderNav}>
-          <TouchableOpacity
-            testID="back-to-people-button"
-            onPress={() => setSelectedContactId(null)}
-            style={styles.backButton}
-            accessibilityLabel="Back to People"
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="arrow-back" size={22} color={colors.text.primary} />
-          </TouchableOpacity>
-          <View style={styles.detailNavTitleBox}>
-            <Text style={styles.detailNavHeading}>Contact Detail</Text>
-            <Text style={styles.detailNavSub}>Split Balance & History</Text>
-          </View>
+  // Save new contact
+  const handleSaveContact = async () => {
+    const cleanName = addName.trim();
+    if (!cleanName) {
+      setAddError('Contact name is required');
+      return;
+    }
+
+    try {
+      setSavingContact(true);
+      setAddError(null);
+
+      await createContact(token, {
+        name: cleanName,
+        phone: addPhone.trim() || null,
+        upi_id: addUpiId.trim() || null,
+      });
+
+      handleCloseAddSheet();
+
+      if (onShowToast) {
+        onShowToast('Contact added');
+      }
+
+      // Immediate query invalidation
+      try {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.people() });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.allSummary });
+      } catch (_e) {}
+
+      await loadPeople();
+    } catch (err) {
+      const serverMessage = err.data?.detail || err.message || 'Failed to add contact';
+      setAddError(serverMessage);
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  // Trigger remind share sheet
+  const handleRemind = async () => {
+    if (!selectedContactId || !token) return;
+    try {
+      setRemindLoading(true);
+      const data = await fetchContactRemindText(token, selectedContactId);
+      const textToShare = data?.remind_text || data?.text;
+      if (textToShare) {
+        if (Share && typeof Share.share === 'function') {
+          await Share.share({ message: textToShare });
+        }
+      }
+    } catch (err) {
+      if (onShowToast) {
+        onShowToast(err.message || 'Failed to generate reminder');
+      }
+    } finally {
+      setRemindLoading(false);
+    }
+  };
+
+  // ── DETAIL VIEW ──
+  if (selectedContactId && (contactDetail || detailLoading)) {
+    if (detailLoading && !contactDetail) {
+      return (
+        <View testID="people-detail-loading" style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={colors.gold} />
+          <Text style={styles.loadingText}>Loading details…</Text>
         </View>
+      );
+    }
 
-        {/* Profile & Hero Status Section */}
-        <View style={styles.profileSection}>
-          <View style={styles.largeAvatarContainer}>
-            <View style={styles.largeAvatarCircle}>
-              <Text style={styles.largeAvatarInitial}>
-                {contactDetail.contact_name?.charAt(0)?.toUpperCase() || 'P'}
-              </Text>
-            </View>
-            <View style={styles.avatarCheckBadge}>
-              <MaterialIcons name="check" size={12} color="#FFFFFF" />
-            </View>
+    const net = Number(contactDetail?.net_balance || 0);
+    const isOwed = net > 0;
+    const youOwe = net < 0;
+    const isSettled = net === 0;
+
+    let balanceCaption = 'All settled up';
+    if (isOwed) {
+      balanceCaption = `${contactDetail.contact_name} owes you`;
+    } else if (youOwe) {
+      balanceCaption = `You owe ${contactDetail.contact_name}`;
+    }
+
+    const txns = contactDetail?.transactions || [];
+
+    return (
+      <View style={styles.screenWrapper}>
+        <ScrollView
+          testID="contact-detail-view"
+          style={styles.container}
+          contentContainerStyle={styles.detailContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Bar with Back Arrow */}
+          <View style={styles.detailTopBar}>
+            <TouchableOpacity
+              testID="back-to-people-button"
+              onPress={() => {
+                setSelectedContactId(null);
+                if (onBack && initialContactId) onBack();
+              }}
+              style={styles.backCircleBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <Feather name="arrow-left" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <View style={styles.detailTopBarSpacer} />
           </View>
 
-          <Text style={styles.contactHeaderName}>{contactDetail.contact_name}</Text>
-          <Text style={styles.contactHeaderHandle}>
-            {contactDetail.contact_name?.toLowerCase()}@upi · Voice tracked
-          </Text>
-
-          {/* Hero Balance Glass Card */}
-          <View
-            style={[
-              styles.heroBalanceGlass,
-              isOwed ? styles.heroBalanceGreen : youOwe ? styles.heroBalanceRed : styles.heroBalanceNeutral,
-            ]}
-          >
-            <View style={styles.heroBalanceTitleRow}>
-              <MaterialIcons
-                name={isOwed ? 'trending-up' : youOwe ? 'trending-down' : 'check-circle'}
-                size={18}
-                color={isOwed ? colors.semantic.income : youOwe ? colors.semantic.expense : colors.text.secondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text
-                style={[
-                  styles.heroBalanceText,
-                  { color: isOwed ? colors.semantic.income : youOwe ? colors.semantic.expense : colors.text.secondary },
-                ]}
-              >
-                {contactDetail.display_text}
+          {/* Hero Contact Card */}
+          <View style={styles.detailHeroCard}>
+            {/* 72px Avatar */}
+            <View style={styles.largeAvatar}>
+              <Text style={styles.largeAvatarText}>
+                {contactDetail?.contact_name?.charAt(0)?.toUpperCase() || 'P'}
               </Text>
             </View>
-            <Text style={styles.heroBalanceSub}>
-              {txns.length} transaction{txns.length === 1 ? '' : 's'} total
+
+            {/* Name */}
+            <Text style={styles.detailName}>{contactDetail?.contact_name}</Text>
+
+            {/* Balance Figure */}
+            <Text
+              testID="person-detail-balance"
+              style={[
+                styles.detailBalanceAmount,
+                isOwed
+                  ? { color: colors.income }
+                  : youOwe
+                  ? { color: colors.expense }
+                  : { color: colors.ink_muted },
+              ]}
+            >
+              {isOwed ? '+' : youOwe ? '−' : ''}₹{Math.abs(net).toLocaleString('en-IN')}
             </Text>
-          </View>
-        </View>
 
-        {/* Transaction History Section Header */}
-        <View style={styles.historySectionHeader}>
-          <Text style={styles.historySectionHeaderText}>
-            History with {contactDetail.contact_name} ({txns.length})
-          </Text>
-        </View>
+            {/* Caption */}
+            <Text testID="person-detail-caption" style={styles.detailCaption}>
+              {balanceCaption}
+            </Text>
 
-        {/* Transactions Stream */}
-        {txns.length === 0 ? (
-          <Card padding="xl" style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No transactions found with this contact.</Text>
-          </Card>
-        ) : (
-          <View style={styles.timelineList}>
-            {txns.map((txn) => {
-              const txnIsIncome = txn.type === 'income';
-              return (
+            {/* Remind Action Row: Hidden if balance is zero */}
+            {!isSettled && (
+              <View style={styles.remindActionRow}>
+                {/* Pappu Concerned Pose (44px) */}
+                <View style={styles.mascotConcernedWrap}>
+                  <Pappu mood="concerned" size={40} testID="pappu-mascot-concerned" />
+                </View>
+
+                {/* Remind Button */}
                 <TouchableOpacity
-                  key={txn.id}
-                  testID={`contact-txn-${txn.id}`}
+                  testID="remind-person-button"
+                  onPress={handleRemind}
+                  style={styles.remindBtn}
                   activeOpacity={0.7}
-                  onPress={() => {
-                    setSelectedTxn(txn);
-                    setEditSheetVisible(true);
-                  }}
-                  style={[
-                    styles.timelineBubble,
-                    txnIsIncome ? styles.timelineBubbleLeft : styles.timelineBubbleRight,
-                  ]}
+                  disabled={remindLoading}
                 >
-                  <View style={styles.bubbleTopRow}>
-                    <View style={styles.bubbleInfo}>
-                      <Text style={styles.bubbleTitle}>
-                        {txnIsIncome ? `${contactDetail.contact_name} paid you` : 'You sent'}
-                      </Text>
-                      <Text style={styles.bubbleDesc}>
-                        {txn.description || (txnIsIncome ? 'Received settlement' : 'Split expense')}
-                      </Text>
-                    </View>
-                    <View style={styles.bubbleAmountRow}>
-                      <MaterialIcons
-                        name={txnIsIncome ? 'south-west' : 'north-east'}
-                        size={14}
-                        color={txnIsIncome ? colors.semantic.income : colors.text.primary}
-                        style={{ marginRight: 2 }}
-                      />
+                  <Feather name="share-2" size={18} color={colors.ink} style={{ marginRight: 8 }} />
+                  <Text style={styles.remindBtnText}>
+                    {remindLoading ? 'Opening…' : `Remind ${contactDetail?.contact_name}`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Transactions Section */}
+          <View style={styles.txnsSection}>
+            <Text style={styles.txnsSectionTitle}>Transactions</Text>
+
+            {txns.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyCardText}>No transactions found with this contact.</Text>
+              </View>
+            ) : (
+              <View style={styles.txnsCard}>
+                {txns.map((txn, index) => {
+                  const isIncome = txn.type === 'income';
+                  const isLast = index === txns.length - 1;
+                  return (
+                    <TouchableOpacity
+                      key={txn.id}
+                      testID={`contact-txn-${txn.id}`}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        setSelectedTxn(txn);
+                        setEditSheetVisible(true);
+                      }}
+                      style={[styles.txnRow, isLast && { borderBottomWidth: 0 }]}
+                    >
+                      <View style={styles.txnLeft}>
+                        <View style={styles.txnIconWrap}>
+                          <MaterialIcons
+                            name={isIncome ? 'call-received' : 'shopping-bag'}
+                            size={18}
+                            color={isIncome ? colors.income : colors.categories.food}
+                          />
+                        </View>
+                        <View style={styles.txnMeta}>
+                          <Text style={styles.txnDesc}>
+                            {txn.description || (isIncome ? 'Received settlement' : 'Split expense')}
+                          </Text>
+                          <Text style={styles.txnSub}>
+                            {txn.txn_date} · {txn.category_name || 'People'}
+                          </Text>
+                        </View>
+                      </View>
                       <Text
                         style={[
-                          styles.bubbleAmount,
-                          { color: txnIsIncome ? colors.semantic.income : colors.text.primary },
+                          styles.txnAmount,
+                          { color: isIncome ? colors.income : colors.ink },
                         ]}
                       >
-                        {txnIsIncome ? '+' : '-'}₹{Number(txn.amount).toFixed(0)}
+                        {isIncome ? '+' : '−'}₹{Number(txn.amount).toLocaleString('en-IN')}
                       </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.bubbleFooter}>
-                    <Text style={styles.bubbleDate}>{txn.txn_date}</Text>
-                    <View style={styles.bubbleBadge}>
-                      <MaterialIcons name="done" size={11} color={colors.text.tertiary} style={{ marginRight: 2 }} />
-                      <Text style={styles.bubbleBadgeText}>
-                        {txnIsIncome ? 'Received via UPI' : 'Sent via UPI'}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </View>
-        )}
+        </ScrollView>
 
-        {/* Bottom Actions Row (stitch/contact_detail_pooja.html) */}
-        <View style={styles.stickyActionFooter}>
-          <TouchableOpacity
-            style={styles.remindBtn}
-            onPress={() => {}}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="notifications-active" size={18} color={colors.brand.default} style={{ marginRight: 6 }} />
-            <Text style={styles.remindBtnText}>Remind</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.settleBtn}
-            onPress={() => {}}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="task-alt" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.settleBtnText}>Settle up</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Transaction Edit/Delete Bottom Sheet in detail view */}
+        {/* Transaction Edit Bottom Sheet */}
         <TransactionEditSheet
           visible={editSheetVisible}
-          onClose={() => setEditSheetVisible(false)}
+          onClose={() => {
+            setEditSheetVisible(false);
+            setSelectedTxn(null);
+          }}
           transaction={selectedTxn}
           token={token}
-          onSaved={() => {
-            loadPeople();
+          onSaved={async () => {
+            await invalidateOnTransactionChange(queryClient, { contactId: selectedContactId });
+            await loadPeople();
+            if (selectedContactId) await loadDetail(selectedContactId);
             if (onTransactionMutated) onTransactionMutated();
             if (onShowToast) onShowToast('Transaction updated');
           }}
-          onDeleted={() => {
-            loadPeople();
+          onDeleted={async () => {
+            await invalidateOnTransactionChange(queryClient, { contactId: selectedContactId });
+            await loadPeople();
+            if (selectedContactId) await loadDetail(selectedContactId);
             if (onTransactionMutated) onTransactionMutated();
             if (onShowToast) onShowToast('Transaction deleted');
           }}
         />
-      </ScrollView>
+      </View>
     );
   }
 
-  // ── Contact List View (stitch/people.html) ──
+  // ── LIST VIEW ──
   const contacts = peopleData?.contacts || [];
   const totalOwed = Number(peopleData?.total_owed_to_user || 0);
   const totalOwe = Number(peopleData?.total_user_owes || 0);
   const netBalance = totalOwed - totalOwe;
 
+  const owedContacts = contacts.filter((c) => Number(c.net_balance) > 0);
+  const oweContacts = contacts.filter((c) => Number(c.net_balance) < 0);
+
+  // Filtered contacts based on search and active chip
   const filteredContacts = contacts.filter((c) => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      if (!c.contact_name?.toLowerCase().includes(q)) return false;
+      const matchName = c.contact_name?.toLowerCase().includes(q);
+      const matchPhone = c.phone?.toLowerCase().includes(q);
+      const matchUpi = c.upi_id?.toLowerCase().includes(q);
+      if (!matchName && !matchPhone && !matchUpi) return false;
     }
-    if (activeFilter === 'owed') return c.net_balance > 0;
-    if (activeFilter === 'owe') return c.net_balance < 0;
-    if (activeFilter === 'settled') return c.net_balance === 0;
+    if (activeFilter === 'owed') return Number(c.net_balance) > 0;
+    if (activeFilter === 'owe') return Number(c.net_balance) < 0;
     return true;
   });
 
+  if (loading && !peopleData) {
+    return (
+      <View testID="people-loading" style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={colors.gold} />
+        <Text style={styles.loadingText}>Loading people…</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView
-      testID="people-view"
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* ── 1. Top Action & Search Row (stitch/people.html) ── */}
-      <View style={styles.topContextRow}>
-        <View style={styles.titleBadgeRow}>
-          {onBack && (
+    <View style={styles.screenWrapper}>
+      <ScrollView
+        testID="people-view"
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Optional Back button if navigated from outside */}
+        {onBack && (
+          <View style={styles.topNavRow}>
             <TouchableOpacity
               testID="people-back-button"
               onPress={onBack}
-              style={[styles.backButton, { marginRight: 8 }]}
+              style={styles.backButton}
               accessibilityLabel="Back to Home"
               activeOpacity={0.7}
             >
-              <MaterialIcons name="arrow-back" size={22} color={colors.text.primary} />
+              <Feather name="arrow-left" size={20} color={colors.ink} />
+            </TouchableOpacity>
+            <Text style={styles.topNavTitle}>People</Text>
+            <View style={{ width: 36 }} />
+          </View>
+        )}
+
+        {/* Optional Header with Gold Plus */}
+        {showHeader && (
+          <View style={styles.screenHeader}>
+            <View style={styles.headerLeft}>
+              <View style={styles.coinMarkOuter}>
+                <View style={styles.coinMarkEdge} />
+                <View style={styles.coinMarkFace}>
+                  <View style={styles.coinInnerRim}>
+                    <Text style={styles.coinMarkLetter}>P</Text>
+                  </View>
+                </View>
+              </View>
+              <Text style={styles.headerWordmark}>Pappu</Text>
+            </View>
+            <TouchableOpacity
+              testID="header-add-person-button"
+              onPress={() => {
+                setAddError(null);
+                setAddSheetVisible(true);
+              }}
+              style={styles.headerAddBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Add person"
+            >
+              <Feather name="plus" size={20} color={colors.ink} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 1. Search Bar */}
+        <View style={styles.searchBar}>
+          <Feather name="search" size={20} color={colors.ink_muted} style={{ marginRight: 10 }} />
+          <TextInput
+            testID="people-search-input"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search people"
+            placeholderTextColor={colors.ink_muted}
+            style={styles.searchInput}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={16} color={colors.ink_muted} />
             </TouchableOpacity>
           )}
-          <Text style={styles.screenHeading}>Contacts</Text>
-          <View style={styles.entryCountBadge}>
-            <Text style={styles.entryCountText}>{contacts.length}</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={styles.addContactBtn}
-          onPress={() => {}}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons name="add" size={16} color="#FFFFFF" style={{ marginRight: 2 }} />
-          <Text style={styles.addContactText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── 2. Search Input Bar ── */}
-      <View style={styles.searchBar}>
-        <MaterialIcons name="search" size={20} color={colors.text.tertiary} style={{ marginRight: 8 }} />
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search friends, UPI ID or phone..."
-          placeholderTextColor={colors.text.muted}
-          style={styles.searchInput}
-        />
-        <MaterialIcons name="mic" size={18} color={colors.brand.default} />
-      </View>
-
-      {/* ── 3. Split Overview Glass Card (stitch/people.html) ── */}
-      <View style={styles.splitOverviewCard}>
-        <View style={styles.splitCardHeader}>
-          <View style={styles.splitCycleDotRow}>
-            <View style={styles.pulsingBlueDot} />
-            <Text style={styles.splitCardKicker}>Split Overview</Text>
-          </View>
-          <View style={styles.activeCyclePill}>
-            <MaterialIcons name="auto-awesome" size={12} color={colors.brand.default} style={{ marginRight: 3 }} />
-            <Text style={styles.activeCycleText}>Active cycle</Text>
-          </View>
         </View>
 
-        {/* Two Split Metric Columns */}
-        <View style={styles.metricsGrid}>
-          {/* You're owed column */}
-          <View style={styles.metricColumnCard}>
-            <View style={styles.metricCardHeader}>
-              <Text style={styles.metricCardLabel}>You're owed</Text>
-              <View style={styles.metricIconWrapGreen}>
-                <MaterialIcons name="call-received" size={12} color={colors.semantic.income} />
-              </View>
+        {/* 2. Overview Card: Two tiles + Net balance row */}
+        <View style={styles.overviewCard}>
+          <View style={styles.tilesRow}>
+            {/* Tile 1: Owed to you */}
+            <View style={styles.tileBox}>
+              <Text style={styles.tileLabel}>Owed to you</Text>
+              <Text testID="owed-to-you-amount" style={[styles.tileAmount, { color: colors.income }]}>
+                ₹{totalOwed.toLocaleString('en-IN')}
+              </Text>
+              <Text testID="owed-to-you-friends-count" style={styles.tileCount}>
+                {formatFriendCount(owedContacts.length)}
+              </Text>
             </View>
-            <Text style={styles.metricAmountGreen}>₹{totalOwed.toFixed(2)}</Text>
-            <Text style={styles.metricCountText}>
-              {contacts.filter((c) => c.net_balance > 0).length} friends
-            </Text>
+
+            {/* Tile 2: You owe */}
+            <View style={styles.tileBox}>
+              <Text style={styles.tileLabel}>You owe</Text>
+              <Text testID="you-owe-amount" style={[styles.tileAmount, { color: colors.expense }]}>
+                ₹{totalOwe.toLocaleString('en-IN')}
+              </Text>
+              <Text testID="you-owe-friends-count" style={styles.tileCount}>
+                {formatFriendCount(oweContacts.length)}
+              </Text>
+            </View>
           </View>
 
-          {/* You owe column */}
-          <View style={styles.metricColumnCard}>
-            <View style={styles.metricCardHeader}>
-              <Text style={styles.metricCardLabel}>You owe</Text>
-              <View style={styles.metricIconWrapRed}>
-                <MaterialIcons name="call-made" size={12} color={colors.semantic.expense} />
-              </View>
-            </View>
-            <Text style={styles.metricAmountRed}>₹{totalOwe.toFixed(2)}</Text>
-            <Text style={styles.metricCountText}>
-              {contacts.filter((c) => c.net_balance < 0).length} friend
+          {/* Divider */}
+          <View style={styles.overviewDivider} />
+
+          {/* Net balance row */}
+          <View style={styles.netBalanceRow}>
+            <Text style={styles.netBalanceLabel}>Net balance</Text>
+            <Text
+              testID="net-balance-amount"
+              style={[
+                styles.netBalanceAmount,
+                netBalance > 0
+                  ? { color: colors.income }
+                  : netBalance < 0
+                  ? { color: colors.expense }
+                  : { color: colors.ink_muted },
+              ]}
+            >
+              {netBalance > 0 ? '+' : netBalance < 0 ? '−' : ''}₹{Math.abs(netBalance).toLocaleString('en-IN')}
             </Text>
           </View>
         </View>
 
-        {/* Overall Net Position Banner */}
-        <View style={styles.netPositionBanner}>
-          <View style={styles.netPositionLeft}>
-            <MaterialIcons name="account-balance" size={16} color={colors.brand.default} style={{ marginRight: 6 }} />
-            <Text style={styles.netPositionLabel}>Net Balance</Text>
-          </View>
-          <Text
+        {/* 3. Filter Chips */}
+        <View style={styles.filterChipsRow}>
+          {/* All */}
+          <TouchableOpacity
+            testID="filter-chip-all"
+            onPress={() => setActiveFilter('all')}
             style={[
-              styles.netPositionAmount,
-              { color: netBalance >= 0 ? colors.semantic.income : colors.semantic.expense },
+              styles.filterChip,
+              activeFilter === 'all' ? styles.filterChipActive : styles.filterChipInactive,
             ]}
+            activeOpacity={0.7}
           >
-            {netBalance >= 0 ? '+' : '-'}₹{Math.abs(netBalance).toFixed(2)}
-          </Text>
+            <Text
+              style={[
+                styles.filterChipText,
+                activeFilter === 'all' ? styles.filterChipTextActive : styles.filterChipTextInactive,
+              ]}
+            >
+              All {contacts.length}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Owed to you */}
+          <TouchableOpacity
+            testID="filter-chip-owed"
+            onPress={() => setActiveFilter('owed')}
+            style={[
+              styles.filterChip,
+              activeFilter === 'owed' ? styles.filterChipActive : styles.filterChipInactive,
+            ]}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                activeFilter === 'owed' ? styles.filterChipTextActive : styles.filterChipTextInactive,
+              ]}
+            >
+              Owed to you {owedContacts.length}
+            </Text>
+          </TouchableOpacity>
+
+          {/* You owe */}
+          <TouchableOpacity
+            testID="filter-chip-owe"
+            onPress={() => setActiveFilter('owe')}
+            style={[
+              styles.filterChip,
+              activeFilter === 'owe' ? styles.filterChipActive : styles.filterChipInactive,
+            ]}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                activeFilter === 'owe' ? styles.filterChipTextActive : styles.filterChipTextInactive,
+              ]}
+            >
+              You owe {oweContacts.length}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* ── 4. Filter Chips Row ── */}
-      <View style={styles.filterPillsRow}>
-        <TouchableOpacity
-          onPress={() => setActiveFilter('all')}
-          style={[styles.filterPill, activeFilter === 'all' && styles.filterPillActive]}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterPillText, activeFilter === 'all' && styles.filterPillTextActive]}>
-            All ({contacts.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveFilter('owed')}
-          style={[styles.filterPill, activeFilter === 'owed' && styles.filterPillActive]}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterPillText, activeFilter === 'owed' && styles.filterPillTextActive]}>
-            Owed to you ({contacts.filter((c) => c.net_balance > 0).length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveFilter('owe')}
-          style={[styles.filterPill, activeFilter === 'owe' && styles.filterPillActive]}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterPillText, activeFilter === 'owe' && styles.filterPillTextActive]}>
-            You owe ({contacts.filter((c) => c.net_balance < 0).length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* 4. People List or Empty State */}
+        {contacts.length === 0 ? (
+          <EmptyState
+            testID="people-empty"
+            mascotMood="idle"
+            title="No contacts yet"
+            description="Add a friend to track splits or ask Pappu to log a person transaction."
+            actionTitle="Add person"
+            onActionPress={() => {
+              setAddError(null);
+              setAddSheetVisible(true);
+            }}
+          />
+        ) : filteredContacts.length === 0 ? (
+          <View style={styles.emptySearchCard}>
+            <Text style={styles.emptySearchText}>No matching people found.</Text>
+          </View>
+        ) : (
+          <Animated.View style={[styles.peopleCard, { opacity: rowFadeAnim }]}>
+            {filteredContacts.map((c, index) => {
+              const netVal = Number(c.net_balance || 0);
+              const isPositive = netVal > 0;
+              const isNegative = netVal < 0;
+              const isLast = index === filteredContacts.length - 1;
 
-      {/* Error banner */}
-      {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {/* ── 5. Contacts List ── */}
-      {contacts.length === 0 ? (
-        <View testID="people-empty" style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No person-to-person records yet</Text>
-          <Text style={styles.emptySub}>
-            Speak "I sent 500 to Rahul" or "Rahul paid me 200" to automatically log contact splits!
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.contactsList}>
-          {filteredContacts.map((contact) => {
-            const isOwed = contact.net_balance > 0;
-            const youOwe = contact.net_balance < 0;
-
-            return (
-              <TouchableOpacity
-                key={contact.contact_id}
-                testID={`contact-card-${contact.contact_id}`}
-                onPress={() => setSelectedContactId(contact.contact_id)}
-                style={styles.contactCard}
-                activeOpacity={0.7}
-              >
-                <View style={styles.contactCardLeft}>
-                  <View style={styles.contactAvatarWrap}>
-                    <View
-                      style={[
-                        styles.contactAvatarCircle,
-                        {
-                          backgroundColor: isOwed ? colors.brand.tint : youOwe ? colors.semantic.expenseBg : colors.surfaceSubtle,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.contactAvatarInitial,
-                          {
-                            color: isOwed ? colors.brand.default : youOwe ? colors.semantic.expense : colors.text.secondary,
-                          },
-                        ]}
-                      >
-                        {contact.contact_name?.charAt(0)?.toUpperCase() || 'P'}
+              return (
+                <TouchableOpacity
+                  key={c.contact_id || c.id || index}
+                  testID={`contact-card-${c.contact_id || c.id}`}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    const cid = c.contact_id || c.id;
+                    if (onSelectPerson) {
+                      onSelectPerson(cid);
+                    } else {
+                      setSelectedContactId(cid);
+                    }
+                  }}
+                  style={[styles.personRow, isLast && { borderBottomWidth: 0 }]}
+                >
+                  <View style={styles.personLeft}>
+                    {/* Avatar */}
+                    <View style={styles.avatarCircle}>
+                      <Text style={styles.avatarInitial}>
+                        {c.contact_name?.charAt(0)?.toUpperCase() || 'P'}
                       </Text>
                     </View>
-                    <View style={styles.miniStatusBadge}>
-                      <MaterialIcons
-                        name={isOwed ? 'call-received' : youOwe ? 'call-made' : 'check'}
-                        size={10}
-                        color={isOwed ? colors.semantic.income : youOwe ? colors.semantic.expense : colors.text.tertiary}
-                      />
+
+                    {/* Name & Count */}
+                    <View style={styles.personMeta}>
+                      <Text style={styles.personName}>{c.contact_name}</Text>
+                      <Text style={styles.personSub}>
+                        {formatTransactionCount(c.transaction_count)}
+                      </Text>
                     </View>
                   </View>
 
-                  <View style={styles.contactCardInfo}>
-                    <View style={styles.contactNameRow}>
-                      <Text style={styles.contactCardName}>{contact.contact_name}</Text>
-                      {isOwed && contact.transaction_count > 1 ? (
-                        <View style={styles.frequentBadge}>
-                          <Text style={styles.frequentBadgeText}>Frequent</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <Text style={styles.contactCardSub}>
-                      {isOwed ? 'Owes you' : youOwe ? 'You owe' : 'Settled'} · {contact.transaction_count} transaction{contact.transaction_count === 1 ? '' : 's'}
+                  {/* Right Amount & Chevron */}
+                  <View style={styles.personRight}>
+                    <Text
+                      style={[
+                        styles.personAmount,
+                        isPositive
+                          ? { color: colors.income }
+                          : isNegative
+                          ? { color: colors.expense }
+                          : { color: colors.ink_muted },
+                      ]}
+                    >
+                      {isPositive ? '+' : isNegative ? '−' : ''}₹{Math.abs(netVal).toLocaleString('en-IN')}
                     </Text>
+                    <Feather name="chevron-right" size={20} color={colors.ink_muted} />
                   </View>
-                </View>
+                </TouchableOpacity>
+              );
+            })}
+          </Animated.View>
+        )}
+      </ScrollView>
 
-                <View style={styles.contactCardRight}>
-                  <Text
-                    style={[
-                      styles.contactNetText,
-                      {
-                        color: isOwed ? colors.semantic.income : youOwe ? colors.semantic.expense : colors.text.secondary,
-                      },
-                    ]}
-                  >
-                    {isOwed ? '+' : youOwe ? '-' : ''}₹{Math.abs(Number(contact.net_balance)).toFixed(2)}
-                  </Text>
-                  <MaterialIcons name="chevron-right" size={18} color={colors.text.muted} />
-                </View>
+      {/* ── ADD PERSON BOTTOM SHEET (Modal Slide) ── */}
+      {addSheetVisible && (
+        <Modal
+          visible={addSheetVisible}
+          transparent
+          animationType="none"
+          onRequestClose={handleCloseAddSheet}
+        >
+          <KeyboardWrapper
+            behavior={Platform.OS === 'ios' && !isTest ? 'padding' : undefined}
+            style={styles.sheetOverlay}
+          >
+          {/* Dimmed Backdrop */}
+          <TouchableWithoutFeedback onPress={handleCloseAddSheet}>
+            <View style={styles.dimBackdrop} />
+          </TouchableWithoutFeedback>
+
+          {/* Animated Sheet */}
+          <Animated.View
+            testID="add-person-sheet"
+            style={[
+              styles.sheetContainer,
+              !isTest && !reduceMotion && { transform: [{ translateY: sheetAnim }] },
+            ]}
+          >
+            {/* Top Handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Header */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Add person</Text>
+              <TouchableOpacity
+                testID="add-person-close-button"
+                onPress={handleCloseAddSheet}
+                style={styles.sheetCloseBtn}
+                activeOpacity={0.7}
+              >
+                <Feather name="x" size={18} color={colors.ink} />
               </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
+            </View>
 
-      {/* Transaction Edit/Delete Bottom Sheet in people list view */}
-      <TransactionEditSheet
-        visible={editSheetVisible}
-        onClose={() => setEditSheetVisible(false)}
-        transaction={selectedTxn}
-        token={token}
-        onSaved={() => {
-          loadPeople();
-          if (onTransactionMutated) onTransactionMutated();
-          if (onShowToast) onShowToast('Transaction updated');
-        }}
-        onDeleted={() => {
-          loadPeople();
-          if (onTransactionMutated) onTransactionMutated();
-          if (onShowToast) onShowToast('Transaction deleted');
-        }}
-      />
-    </ScrollView>
+            {/* Inline Error Banner from 409 or 422 */}
+            {addError && (
+              <View testID="add-person-error-banner" style={styles.errorBox}>
+                <Feather name="alert-circle" size={16} color={colors.expense} style={{ marginRight: 6 }} />
+                <Text style={styles.errorBoxText}>{addError}</Text>
+              </View>
+            )}
+
+            {/* Form Fields */}
+            <View style={styles.formGroup}>
+              <Text style={styles.fieldLabel}>Name</Text>
+              <View style={styles.inputWrap}>
+                <Feather name="user" size={18} color={colors.ink_muted} style={{ marginRight: 10 }} />
+                <TextInput
+                  testID="add-person-name-input"
+                  value={addName}
+                  onChangeText={(val) => {
+                    setAddName(val);
+                    if (addError) setAddError(null);
+                  }}
+                  placeholder="Name"
+                  placeholderTextColor={colors.ink_muted}
+                  style={styles.fieldInput}
+                  autoFocus={!isTest}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.fieldLabel}>Phone (optional)</Text>
+              <View style={styles.inputWrap}>
+                <Feather name="phone" size={18} color={colors.ink_muted} style={{ marginRight: 10 }} />
+                <TextInput
+                  testID="add-person-phone-input"
+                  value={addPhone}
+                  onChangeText={setAddPhone}
+                  placeholder="Phone (optional)"
+                  keyboardType="phone-pad"
+                  placeholderTextColor={colors.ink_muted}
+                  style={styles.fieldInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.fieldLabel}>UPI ID (optional)</Text>
+              <View style={styles.inputWrap}>
+                <Feather name="credit-card" size={18} color={colors.ink_muted} style={{ marginRight: 10 }} />
+                <TextInput
+                  testID="add-person-upi-input"
+                  value={addUpiId}
+                  onChangeText={setAddUpiId}
+                  placeholder="UPI ID (optional)"
+                  autoCapitalize="none"
+                  placeholderTextColor={colors.ink_muted}
+                  style={styles.fieldInput}
+                />
+              </View>
+            </View>
+
+            {/* Action Buttons Tray */}
+            <View style={styles.sheetButtonsRow}>
+              <TouchableOpacity
+                testID="add-person-cancel-button"
+                onPress={handleCloseAddSheet}
+                style={styles.cancelBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                testID="add-person-save-button"
+                onPress={handleSaveContact}
+                disabled={savingContact}
+                style={styles.saveBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.saveBtnText}>
+                  {savingContact ? 'Saving…' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </KeyboardWrapper>
+      </Modal>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenWrapper: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  topNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topNavTitle: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 20,
+    color: colors.ink,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.bg,
   },
   contentContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: 110,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 108,
   },
   detailContentContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xs,
-    paddingBottom: 120,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 108,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
+    gap: 8,
   },
   loadingText: {
-    color: colors.text.secondary,
-    fontSize: 13,
-    marginTop: spacing.sm,
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 14,
+    color: colors.ink_muted,
   },
-  topContextRow: {
+
+  /* Header with Gold Plus */
+  screenHeader: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginBottom: 12,
   },
-  titleBadgeRow: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
-  screenHeading: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text.primary,
-    letterSpacing: -0.5,
-  },
-  entryCountBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.full,
-  },
-  entryCountText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.secondary,
-  },
-  addContactBtn: {
-    flexDirection: 'row',
+  coinMarkOuter: {
+    width: 32,
+    height: 32,
+    position: 'relative',
     alignItems: 'center',
-    backgroundColor: colors.brand.default,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.full,
+    justifyContent: 'center',
   },
-  addContactText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+  coinMarkEdge: {
+    position: 'absolute',
+    top: 2,
+    left: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.gold_edge,
   },
-  searchBar: {
-    flexDirection: 'row',
+  coinMarkFace: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.gold,
+    borderWidth: 2,
+    borderColor: colors.ink,
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.full,
+    justifyContent: 'center',
+  },
+  coinInnerRim: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 1,
+    borderColor: colors.gold_edge,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coinMarkLetter: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontWeight: '800',
+    fontSize: 14,
+    lineHeight: 16,
+    color: colors.ink,
+  },
+  headerWordmark: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontWeight: '800',
+    fontSize: 22,
+    lineHeight: 26,
+    color: colors.ink,
+    letterSpacing: -0.2,
+  },
+  headerAddBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.gold,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.gold_edge,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Search Bar */
+  searchBar: {
+    height: 52,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 2,
     borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    height: 44,
-    marginBottom: spacing.md,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
-    color: colors.text.primary,
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 15,
+    color: colors.ink,
+    height: '100%',
   },
-  splitOverviewCard: {
-    borderRadius: radius['2xl'],
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.8)',
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  splitCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  splitCycleDotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pulsingBlueDot: {
-    width: 6,
-    height: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.default,
-    marginRight: 6,
-  },
-  splitCardKicker: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  activeCyclePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.brand.tint,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-  },
-  activeCycleText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.brand.default,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  metricColumnCard: {
-    flex: 1,
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-  },
-  metricCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  metricCardLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.secondary,
-  },
-  metricIconWrapGreen: {
-    width: 20,
-    height: 20,
-    borderRadius: radius.full,
-    backgroundColor: colors.semantic.incomeBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricIconWrapRed: {
-    width: 20,
-    height: 20,
-    borderRadius: radius.full,
-    backgroundColor: colors.semantic.expenseBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricAmountGreen: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.semantic.income,
-    fontVariant: ['tabular-nums'],
-  },
-  metricAmountRed: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.semantic.expense,
-    fontVariant: ['tabular-nums'],
-  },
-  metricCountText: {
-    fontSize: 11,
-    color: colors.text.tertiary,
-    marginTop: 2,
-  },
-  netPositionBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceSubtle,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  netPositionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  netPositionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  netPositionAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  filterPillsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceSubtle,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterPillActive: {
-    backgroundColor: colors.brand.default,
-    borderColor: colors.brand.default,
-  },
-  filterPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.secondary,
-  },
-  filterPillTextActive: {
-    color: '#FFFFFF',
-  },
-  contactsList: {
-    gap: spacing.sm,
-  },
-  contactCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+
+  /* Overview Card */
+  overviewCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius['2xl'],
-    padding: spacing.md,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    padding: 16,
+    gap: 12,
+    marginBottom: 16,
   },
-  contactCardLeft: {
+  tilesRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 12,
+  },
+  tileBox: {
     flex: 1,
+    backgroundColor: colors.bg,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.border,
+    padding: 12,
+    gap: 4,
   },
-  contactAvatarWrap: {
-    position: 'relative',
-    marginRight: spacing.md,
+  tileLabel: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.ink_muted,
   },
-  contactAvatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.full,
+  tileAmount: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '700',
+  },
+  tileCount: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 12,
+    color: colors.ink_muted,
+  },
+  overviewDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    width: '100%',
+  },
+  netBalanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
-  contactAvatarInitial: {
+  netBalanceLabel: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 14,
+    color: colors.ink,
+  },
+  netBalanceAmount: {
+    fontFamily: 'BalooChettan2_700Bold',
     fontSize: 18,
     fontWeight: '700',
   },
-  miniStatusBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
+
+  /* Filter Chips */
+  filterChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  filterChip: {
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+  },
+  filterChipActive: {
+    backgroundColor: colors.gold,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.gold_edge,
+  },
+  filterChipInactive: {
+    backgroundColor: colors.surface,
+    borderWidth: 2,
     borderColor: colors.border,
   },
-  contactCardInfo: {
-    flex: 1,
-  },
-  contactNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  contactCardName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  frequentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.tint,
-  },
-  frequentBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.brand.default,
-  },
-  contactCardSub: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 2,
-  },
-  contactCardRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  contactNetText: {
+  filterChipText: {
+    fontFamily: 'BalooChettan2_700Bold',
     fontSize: 14,
     fontWeight: '700',
-    fontVariant: ['tabular-nums'],
   },
-  emptyCard: {
-    borderRadius: radius['2xl'],
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    padding: spacing.xl,
+  filterChipTextActive: {
+    color: colors.ink,
   },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  emptySub: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  errorBanner: {
-    backgroundColor: colors.semantic.expenseBg,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    marginBottom: spacing.md,
-  },
-  errorText: {
-    color: colors.semantic.expense,
-    fontSize: 13,
+  filterChipTextInactive: {
+    color: colors.ink_muted,
   },
 
-  // ── Contact Detail Styles ──
-  detailHeaderNav: {
+  /* People Card & Rows */
+  peopleCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  personRow: {
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
+  personLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  detailNavTitleBox: {
+    gap: 12,
     flex: 1,
   },
-  detailNavHeading: {
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  personMeta: {
+    flex: 1,
+  },
+  personName: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.ink,
+    lineHeight: 22,
+  },
+  personSub: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.ink_muted,
+    marginTop: 1,
+  },
+  personRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  personAmount: {
+    fontFamily: 'BalooChettan2_700Bold',
     fontSize: 17,
     fontWeight: '700',
-    color: colors.text.primary,
   },
-  detailNavSub: {
-    fontSize: 11,
-    color: colors.text.secondary,
-  },
-  profileSection: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  largeAvatarContainer: {
-    position: 'relative',
-    marginBottom: spacing.sm,
-  },
-  largeAvatarCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.tint,
+  emptySearchCard: {
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.surface,
   },
-  largeAvatarInitial: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.brand.default,
-  },
-  avatarCheckBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 22,
-    height: 22,
-    borderRadius: radius.full,
-    backgroundColor: colors.semantic.income,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  contactHeaderName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text.primary,
-  },
-  contactHeaderHandle: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 2,
-  },
-  heroBalanceGlass: {
-    width: '100%',
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    alignItems: 'center',
-    marginTop: spacing.md,
-    borderWidth: 1,
-  },
-  heroBalanceGreen: {
-    backgroundColor: colors.semantic.incomeBg,
-    borderColor: colors.semantic.incomeBorder,
-  },
-  heroBalanceRed: {
-    backgroundColor: colors.semantic.expenseBg,
-    borderColor: colors.semantic.expenseBorder,
-  },
-  heroBalanceNeutral: {
-    backgroundColor: colors.surfaceSubtle,
-    borderColor: colors.border,
-  },
-  heroBalanceTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  heroBalanceText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  heroBalanceSub: {
-    fontSize: 11,
-    color: colors.text.secondary,
-  },
-  historySectionHeader: {
-    marginBottom: spacing.sm,
-  },
-  historySectionHeaderText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  timelineList: {
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  timelineBubble: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  timelineBubbleLeft: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.semantic.income,
-  },
-  timelineBubbleRight: {
-    borderRightWidth: 3,
-    borderRightColor: colors.brand.default,
-  },
-  bubbleTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xs,
-  },
-  bubbleInfo: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  bubbleTitle: {
+  emptySearchText: {
+    fontFamily: 'Nunito_600SemiBold',
     fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.primary,
+    color: colors.ink_muted,
   },
-  bubbleDesc: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    marginTop: 2,
-  },
-  bubbleAmountRow: {
+
+  /* ── Detail View Styles ── */
+  detailTopBar: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  bubbleAmount: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  bubbleFooter: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  backCircleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
     alignItems: 'center',
-    marginTop: 4,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceSubtle,
+    justifyContent: 'center',
   },
-  bubbleDate: {
-    fontSize: 11,
-    color: colors.text.muted,
+  detailTopBarSpacer: {
+    width: 40,
+    height: 40,
   },
-  bubbleBadge: {
+  detailHeroCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  largeAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  largeAvatarText: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 30,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  detailName: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '700',
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  detailBalanceAmount: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  detailCaption: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 14,
+    color: colors.ink_muted,
+    marginBottom: 16,
+  },
+  remindActionRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  bubbleBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.text.tertiary,
-  },
-  stickyActionFooter: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
+  mascotConcernedWrap: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   remindBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: radius.full,
-    backgroundColor: colors.surfaceSubtle,
-    borderWidth: 1,
-    borderColor: colors.border,
+    height: 52,
+    backgroundColor: colors.gold,
+    borderRadius: 16,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.gold_edge,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   remindBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.brand.default,
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.ink,
   },
-  settleBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: radius.full,
-    backgroundColor: colors.brand.default,
+  txnsSection: {
+    gap: 8,
+  },
+  txnsSectionTitle: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  txnsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  txnRow: {
+    padding: 16,
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  txnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  txnIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  settleBtnText: {
+  txnMeta: {
+    flex: 1,
+  },
+  txnDesc: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.ink,
+    lineHeight: 20,
+  },
+  txnSub: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.ink_muted,
+    marginTop: 2,
+  },
+  txnAmount: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCardText: {
+    fontFamily: 'Nunito_600SemiBold',
     fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.ink_muted,
+  },
+
+  /* ── Add Person Sheet Styles ── */
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  dimBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.dim_overlay,
+  },
+  sheetContainer: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderColor: colors.border,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+    gap: 14,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sheetTitle: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  sheetCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.errorBg || colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.expense,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  errorBoxText: {
+    flex: 1,
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.expense,
+  },
+  formGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.ink,
+  },
+  inputWrap: {
+    height: 52,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fieldInput: {
+    flex: 1,
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 15,
+    color: colors.ink,
+    height: '100%',
+  },
+  sheetButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingTop: 8,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 52,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  saveBtn: {
+    flex: 1,
+    height: 52,
+    backgroundColor: colors.gold,
+    borderRadius: 16,
+    borderBottomWidth: 4,
+    borderBottomColor: colors.gold_edge,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.ink,
   },
 });

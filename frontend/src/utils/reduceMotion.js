@@ -26,6 +26,13 @@ export function getReduceMotion() {
 }
 
 /**
+ * Sets global reduce motion state (used in testing and overrides).
+ */
+export function setGlobalReduceMotion(enabled) {
+  globalReduceMotion = Boolean(enabled);
+}
+
+/**
  * React hook to listen for Reduce Motion accessibility preferences.
  */
 export function useReduceMotion() {

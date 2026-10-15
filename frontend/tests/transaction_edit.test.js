@@ -103,12 +103,12 @@ describe('TransactionEditSheet Component', () => {
     const deleteBtn = await screen.findByTestId('edit-txn-delete-button');
     fireEvent.press(deleteBtn);
 
-    // 2. Confirmation prompt appears
-    expect(await screen.findByTestId('delete-confirm-box')).toBeTruthy();
-    expect(await screen.findByText('Are you sure you want to delete this?')).toBeTruthy();
+    // 2. Stitch confirmation dialog appears
+    expect(await screen.findByText('Delete this transaction?')).toBeTruthy();
+    expect(await screen.findByText('Keep it')).toBeTruthy();
 
     // 3. Confirm Delete
-    const confirmBtn = await screen.findByTestId('edit-txn-confirm-delete-button');
+    const confirmBtn = await screen.findByTestId('edit-txn-delete-dialog-confirm');
     fireEvent.press(confirmBtn);
 
     await waitFor(() => {

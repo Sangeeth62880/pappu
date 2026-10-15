@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   NavigationContainer,
   NavigationContext,
@@ -257,6 +258,12 @@ function InnerHomeScreen({
       authListener?.subscription?.unsubscribe();
     };
   }, [initialToken, initialSession]);
+
+  useEffect(() => {
+    if (!authChecking) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [authChecking]);
 
   const handleAuthenticated = (newSession) => {
     setSession(newSession);

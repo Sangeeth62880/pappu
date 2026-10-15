@@ -75,6 +75,7 @@ describe('Dashboard Component (Analytics-first Redesign)', () => {
 
     await waitFor(() => {
       expect(client.fetchSummary).toHaveBeenCalledWith('test_token', 'week');
+      expect(getByTestId('segment-month')).toBeTruthy();
     });
 
     // Toggle to Month

@@ -23,6 +23,7 @@ import Toast from '../components/ui/Toast';
 import Skeleton from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import Pappu, { PappuLogo, PappuWordmark } from '../components/ui/Pappu';
+import MascotDevToggle from '../components/ui/MascotDevToggle';
 
 const ALL_MOODS = [
   'idle',
@@ -314,6 +315,9 @@ export default function StyleguideScreen({ onBack }) {
                 <Text style={styles.mascotCaption}>{mood}</Text>
               </View>
             ))}
+          </View>
+          <View style={{ marginTop: 16 }}>
+            <MascotDevToggle />
           </View>
         </View>
 

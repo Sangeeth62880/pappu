@@ -387,7 +387,7 @@ export default function VoiceListeningSheet({
             style={styles.sendIconBtn}
             accessibilityLabel="Send typed text"
           >
-            <MaterialIcons name="send" size={18} color="#FFFFFF" />
+            <MaterialIcons name="send" size={18} color={colors.surface} />
           </TouchableOpacity>
         </View>
 

@@ -620,7 +620,7 @@ function DashboardInner({
                       <View
                         style={[
                           styles.recentAvatar,
-                          { backgroundColor: isIncome || txn.contact_name ? '#EFF4FF' : '#FFF8E7' },
+                          { backgroundColor: colors.bg },
                         ]}
                       >
                         {isIncome ? (

@@ -178,12 +178,12 @@ export default function CoinButton({
                 </SvgText>
 
                 {/* Eyes */}
-                <Ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke={colors.ink} strokeWidth="1.5" />
-                <Ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke={colors.ink} strokeWidth="1.5" />
+                <Ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
+                <Ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
                 <Circle cx="22" cy="26" r="2.8" fill={colors.ink} />
                 <Circle cx="34" cy="26" r="2.8" fill={colors.ink} />
-                <Circle cx="23" cy="24.8" r="1" fill="#FFFFFF" />
-                <Circle cx="35" cy="24.8" r="1" fill="#FFFFFF" />
+                <Circle cx="23" cy="24.8" r="1" fill={colors.surface} />
+                <Circle cx="35" cy="24.8" r="1" fill={colors.surface} />
 
                 {/* Smile */}
                 <Path
@@ -269,11 +269,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.borderDark || colors.border,
   },
   tooltipText: {
     fontFamily: typography.fonts.display,

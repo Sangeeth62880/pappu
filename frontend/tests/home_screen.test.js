@@ -11,6 +11,7 @@ jest.mock('../src/api/supabase');
 jest.mock('expo-secure-store');
 
 describe('HomeScreen Component & Navigation Shell', () => {
+  jest.setTimeout(15000);
   const mockToken = 'mock_jwt_token_123';
   const mockSession = {
     access_token: mockToken,

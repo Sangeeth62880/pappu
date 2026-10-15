@@ -57,7 +57,7 @@ describe('Assistant V2 UI and Endpoints', () => {
         mockToken,
         expect.objectContaining({
           text: 'Spent 250 on lunch today',
-          input: 'text',
+          input: 'typed',
           client_msg_id: expect.any(String),
         })
       );
@@ -325,7 +325,7 @@ describe('Assistant V2 UI and Endpoints', () => {
         mockToken,
         expect.objectContaining({
           text: 'the first one',
-          input: 'text',
+          input: 'typed',
         })
       );
     });

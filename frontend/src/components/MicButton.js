@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   useAudioRecorder,
@@ -18,15 +19,24 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import { transcribeAudio } from '../api/client';
-import { colors, radius, spacing } from '../theme/tokens';
+import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useReduceMotion } from '../utils/reduceMotion';
 
+/**
+ * MicButton with support for both standard mic icon and 70px Stitch Coin Mic.
+ * Audio recording hook shared with CoinButton.
+ * Fixes permission denied recovery, error banner, and native cleanup.
+ */
 export default function MicButton({
   token,
   onTranscribed,
   languageCode = null,
   disabled = false,
   size = 48,
+  isCoinStyle = false,
+  onRecordingStateChange = null,
 }) {
+  const reduceMotion = useReduceMotion();
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -39,10 +49,10 @@ export default function MicButton({
   const isMountedRef = useRef(true);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Pulse animation while recording
+  // Pulse animation while recording (disabled on reduce motion)
   useEffect(() => {
     let animation;
-    if (isRecording) {
+    if (isRecording && !reduceMotion) {
       animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -64,14 +74,15 @@ export default function MicButton({
     return () => {
       if (animation) animation.stop();
     };
-  }, [isRecording]);
+  }, [isRecording, reduceMotion, pulseAnim]);
 
-  // Use the useAudioRecorder hook to ensure proper JS↔native SharedObject binding in SDK 57
-  const nativeRecorder = Platform.OS !== 'web'
+  // Native recorder hook for SDK 57
+  const nativeRecorder = Platform.OS !== 'web' && typeof useAudioRecorder === 'function'
     ? useAudioRecorder(RecordingPresets.HIGH_QUALITY)
     : null;
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       cleanupAudio();
@@ -79,7 +90,6 @@ export default function MicButton({
   }, []);
 
   const cleanupAudio = async () => {
-    // Cleanup native recording if active
     if (nativeRecorder && isRecordingRef.current) {
       try {
         await nativeRecorder.stop();
@@ -87,8 +97,6 @@ export default function MicButton({
         console.warn('[MicButton] Error during native recorder cleanup:', err);
       }
     }
-
-    // Cleanup web stream if active
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((track) => track.stop());
@@ -97,6 +105,7 @@ export default function MicButton({
       }
       streamRef.current = null;
     }
+    isRecordingRef.current = false;
   };
 
   const startRecording = async () => {
@@ -106,7 +115,6 @@ export default function MicButton({
 
     try {
       if (Platform.OS === 'web') {
-        // Web audio recording via MediaRecorder
         if (typeof navigator === 'undefined' || !navigator?.mediaDevices?.getUserMedia) {
           throw new Error('Audio recording requires HTTPS or localhost in browser.');
         }
@@ -154,9 +162,9 @@ export default function MicButton({
         mediaRecorderRef.current = mediaRecorder;
         mediaRecorder.start(100);
       } else {
-        // Native audio recording via expo-audio (SDK 57)
+        // Native recording
         const permission = await requestRecordingPermissionsAsync();
-        if (permission.status !== 'granted') {
+        if (permission?.status !== 'granted') {
           setPermissionDenied(true);
           throw new Error('Microphone permission is required to record voice commands.');
         }
@@ -166,19 +174,25 @@ export default function MicButton({
           playsInSilentMode: true,
         });
 
-        await nativeRecorder.prepareToRecordAsync();
-        nativeRecorder.record();
+        if (nativeRecorder?.prepareToRecordAsync) {
+          await nativeRecorder.prepareToRecordAsync();
+          nativeRecorder.record();
+        }
       }
 
       isRecordingRef.current = true;
       if (isMountedRef.current) {
         setIsRecording(true);
+        if (onRecordingStateChange) onRecordingStateChange(true);
       }
     } catch (err) {
       console.warn('[MicButton] startRecording failed:', err);
       isRecordingRef.current = false;
       if (isMountedRef.current) {
         setIsRecording(false);
+        if (onRecordingStateChange) onRecordingStateChange(false);
+        const isPerm = err.name === 'NotAllowedError' || err.name === 'SecurityError' || String(err.message).toLowerCase().includes('permission');
+        if (isPerm) setPermissionDenied(true);
         setErrorMessage(err.message || 'Microphone access denied or recording failed to start');
       }
     }
@@ -189,6 +203,7 @@ export default function MicButton({
     isRecordingRef.current = false;
     if (isMountedRef.current) {
       setIsRecording(false);
+      if (onRecordingStateChange) onRecordingStateChange(false);
     }
 
     try {
@@ -270,7 +285,7 @@ export default function MicButton({
     <View style={styles.container}>
       {errorMessage ? (
         <View testID="mic-error-banner" style={styles.errorBanner}>
-          <MaterialIcons name="error-outline" size={13} color={colors.semantic.expense} style={{ marginRight: 4 }} />
+          <Feather name="alert-circle" size={13} color={colors.semantic.expense} style={{ marginRight: 4 }} />
           <Text style={styles.errorText} numberOfLines={2}>{errorMessage}</Text>
           {permissionDenied && Platform.OS !== 'web' && Linking?.openSettings && (
             <TouchableOpacity
@@ -320,7 +335,9 @@ export default function MicButton({
           style={[
             styles.button,
             { width: size, height: size, borderRadius: size / 2 },
-            isRecording
+            isCoinStyle
+              ? styles.coinButtonStyle
+              : isRecording
               ? styles.buttonRecording
               : isTranscribing
               ? styles.buttonTranscribing
@@ -329,13 +346,29 @@ export default function MicButton({
           ]}
         >
           {isTranscribing ? (
-            <ActivityIndicator testID="mic-loading-spinner" size="small" color={colors.brand.default} />
+            <ActivityIndicator testID="mic-loading-spinner" size="small" color={colors.ink} />
+          ) : isCoinStyle ? (
+            /* Stitch Coin Mic Face */
+            <View style={styles.coinFace}>
+              <Text style={styles.coinRupee}>₹</Text>
+              <View style={styles.coinEyes}>
+                <View style={styles.coinEye} />
+                <View style={styles.coinEye} />
+              </View>
+              <View testID="mic-icon">
+                <MaterialIcons
+                  name={isRecording ? 'stop' : 'mic'}
+                  size={16}
+                  color={colors.ink}
+                />
+              </View>
+            </View>
           ) : (
             <View testID="mic-icon" style={styles.iconContainer}>
               <MaterialIcons
                 name={isRecording ? 'stop' : 'mic'}
                 size={size >= 48 ? 24 : 20}
-                color={isRecording ? '#FFFFFF' : colors.brand.default}
+                color={isRecording ? colors.surface : colors.ink}
               />
             </View>
           )}
@@ -368,75 +401,109 @@ const styles = StyleSheet.create({
   },
   pulseRing: {
     position: 'absolute',
-    backgroundColor: colors.semantic.expense,
+    backgroundColor: colors.warningBg || colors.bg,
+    borderWidth: 2,
+    borderColor: colors.gold_edge,
   },
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    minWidth: 44,
-    minHeight: 44,
   },
   buttonIdle: {
     backgroundColor: colors.surface,
-    borderColor: colors.borderSubtle,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
   buttonRecording: {
     backgroundColor: colors.semantic.expense,
-    borderColor: colors.semantic.expense,
   },
   buttonTranscribing: {
-    backgroundColor: colors.brand.tint,
-    borderColor: colors.brand.default,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  coinButtonStyle: {
+    backgroundColor: colors.gold,
+    borderWidth: 3.5,
+    borderColor: colors.ink,
+    borderBottomWidth: 6,
+    borderBottomColor: colors.gold_edge,
+  },
+  coinFace: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coinRupee: {
+    fontFamily: typography.fonts.display,
+    fontWeight: '800',
+    fontSize: 9,
+    color: colors.gold_edge,
+  },
+  coinEyes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 1,
+    marginBottom: 2,
+  },
+  coinEye: {
+    width: 4,
+    height: 5,
+    borderRadius: 2,
+    backgroundColor: colors.ink,
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recordingLabel: {
-    color: colors.semantic.expense,
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  transcribingLabel: {
-    color: colors.brand.default,
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 3,
-  },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.semantic.expenseBg,
-    borderColor: colors.semantic.expenseBorder,
+    backgroundColor: colors.errorBg || colors.surface,
     borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
+    borderColor: colors.errorBorder || colors.expense,
+    borderRadius: 8,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    marginBottom: 6,
+    marginBottom: 4,
     maxWidth: 240,
   },
   errorText: {
-    color: colors.semantic.expense,
+    fontFamily: typography.fonts.body,
     fontSize: 11,
-    fontWeight: '500',
+    color: colors.semantic.expense,
     flex: 1,
   },
   settingsLink: {
     marginLeft: 6,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: colors.semantic.expense,
+    backgroundColor: colors.surface,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   settingsLinkText: {
-    color: '#FFFFFF',
-    fontSize: 10,
+    fontFamily: typography.fonts.body,
     fontWeight: '700',
+    fontSize: 10,
+    color: colors.ink,
+  },
+  recordingLabel: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '700',
+    fontSize: 11,
+    color: colors.ink_muted,
+    marginTop: 2,
+  },
+  transcribingLabel: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '600',
+    fontSize: 11,
+    color: colors.ink_muted,
+    marginTop: 2,
   },
 });
-

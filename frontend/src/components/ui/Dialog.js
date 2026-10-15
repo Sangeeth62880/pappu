@@ -1,17 +1,22 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   Modal,
   StyleSheet,
   TouchableWithoutFeedback,
+  Animated,
 } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
+import { useReduceMotion } from '../../utils/reduceMotion';
 import Button from './Button';
+import Pappu from './Pappu';
 
 /**
  * Flat Dialog Primitive matching Stitch specifications (Delete confirmation, Sign out, Clear chat).
  * Strictly flat dim overlay (zero blur), white card with 2px border, 20px radius, 48px paired buttons.
+ * Card scales in from scale(0.94) -> scale(1.0) with opacity 0 -> 1 over 180ms.
+ * Reduce-Motion fallback: instant display without scale (0ms).
  */
 export default function Dialog({
   visible,
@@ -24,7 +29,39 @@ export default function Dialog({
   onConfirm,
   loading = false,
   testID = 'dialog',
+  mascotMood = null,
+  mascotSize = 72,
 }) {
+  const reduceMotion = useReduceMotion();
+  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+
+  const scaleAnim = useRef(new Animated.Value(reduceMotion || isTest ? 1 : 0.94)).current;
+  const opacityAnim = useRef(new Animated.Value(reduceMotion || isTest ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      if (reduceMotion || isTest) {
+        scaleAnim.setValue(1);
+        opacityAnim.setValue(1);
+      } else {
+        scaleAnim.setValue(0.94);
+        opacityAnim.setValue(0);
+        Animated.parallel([
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 1,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    }
+  }, [visible, reduceMotion, isTest, scaleAnim, opacityAnim]);
+
   if (!visible) return null;
 
   return (
@@ -38,7 +75,22 @@ export default function Dialog({
       <TouchableWithoutFeedback onPress={onClose} testID={`${testID}-backdrop`}>
         <View style={styles.backdrop}>
           <TouchableWithoutFeedback>
-            <View style={styles.card} testID={`${testID}-card`}>
+            <Animated.View
+              style={[
+                styles.card,
+                {
+                  opacity: opacityAnim,
+                  transform: [{ scale: scaleAnim }],
+                },
+              ]}
+              testID={`${testID}-card`}
+            >
+              {mascotMood ? (
+                <View style={styles.mascotContainer} testID={`${testID}-mascot`}>
+                  <Pappu mood={mascotMood} size={mascotSize} />
+                </View>
+              ) : null}
+
               {title ? (
                 <Text style={[styles.title, typography.headline_h2]}>{title}</Text>
               ) : null}
@@ -72,7 +124,7 @@ export default function Dialog({
                   />
                 </View>
               </View>
-            </View>
+            </Animated.View>
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
@@ -97,6 +149,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing['2xl'],
     alignItems: 'center',
+  },
+  mascotContainer: {
+    marginBottom: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontFamily: 'BalooChettan2_700Bold',
