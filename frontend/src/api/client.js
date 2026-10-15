@@ -3,13 +3,14 @@
  * Provides authenticated helper methods using the user's Supabase JWT.
  */
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://100.82.216.61:8000';
+import { getApiBaseUrl } from '../config/api';
 
 /**
  * Helper to execute HTTP requests with auth headers.
  */
 async function request(endpoint, { method = 'GET', token, body, params } = {}) {
-  let url = `${API_BASE_URL.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
+  const baseUrl = getApiBaseUrl();
+  let url = `${baseUrl.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
 
   if (params) {
     const searchParams = new URLSearchParams();
@@ -77,6 +78,24 @@ export async function fetchContactDetail(token, contactId) {
   return request(`/summary/people/${contactId}`, { method: 'GET', token });
 }
 
+/**
+ * POST /contacts - Creates a new contact with optional phone and upi_id.
+ */
+export async function createContact(token, { name, phone = null, upi_id = null }) {
+  return request('/contacts', {
+    method: 'POST',
+    token,
+    body: { name, phone, upi_id },
+  });
+}
+
+/**
+ * GET /contacts/{contact_id}/remind-text - Fetches personalized reminder text for sharing.
+ */
+export async function fetchContactRemindText(token, contactId) {
+  return request(`/contacts/${contactId}/remind-text`, { method: 'GET', token });
+}
+
 
 /**
  * GET /transactions - Fetches transaction history with optional filters.
@@ -123,7 +142,8 @@ export async function undoTransaction(token) {
  * Accepts binary Blob/File or { uri, name, type } object or raw URI string.
  */
 export async function transcribeAudio(token, audioData, languageCode = null) {
-  let url = `${API_BASE_URL.replace(/\/$/, '')}/stt/transcribe`;
+  const baseUrl = getApiBaseUrl();
+  let url = `${baseUrl.replace(/\/$/, '')}/stt/transcribe`;
 
   const formData = new FormData();
   if (audioData instanceof Blob || (typeof File !== 'undefined' && audioData instanceof File)) {
@@ -279,7 +299,8 @@ export async function clearChatHistory(token) {
  * @returns {Promise<AssistantResponse>}
  */
 export async function sendAssistantMessage(token, { text, input = 'typed', client_msg_id = null }) {
-  const body = { text, input };
+  const normInput = input === 'voice' ? 'voice' : 'typed';
+  const body = { text, input: normInput };
   if (client_msg_id) {
     body.client_msg_id = client_msg_id;
   }
@@ -323,6 +344,20 @@ export async function fetchProfile(token) {
   return request('/profile', {
     method: 'GET',
     token,
+  });
+}
+
+/**
+ * PATCH /profile - Updates user preferences (language, voice_replies).
+ */
+export async function patchProfile(token, { language, voice_replies } = {}) {
+  const body = {};
+  if (language !== undefined) body.language = language;
+  if (voice_replies !== undefined) body.voice_replies = voice_replies;
+  return request('/profile', {
+    method: 'PATCH',
+    token,
+    body,
   });
 }
 
