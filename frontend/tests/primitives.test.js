@@ -135,6 +135,56 @@ describe('Design System Primitives & Tokens', () => {
       fireEvent.press(btn);
       expect(onPressMock).not.toHaveBeenCalled();
     });
+
+    test('tactile edge is absolutely positioned behind face and wrapper height is face height plus 4', async () => {
+      const { StyleSheet } = require('react-native');
+      const res = await render(
+        <Button title="Tactile Test" size="md" testID="tactile-test-btn" />
+      );
+
+      const edge = res.getByTestId('tactile-test-btn-edge');
+      const faceWrapper = res.getByTestId('tactile-test-btn-face-wrapper');
+      const touchableFace = res.getByTestId('tactile-test-btn');
+      const outerContainer = edge.parent;
+
+      // 1. Wrapper height must equal face height (52) + edge height (4) = 56
+      const outerStyle = StyleSheet.flatten(outerContainer.props.style);
+      expect(outerStyle.height).toBe(56);
+      expect(outerStyle.position).toBe('relative');
+
+      // 2. Edge must be absolutely positioned at top 4
+      const edgeStyle = StyleSheet.flatten(edge.props.style);
+      expect(edgeStyle.position).toBe('absolute');
+      expect(edgeStyle.top).toBe(4);
+      expect(edgeStyle.height).toBe(52);
+
+      // 3. Face wrapper must be absolutely positioned at top 0
+      const faceWrapperStyle = StyleSheet.flatten(faceWrapper.props.style);
+      expect(faceWrapperStyle.position).toBe('absolute');
+      expect(faceWrapperStyle.top).toBe(0);
+      expect(faceWrapperStyle.height).toBe(52);
+
+      // 4. Edge appears before faceWrapper in child hierarchy (rendering behind face)
+      const children = outerContainer.props.children;
+      const edgeIndex = children.findIndex((c) => c?.props?.testID === 'tactile-test-btn-edge');
+      const faceIndex = children.findIndex((c) => c?.props?.testID === 'tactile-test-btn-face-wrapper');
+      expect(edgeIndex).toBeLessThan(faceIndex);
+    });
+
+    test('dialog size button has 48px face and 52px total wrapper height', async () => {
+      const { StyleSheet } = require('react-native');
+      const res = await render(
+        <Button title="Dialog Stay" size="dialog" testID="dialog-stay-btn" />
+      );
+      const edge = res.getByTestId('dialog-stay-btn-edge');
+      const outerStyle = StyleSheet.flatten(edge.parent.props.style);
+      expect(outerStyle.height).toBe(52); // 48 + 4
+
+      const edgeStyle = StyleSheet.flatten(edge.props.style);
+      expect(edgeStyle.position).toBe('absolute');
+      expect(edgeStyle.top).toBe(4);
+      expect(edgeStyle.height).toBe(48);
+    });
   });
 
   describe('SegmentedControl component', () => {

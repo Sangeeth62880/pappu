@@ -48,7 +48,10 @@ export default function Button({
     }
     if (!isTest) {
       try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        const feedback = normVariant === 'destructive'
+          ? Haptics.ImpactFeedbackStyle.Medium
+          : Haptics.ImpactFeedbackStyle.Light;
+        Haptics.impactAsync(feedback).catch(() => {});
       } catch (e) {
         // Haptics safe fallback for web / testing
       }
@@ -62,7 +65,7 @@ export default function Button({
     } else {
       Animated.timing(pressAnim, {
         toValue: 0,
-        duration: 80,
+        duration: 120, // 120ms release back per spec
         useNativeDriver: true,
       }).start();
     }
@@ -79,27 +82,29 @@ export default function Button({
   });
 
   return (
-    <View style={[styles.outerContainer, style]}>
+    <View style={[styles.outerContainer, { height: minHeight + 4 }, style]}>
       {/* 4px Tactile Bottom Edge Layer */}
       <View
+        testID={`${testID}-edge`}
         style={[
           styles.edgeLayer,
           {
             backgroundColor: edgeColor,
             borderRadius: radius.button,
-            minHeight,
+            height: minHeight,
           },
         ]}
       />
 
       {/* Button Face Depressing Over Edge */}
       <Animated.View
+        testID={`${testID}-face-wrapper`}
         style={[
           styles.faceWrapper,
           {
             transform: [{ translateY }],
             borderRadius: radius.button,
-            minHeight,
+            height: minHeight,
           },
         ]}
       >
@@ -116,7 +121,7 @@ export default function Button({
           style={[
             styles.touchableFace,
             faceStyle,
-            { minHeight, borderRadius: radius.button },
+            { height: minHeight, borderRadius: radius.button },
             disabled && styles.disabled,
           ]}
         >
@@ -152,21 +157,25 @@ export default function Button({
 const styles = StyleSheet.create({
   outerContainer: {
     position: 'relative',
-    paddingBottom: 4, // Allocates 4px for the solid tactile edge
   },
   edgeLayer: {
-    ...StyleSheet.absoluteFillObject,
-    top: 4, // Sits 4px below the face to provide solid tactile bottom rim
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 4,
+    bottom: 0,
   },
   faceWrapper: {
-    width: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   touchableFace: {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
   },
   contentRow: {
     flexDirection: 'row',
