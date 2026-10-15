@@ -29,7 +29,7 @@ from app.assistant.schemas import (
 from app.assistant.executors.coordinator import execute_ops
 from app.assistant.executors.base import ActionResult
 from app.assistant.contacts import add_alias_to_contact, create_contact, normalize_name
-from app.assistant.composer import format_inr, format_date_short, _compose_single_delete, _compose_single_edit, derive_mood
+from app.assistant.composer import format_inr, format_date_short, _compose_single_delete, _compose_single_edit
 
 DEFAULT_EXPIRY_SECONDS = 300  # 5 minutes
 
@@ -67,16 +67,10 @@ def format_delete_confirmation_question(row_or_candidate: Any) -> str:
     elif isinstance(row_or_candidate, dict):
         category_name = row_or_candidate.get("category_name") or row_or_candidate.get("category")
 
-    desc = getattr(row_or_candidate, "description", None)
-    if desc is None and isinstance(row_or_candidate, dict):
-        desc = row_or_candidate.get("description")
-
     if contact_name and str(contact_name).strip():
         label = str(contact_name).strip()
     elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
         label = str(category_name).strip()
-    elif desc and str(desc).strip():
-        label = str(desc).strip()
     else:
         label = "income" if is_income else "expense"
 
@@ -112,16 +106,10 @@ def format_edit_confirmation_question(row_or_candidate: Any, patch: Dict[str, An
     elif isinstance(row_or_candidate, dict):
         category_name = row_or_candidate.get("category_name") or row_or_candidate.get("category")
 
-    desc = getattr(row_or_candidate, "description", None)
-    if desc is None and isinstance(row_or_candidate, dict):
-        desc = row_or_candidate.get("description")
-
     if contact_name and str(contact_name).strip():
         label = str(contact_name).strip()
     elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
         label = str(category_name).strip()
-    elif desc and str(desc).strip():
-        label = str(desc).strip()
     else:
         label = "transaction"
 
@@ -630,7 +618,6 @@ def handle_answer_pending(
                 results=[],
                 pending=summary,
                 changed=False,
-                mood=derive_mood(pending=summary),
             )
 
         elif op_type == "edit":

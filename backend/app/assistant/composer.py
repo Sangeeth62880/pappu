@@ -627,10 +627,10 @@ def derive_mood(
     pending: Optional[Any] = None,
 ) -> Literal["neutral", "happy", "excited", "concerned", "confused"]:
     """
-    Derives Pappu mascot mood from result kinds only.
+    Derives Pappu mascot mood from result kinds and pending kind only.
+    - Pending kinds confirm, contact_confirm and disambiguation give concerned
     - Expense added is happy
     - Income added is excited
-    - Pending delete or edit is concerned
     - Unsupported or clarify is confused
     - Everything else is neutral
     """
@@ -650,23 +650,17 @@ def derive_mood(
             if r.get("action") == "clarify":
                 return "confused"
 
-    # 2. Pending delete or edit -> concerned
+    # 2. Pending kinds confirm, contact_confirm, and disambiguation -> concerned
     if pending:
         p_kind = getattr(pending, "kind", None) or (pending.get("kind") if isinstance(pending, dict) else None)
-        p_q = str(getattr(pending, "question", None) or (pending.get("question") if isinstance(pending, dict) else "") or "").lower()
-        plan_j = getattr(pending, "plan_json", None) or (pending.get("plan_json") if isinstance(pending, dict) else None) or {}
-        p_action = plan_j.get("action") or {}
-        p_op = p_action.get("op") if isinstance(p_action, dict) else getattr(p_action, "op", None)
-
-        if p_op in ("delete", "edit"):
-            return "concerned"
-        if p_kind in ("confirm", "disambiguate"):
-            if "delete" in p_q or "change" in p_q or "edit" in p_q:
+        if p_kind:
+            p_kind_str = str(p_kind).strip().lower()
+            if p_kind_str in ("confirm", "contact_confirm", "disambiguation", "disambiguate"):
                 return "concerned"
 
     if results:
         for r in results:
-            if r.get("status") == "needs_confirmation" and r.get("action") in ("delete", "edit"):
+            if r.get("status") in ("needs_confirmation", "contact_confirm") or r.get("needs_confirmation"):
                 return "concerned"
 
     # 3. Income added -> excited

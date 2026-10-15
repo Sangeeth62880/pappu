@@ -466,6 +466,14 @@ def test_composer_derive_mood_mapping():
     pending_edit = {"kind": "confirm", "plan_json": {"action": {"op": "edit"}}, "question": "Change Food ₹250 to ₹300?"}
     assert derive_mood(pending=pending_edit) == "concerned"
 
+    # Pending contact_confirm -> concerned
+    pending_contact = {"kind": "contact_confirm", "question": "Did you mean Pooja?"}
+    assert derive_mood(pending=pending_contact) == "concerned"
+
+    # Pending disambiguation -> concerned
+    pending_disambig = {"kind": "disambiguation", "question": "Which transaction?"}
+    assert derive_mood(pending=pending_disambig) == "concerned"
+
     # Clarify action -> confused
     class MockAction:
         def __init__(self, op, kind=None):
