@@ -14,7 +14,7 @@ Tests:
 """
 
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
@@ -253,7 +253,7 @@ def test_answer_pending_pick_flow_for_disambiguation(test_db_session):
         type="expense",
         amount=250.0,
         category_id=food_cat.id,
-        txn_date=datetime.now(timezone.utc).date(),
+        txn_date=date(2026, 10, 14),
     )
     txn2 = Transaction(
         id=uuid.uuid4(),
@@ -261,7 +261,7 @@ def test_answer_pending_pick_flow_for_disambiguation(test_db_session):
         type="expense",
         amount=150.0,
         category_id=food_cat.id,
-        txn_date=datetime.now(timezone.utc).date(),
+        txn_date=date(2026, 10, 14),
     )
     test_db_session.add_all([txn1, txn2])
     test_db_session.commit()

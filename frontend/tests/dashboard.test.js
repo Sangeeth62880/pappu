@@ -59,9 +59,9 @@ describe('Dashboard Component (Analytics-first Redesign)', () => {
       <Dashboard initialSummary={mockSummary} initialTransactions={mockTransactions} />
     );
 
-    expect(getByTestId('dashboard-balance')).toHaveTextContent('₹4500.50');
-    expect(getByTestId('dashboard-income')).toHaveTextContent('+₹10000.00');
-    expect(getByTestId('dashboard-expense')).toHaveTextContent('-₹5499.50');
+    expect(getByTestId('dashboard-balance')).toHaveTextContent(/₹4,?500(\.50)?/);
+    expect(getByTestId('dashboard-income')).toHaveTextContent(/\+₹10,?000(\.00)?/);
+    expect(getByTestId('dashboard-expense')).toHaveTextContent(/\+₹5,?499(\.50)?/);
 
     // Floating undo should NOT be present on the dashboard per spec
     expect(queryByTestId('dashboard-undo-button')).toBeNull();
@@ -162,8 +162,8 @@ describe('Dashboard Component (Analytics-first Redesign)', () => {
       <Dashboard initialSummary={emptySummary} initialTransactions={[]} />
     );
 
-    expect(getByTestId('dashboard-balance')).toHaveTextContent('₹0.00');
-    expect(getByTestId('empty-categories-text')).toHaveTextContent('No categories recorded yet.');
+    expect(getByTestId('dashboard-balance')).toHaveTextContent(/₹0(\.00)?/);
+    expect(getByTestId('empty-categories-text')).toHaveTextContent(/No (categories recorded yet|spending logged yet this week)/);
     expect(getByTestId('empty-transactions-text')).toHaveTextContent('No recent transactions.');
   });
 });

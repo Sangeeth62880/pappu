@@ -113,9 +113,21 @@ export default function Balance({
           <View style={styles.verticalDivider} />
           <View style={[styles.subCol, { paddingLeft: spacing.md }]}>
             <Text style={styles.subLabel}>Net</Text>
-            <Text testID="dashboard-expense" style={styles.expenseAmount}>
-              -₹{expense}
-            </Text>
+            {(() => {
+              const rawStr = String(expense);
+              const isNegative = rawStr.startsWith('-') || (Number(rawStr) < 0);
+              const absVal = rawStr.replace(/^[+-]/, '');
+              const sign = isNegative ? '-' : '+';
+              const color = isNegative ? colors.expense : colors.income;
+              return (
+                <Text
+                  testID="dashboard-expense"
+                  style={[styles.expenseAmount, { color }]}
+                >
+                  {sign}₹{absVal}
+                </Text>
+              );
+            })()}
           </View>
         </View>
       </View>

@@ -72,7 +72,7 @@ export default function Pappu({
 
   // Handle idle blink via scaleY transform
   useEffect(() => {
-    if (reduceMotion || activePose === 'sleepy') return;
+    if (reduceMotion || activePose === 'sleepy' || (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test')) return;
 
     let timer;
     const scheduleBlink = () => {

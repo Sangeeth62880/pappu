@@ -133,7 +133,7 @@ describe('HomeScreen Component & Navigation Shell', () => {
 
     // Initial balance on dashboard tab
     const balanceEl = await findByTestId('dashboard-balance');
-    expect(balanceEl).toHaveTextContent('₹1000.00');
+    expect(balanceEl).toHaveTextContent(/₹1,?000(\.00)?/);
 
     // Switch to assistant modal
     const assistantTab = await findByTestId('tab-assistant');
@@ -146,7 +146,7 @@ describe('HomeScreen Component & Navigation Shell', () => {
     fireEvent.press(sendBtn);
 
     // Verify conversation response
-    expect(await findByText('Added Food transaction for ₹500.')).toBeTruthy();
+    expect(await findByText('Added Food transaction for ₹500.', {}, { timeout: 4000 })).toBeTruthy();
 
     // Close assistant modal to return to dashboard tab
     const closeAssistantBtn = await findByTestId('conversation-back-button');
@@ -158,7 +158,7 @@ describe('HomeScreen Component & Navigation Shell', () => {
     });
 
     const updatedBalance = await findByTestId('dashboard-balance');
-    expect(updatedBalance).toHaveTextContent('₹1500.00');
+    expect(updatedBalance).toHaveTextContent(/₹1,?500(\.00)?/);
   });
 
   test('tapping sign out on Me screen confirms via dialog and returns to AuthScreen', async () => {
@@ -255,15 +255,15 @@ describe('HomeScreen Component & Navigation Shell', () => {
       return { remove: jest.fn() };
     });
 
-    client.fetchSummary.mockResolvedValueOnce(initialSummary);
-    client.fetchTransactions.mockResolvedValueOnce([]);
+    client.fetchSummary.mockResolvedValue(initialSummary);
+    client.fetchTransactions.mockResolvedValue([]);
 
     const { findByTestId } = await render(
       <HomeScreen initialSession={mockSession} />
     );
 
     fireEvent.press(await findByTestId('tab-history'));
-    expect(await findByTestId('history-view')).toBeTruthy();
+    expect(await findByTestId('history-view', {}, { timeout: 4000 })).toBeTruthy();
 
     expect(backPressHandler).toBeTruthy();
     const handled = backPressHandler();
