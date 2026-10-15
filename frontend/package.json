@@ -20,6 +20,7 @@
     "expo-haptics": "~57.0.3",
     "expo-linear-gradient": "~57.0.2",
     "expo-secure-store": "~57.0.4",
+    "expo-splash-screen": "~57.0.10",
     "expo-status-bar": "~57.0.1",
     "nativewind": "^4.2.6",
     "react": "19.2.3",
@@ -42,12 +43,16 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "setupFiles": [
+      "./node_modules/react-native-gesture-handler/jestSetup.js"
+    ],
     "moduleNameMapper": {
       "\\.css$": "<rootDir>/tests/mocks/cssMock.js",
       "^tslib$": "<rootDir>/tests/mocks/tslibMock.js",
       "^expo-audio$": "<rootDir>/tests/mocks/expoAudioMock.js",
       "^expo-font$": "<rootDir>/tests/mocks/expoFontMock.js",
-      "^expo-secure-store$": "<rootDir>/tests/mocks/expoSecureStoreMock.js"
+      "^expo-secure-store$": "<rootDir>/tests/mocks/expoSecureStoreMock.js",
+      "^expo-splash-screen$": "<rootDir>/tests/mocks/expoSplashScreenMock.js"
     }
   },
   "private": true,
