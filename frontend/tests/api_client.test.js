@@ -79,7 +79,7 @@ describe('Frontend API Client', () => {
 
     const result = await sendAssistantMessage(mockToken, {
       text: 'I spent 500 on food today',
-      input: 'text',
+      input: 'typed',
       client_msg_id: 'c1',
     });
     expect(global.fetch).toHaveBeenCalledWith(
@@ -88,7 +88,7 @@ describe('Frontend API Client', () => {
         method: 'POST',
         body: JSON.stringify({
           text: 'I spent 500 on food today',
-          input: 'text',
+          input: 'typed',
           client_msg_id: 'c1',
         }),
       })
