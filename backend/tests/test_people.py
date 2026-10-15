@@ -337,3 +337,187 @@ def test_summary_people_endpoints_direct(test_db_session):
     assert float(detail["net_balance"]) == 800.0
     assert len(detail["transactions"]) == 1
     assert detail["transactions"][0]["contact_name"] == "Bob"
+
+
+def test_contacts_endpoints_crud_and_validation(test_db_session):
+    """
+    Test POST /contacts, duplicate rejection (409), validation (422), and GET /contacts.
+    Follows no hyphen and no em dash rule for error messages.
+    """
+    user_id = str(uuid.uuid4())
+    token = create_test_es256_jwt(user_id)
+    prof = Profile(id=uuid.UUID(user_id), name="Test User", preferred_language="en")
+    test_db_session.add(prof)
+    test_db_session.commit()
+
+    # 1. Successful contact creation with phone and UPI
+    res = client.post(
+        "/contacts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Priya", "phone": "+919876543210", "upi_id": "priya@okaxis"},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["name"] == "Priya"
+    assert data["phone"] == "+919876543210"
+    assert data["upi_id"] == "priya@okaxis"
+    assert data["id"] is not None
+
+    # 2. Duplicate rejection (exact case) -> 409
+    dup_res = client.post(
+        "/contacts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Priya"},
+    )
+    assert dup_res.status_code == 409
+    assert "-" not in dup_res.json()["detail"]
+    assert "—" not in dup_res.json()["detail"]
+    assert "already exists" in dup_res.json()["detail"].lower()
+
+    # 3. Duplicate rejection (case-insensitive "priya") -> 409
+    dup_case_res = client.post(
+        "/contacts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "  priya  "},
+    )
+    assert dup_case_res.status_code == 409
+
+    # 4. Empty name rejection -> 422
+    empty_res = client.post(
+        "/contacts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "   "},
+    )
+    assert empty_res.status_code == 422
+    assert "-" not in empty_res.json()["detail"]
+    assert "—" not in empty_res.json()["detail"]
+
+    # 5. List contacts
+    list_res = client.get("/contacts", headers={"Authorization": f"Bearer {token}"})
+    assert list_res.status_code == 200
+    contacts_list = list_res.json()
+    assert len(contacts_list) == 1
+    assert contacts_list[0]["name"] == "Priya"
+    assert contacts_list[0]["phone"] == "+919876543210"
+
+
+def test_contact_added_via_api_resolves_in_assistant_without_confirm(test_db_session):
+    """
+    Test that a contact added via POST /contacts resolves immediately in the assistant
+    without triggering a contact_confirm pending card.
+    """
+    user_id = str(uuid.uuid4())
+    token = create_test_es256_jwt(user_id)
+    prof = Profile(id=uuid.UUID(user_id), name="Test User", preferred_language="en")
+    test_db_session.add(prof)
+    test_db_session.commit()
+
+    # Add contact "Priya" via POST /contacts
+    add_res = client.post(
+        "/contacts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Priya", "phone": "9876543210"},
+    )
+    assert add_res.status_code == 201
+
+    # Now send "Sent 500 to Priya"
+    plan = Plan(
+        ops=[
+            AddAction(
+                op="add",
+                kind="person",
+                direction="sent",
+                amount=500.0,
+                contact="Priya",
+                description="test split",
+            )
+        ]
+    )
+    with patch("app.assistant.planner.AssistantPlanner.plan", return_value=plan):
+        msg_res = client.post(
+            "/assistant/message",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"text": "Sent 500 to Priya"},
+        )
+    assert msg_res.status_code == 200
+    msg_data = msg_res.json()
+
+    # Must post without contact_confirm
+    assert msg_data["changed"] is True
+    assert msg_data["pending"] is None
+    assert len(msg_data["results"]) == 1
+    assert msg_data["results"][0]["data"]["contact_name"] == "Priya"
+    assert float(msg_data["results"][0]["data"]["amount"]) == 500.0
+
+
+def test_contact_remind_text_en_ml_and_zero_balance(test_db_session):
+    """
+    Test GET /contacts/{id}/remind-text:
+    - Language 'en' vs 'ml'
+    - Positive balance (owes you)
+    - Zero balance (all settled)
+    - Negative balance (you owe)
+    - Strictly follows no hyphen and no em dash rule
+    """
+    user_id = str(uuid.uuid4())
+    token = create_test_es256_jwt(user_id)
+    prof = Profile(id=uuid.UUID(user_id), name="Test User", preferred_language="en")
+    test_db_session.add(prof)
+    test_db_session.commit()
+
+    # Create contact Pooja
+    create_res = client.post(
+        "/contacts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "Pooja"},
+    )
+    contact_id = create_res.json()["id"]
+
+    # 1. Zero balance initially
+    remind_zero = client.get(
+        f"/contacts/{contact_id}/remind-text",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert remind_zero.status_code == 200
+    zero_text = remind_zero.json()["remind_text"]
+    assert "All settled with Pooja" in zero_text
+    assert "-" not in zero_text
+    assert "—" not in zero_text
+
+    # 2. Add sent transaction of 6200 -> Pooja owes user
+    _add_person_txn(client, token, 6200.0, "Pooja", "dinner split", direction="sent")
+
+    remind_en = client.get(
+        f"/contacts/{contact_id}/remind-text",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert remind_en.status_code == 200
+    en_text = remind_en.json()["remind_text"]
+    assert "Hi Pooja" in en_text
+    assert "₹6,200" in en_text
+    assert "-" not in en_text
+    assert "—" not in en_text
+
+    # Switch profile language to Malayalam ('ml')
+    prof.preferred_language = "ml"
+    test_db_session.commit()
+
+    remind_ml = client.get(
+        f"/contacts/{contact_id}/remind-text",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert remind_ml.status_code == 200
+    ml_text = remind_ml.json()["remind_text"]
+    assert "ഹായ് Pooja" in ml_text
+    assert "₹6,200" in ml_text
+    assert "-" not in ml_text
+    assert "—" not in ml_text
+
+    # Test alias route /summary/people/{contact_id}/remind-text
+    summary_alias_res = client.get(
+        f"/summary/people/{contact_id}/remind-text",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert summary_alias_res.status_code == 200
+    assert summary_alias_res.json()["remind_text"] == ml_text
+

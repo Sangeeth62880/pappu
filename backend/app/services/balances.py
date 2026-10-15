@@ -32,6 +32,8 @@ def _compute_contact_balance(contact: Contact, txns: List[Transaction]) -> Conta
     return ContactSummaryItem(
         contact_id=contact.id,
         contact_name=contact.name,
+        phone=getattr(contact, "phone", None),
+        upi_id=getattr(contact, "upi_id", None),
         total_sent=total_sent,
         total_received=total_received,
         net_balance=net_balance,

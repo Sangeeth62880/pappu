@@ -14,6 +14,8 @@ class Contact(Base):
     user_id = Column(Uuid, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     aliases = Column(ARRAY(String).with_variant(JSON, "sqlite"), nullable=False, default=list, server_default="{}")
+    phone = Column(String, nullable=True)
+    upi_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     profile = relationship("Profile", backref="contacts")

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public.contacts (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Ensure aliases column exists if table was created previously without it
+-- Ensure aliases, phone, and upi_id columns exist if table was created previously without them
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -41,6 +41,18 @@ BEGIN
         WHERE table_schema = 'public' AND table_name = 'contacts' AND column_name = 'aliases'
     ) THEN
         ALTER TABLE public.contacts ADD COLUMN aliases TEXT[] DEFAULT '{}'::text[];
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'contacts' AND column_name = 'phone'
+    ) THEN
+        ALTER TABLE public.contacts ADD COLUMN phone TEXT;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'contacts' AND column_name = 'upi_id'
+    ) THEN
+        ALTER TABLE public.contacts ADD COLUMN upi_id TEXT;
     END IF;
 END $$;
 

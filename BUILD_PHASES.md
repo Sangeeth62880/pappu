@@ -259,3 +259,37 @@ Note: The compare and group_by operations implemented in this phase cover analyt
 * Evaluation Suite: 89.3 percent overall accuracy (133/149 test cases passing), zero schema failures, and 7/7 critical regression tests passing.
 
 **Acceptance criteria**: Intent classification is entirely owned by the LLM planner. Resolution, execution, and replies are fully deterministic code. Zero keyword or regex intent classification remains. All unit and integration tests pass.
+
+---
+
+## Phase 13: Pappu UI Stitch Redesign & Final Audit
+
+> **Standing Rule**: UI uses design tokens and ui primitives only. The Stitch design is not changed without approval.
+
+**Tasks**
+1. **Design System & Primitives Foundation**:
+   - Replaced legacy blue/glass theme with Tactile Neo-Playful tokens (`#FFF8E7`, `#FFC83D`, `#D99A00`, `#F0E4C8`, `#1F2937`).
+   - Built core primitives: `Button` (physical press and haptic feedback), `Card`, `Dialog`, `Input`, `MessageBubble`, `Chip`, `Skeleton`, `Toast`, `AmountText`.
+   - Completely eradicated all gradients, blurs, glassmorphism, and ambient shadows.
+2. **Navigation Shell & Visual Header/Tab Bar**:
+   - Migrated from custom local state to React Navigation 7 stack and bottom tab bar.
+   - Built global `AppHeader` (56px height, 32px coin mark with 'P' + Baloo 800 wordmark) identical across Home, History, People, and Me.
+   - Built `CustomTabBar` (84px height, white surface, 2px top border) with centered 72px vector `CoinButton` raised 24px above bar.
+3. **Screen Implementation (Stitch Fidelity)**:
+   - **Auth**: Replaced legacy auth with Stitch Sign In and Create Account screens, input focus rings, chunked SecureStore session persistence, and mascot face.
+   - **Home**: Built week, month, and year segmented views, hero spending balance, daily spend chart, and recent transaction list.
+   - **History**: Built filterable transaction list, swipe-to-delete gesture, transaction edit bottom sheet, and sleepy mascot empty state.
+   - **People**: Built contacts list with balances, Add Person bottom sheet (`POST /contacts`), Contact Detail with WhatsApp reminder generation.
+   - **Me**: Built profile settings with language selector, audio/haptic preferences (`GET/PATCH /profile`), and confirmation dialogs for Clear Chat and Sign Out.
+   - **Assistant**: Full-screen modal overlay with vector Pappu mascot (10 poses: Idle, Listening, Thinking, Speaking, Happy, Excited, Worried, Concerned, Confused, Sleepy), interactive pending action cards, and voice feedback.
+4. **Final System Audit**:
+   - Removed all dead code (`Balance.js`, `GlassCard.js`), obsolete components, and legacy blue tokens.
+   - Tokenized all remaining hardcoded colors and eliminated all banned words and AI slop.
+   - Verified back behavior across all sheets, dialogs, stack screens, and tab transitions.
+
+**Tests**
+* Backend: 312 passed in pytest (zero failures, zero warnings).
+* Frontend: 197 passed across all 24 Jest test suites.
+* Assistant Eval Suite: 93.8% overall accuracy (152/162 cases passed), 0.0% schema failures, 7/7 critical regression tests passing.
+
+**Acceptance criteria**: All screens and states match Stitch design specifications at 390x844, 360x780, and 1.3 font scale; all user-facing backend strings strictly follow the no-hyphen and no-em-dash rule; backend, frontend, and assistant evaluation suites pass without regressions.

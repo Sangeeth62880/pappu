@@ -127,6 +127,8 @@ class ContactSummaryItem(BaseModel):
 
     contact_id: uuid.UUID
     contact_name: str
+    phone: Optional[str] = None
+    upi_id: Optional[str] = None
     total_sent: Decimal  # sum of expense
     total_received: Decimal  # sum of income
     net_balance: Decimal  # total_sent - total_received
@@ -142,9 +144,33 @@ class PeopleSummaryResponse(BaseModel):
 class ContactDetailResponse(BaseModel):
     contact_id: uuid.UUID
     contact_name: str
+    phone: Optional[str] = None
+    upi_id: Optional[str] = None
     total_sent: Decimal
     total_received: Decimal
     net_balance: Decimal
     status: str
     display_text: str
     transactions: List[TransactionResponse]
+
+class ContactCreateRequest(BaseModel):
+    name: str
+    phone: Optional[str] = None
+    upi_id: Optional[str] = None
+
+class ContactResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    phone: Optional[str] = None
+    upi_id: Optional[str] = None
+    aliases: List[str] = Field(default_factory=list)
+    created_at: Optional[datetime] = None
+
+class RemindTextResponse(BaseModel):
+    remind_text: str
+    text: str
+    contact_id: uuid.UUID
+    contact_name: str
+    amount: float

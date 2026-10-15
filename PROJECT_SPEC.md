@@ -317,50 +317,93 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 - **Text Tertiary**: `#64748B` (muted slate, **4.6:1** contrast on white — AA)
 - **Brand Blue Accent**:
   - Fill / Button / Active: `#2563EB` (Blue 600)
-  - Dark Accent Text on White: `#1D4ED8` (Blue 700, **4.8:1** contrast on white — AA)
-  - Tint Background / Chip: `#EFF6FF` (Blue 50)
-- **Semantic Status**:
-  - Positive / Income / Owed to user: `#15803D` text on white (**4.8:1** contrast — AA), `#DCFCE7` chip background
-  - Negative / Expense / User owes: `#DC2626` text on white (**4.6:1** contrast — AA), `#FEE2E2` chip background
-- **Amounts**: Never rely on color alone. Always prefix with explicit `+` or `−` sign and standard ₹ currency symbol.
+### Design System — Tactile Neo-Playful
+> **Standing Rule**: UI uses design tokens and ui primitives only. The Stitch design is not changed without approval.
 
-### Glassmorphism & Android Fallback Policy
-- **Glass surfaces**: Limited strictly to the floating bottom navigation bar and modal sheets.
-- **Implementation**: Uses `expo-blur` (`BlurView intensity={60} tint="light"`) with a 1px border (`#E2E8F0`) and soft elevation.
-- **Android / Fallback**: When blur is unavailable or on Android devices where native blur creates visual artifacts, smoothly falls back to an opaque `#FFFFFF` surface with `elevation: 4` and border `#E2E8F0`.
+- **Palette**:
+  - Background Canvas: Warm Cream (`#FFF8E7`, `colors.bg`)
+  - Surface: Pure White (`#FFFFFF`, `colors.surface`) with 2px solid border (`#F0E4C8`, `colors.border`), 20px radius (`radius.card`)
+  - Primary Brand Accent: Warm Gold (`#FFC83D`, `colors.gold`) with 4px solid gold edge (`#D99A00`, `colors.gold_edge`)
+  - Text & Outlines: Crisp Charcoal Ink (`#1F2937`, `colors.ink`), Muted Ink (`#6B7280`, `colors.ink_muted`)
+  - Cashflow Semantics: Income (`#1F8A5B`, `colors.income`), Expense (`#E5484D`, `colors.expense`, edge `#B4232A`)
+  - Category Taxonomy: Food (`#F97316`), Shopping (`#0E7C86`), Transport (`#38BDF8`), People (`#8B5CF6`), Salary (`#1F8A5B`), Bills (`#D97706`), Entertainment (`#9333EA`), Other (`#9CA3AF`)
+  - Status Banners: Warning (`#D97706`, bg `#FEF3C7`, border `#FDE68A`), Error (`#E5484D`, bg `#FFF1F2`, border `#FECACA`)
+- **Strictly Flat Aesthetic**: Gradients, glassmorphism, blur, ambient drop shadows, glows, and AI slop (sparkles, wand icons, buzzwords) are completely banned.
+- **Tactile Physical Buttons**: 48px/52px heights, 16px radius, solid 4px bottom border edge, physical translateY press animation (0 -> 3px) with haptic snap on touch.
+- **Mascot System (`Pappu`)**: 10 vector SVG poses (Idle, Listening, Thinking, Speaking, Happy, Excited, Worried, Concerned, Confused, Sleepy). Crossfades smoothly over 180ms with 3-5s random blink and micro-breathe idling.
+- **Typography**:
+  - Display / Currency / Headers: `Baloo Chettan 2` (Malayalam + Latin display, 700 Bold / 800 ExtraBold).
+  - Body / UI Labels: `Nunito` (600 SemiBold / 700 Bold) paired with `Noto Sans Malayalam` for native Malayalam text.
+  - Tabular Figures: `fontVariant: ['tabular-nums']` for all currency amounts. Amounts always prefixed with explicit `+` or `−` sign and standard ₹ symbol (never truncating or overlapping).
 
-### Typography
-- Geometric sans for Latin paired with `Noto Sans Malayalam` for Malayalam script.
-- Line heights tailored to Malayalam typography (1.4–1.5x) to eliminate vertical clipping.
-- Monospace/tabular figure variants (`fontVariant: ['tabular-nums']`) for all financial amounts so digits align vertically.
+### Navigation Structure
+- **RootStack Navigator**:
+  - `Auth`: Unauthenticated sign in and create account screens with chunked SecureStore token persistence.
+  - `Main`: Authenticated 5-slot tab navigator with persistent global header and tab bar.
+  - `Assistant`: Modal stack sheet overlay (`presentation: 'modal'`, `animation: 'slide_from_bottom'`).
+  - `PersonDetail`: Push stack screen (`animation: 'slide_from_right'`).
+- **Global Header (`AppHeader`)**:
+  - Fixed 56px height, white surface, 2px bottom border.
+  - Left: 32px vector coin mark with 'P' + Baloo 800 22px 'Pappu' wordmark (identical across all four tabs).
+  - Right: Contextual actions (History: search icon button; People: add person gold button; Home & Me: clean spacing).
+- **Custom Tab Bar (`CustomTabBar`)**:
+  - Fixed 84px height, white surface, 2px solid top border.
+  - 5 slots: Home, History, [Center Raised Coin Button], People, Me.
+  - Center 72px Coin Button raised 24px above tab bar with 4px ink outline and vector face. Tapping or holding opens Assistant.
+- **Hardware Back Behavior**:
+  - Bottom sheets and dialogs dismiss on back press first.
+  - Stack screens pop back to caller.
+  - Tab navigator uses `backBehavior="firstRoute"` (History, People, Me return to Home; Home exits).
+  - Tab bar remains mounted and responsive at all times without keyboard unmount race conditions.
 
-### Screen Responsibilities & Interaction Architecture
-- **Home (Dashboard)**: Glanceable overview, period selector, hero spend card, daily spend chart, people summary, expense category proportion bars, max 5 recent transactions with tap-to-edit triggers (`TransactionEditSheet`), and quick header voice action.
-- **History**: Comprehensive filterable ledger, date-grouped sections with sticky headers, filter chips (All, Expense, Income, People), category filters, tap-to-edit triggers, and quick header voice action.
-- **People**: Person-to-person tracker, contact avatars, net balance badges (owed vs owes), thread-style sent/received transaction detail view with manual edit/delete triggers, and quick header voice action.
-- **Assistant**: Dedicated full-screen conversational interface with single conversation composer mic, persistent backend chat history, skeleton loaders, and inline action confirmation/undo cards.
-- **Universal Voice Entry (`VoiceListeningSheet`)**: Quick header microphone button on Home, History, and People tabs that opens an overlay listening sheet to capture speech, route intents, and trigger immediate screen refresh without navigating away.
-- **Android Back Handling & Toast Layering**: Android hardware `BackHandler` closes active bottom sheets and resets tab-specific filters before exiting to system; `Toast` unmounts completely when dismissed to ensure touch targets above the floating navbar remain 100% accessible.
-- **Keyboard Avoidance**: Floating frosted navbar dynamically hides while software keyboard is visible (`keyboardWillShow`/`keyboardDidShow`).
+### API Response Shape with Mood
+The assistant returns an additive `mood` field derived deterministically in `composer.py`:
+```json
+{
+  "reply_text": "Added ₹350 for Lunch to Food.",
+  "spoken_text": "Added 350 rupees for lunch to Food.",
+  "changed": true,
+  "results": [
+    {
+      "kind": "add",
+      "data": { "id": "...", "amount": 350.0, "category_name": "Food", "type": "expense" }
+    }
+  ],
+  "pending": null,
+  "mood": "happy"
+}
+```
+Supported server moods: `happy`, `worried`, `excited`, `confused`, `neutral`, `concerned`.
 
 ### API Endpoints Summary
 - **Transactions**:
   - `GET /transactions`: List transactions with filters (`type`, `category_id`, `contact_id`, `limit`, `offset`).
   - `POST /transactions`: Create new transaction.
-  - `PATCH /transactions/{id}`: Manually edit transaction fields (`amount`, `category_id`, `category_name`, `contact_name`, `description`, `txn_date`). Returns 404 on foreign records.
-  - `DELETE /transactions/{id}`: Manually delete transaction. Returns 404 on foreign records.
-  - `POST /transactions/undo`: Reverts most recent mutation (restores prior state for edit, restores deleted record for delete, removes added record for add).
-- **Analytics**:
-  - `GET /summary?period=week|month|year`: Period-scoped analytics, zero-filled daily buckets, and category breakdowns.
-  - `GET /people/summary` & `GET /people/{contact_id}`: Contact debt tracking and conversation ledgers.
+  - `PATCH /transactions/{id}`: Edit transaction fields. Scoped strictly to authenticated user (404 on foreign records).
+  - `DELETE /transactions/{id}`: Delete transaction. Scoped strictly to authenticated user (404 on foreign records).
+  - `POST /transactions/undo`: Reverts most recent mutation.
+- **Contacts & People**:
+  - `GET /contacts`: List contacts for authenticated user.
+  - `POST /contacts`: Create new contact (`name`, `phone`, `upi_id`). Case-insensitive duplicate check (409).
+  - `GET /contacts/{id}/remind-text`: Generates friendly WhatsApp reminder text in English or Malayalam based on debt balance.
+  - `GET /summary/people`: List contacts with aggregated balance summaries (`owed`, `owe`, `net_balance`, `tx_count`).
+  - `GET /summary/people/{id}`: Contact transaction history and net balance ledger.
+- **Profile & Preferences**:
+  - `GET /profile`: Get user profile, preferred language (`en` | `ml`), and preferences (`voice_replies`, `haptic_feedback`, `sound_effects`).
+  - `PATCH /profile`: Update preferences or preferred language.
+- **Analytics & Summary**:
+  - `GET /summary?period=week|month|year`: Period totals (`total_spent`, `total_income`, `net`), daily buckets, category breakdown, and previous period delta.
+- **Assistant & Pending Actions**:
+  - `POST /assistant/message`: Primary V2 conversational interface (text or voice input).
+  - `GET /assistant/pending`: Retrieve active pending confirmation or disambiguation.
+  - `POST /assistant/pending/{id}/answer`: Answer pending item (`confirm`, `cancel`, `choose`, text).
 - **Chat History**:
-  - `GET /chat/history?limit=50&offset=0`: Paginated conversation messages in chronological order.
-  - `POST /chat/message`: Persists message entry (`role`, `text`, `payload`).
-  - `DELETE /chat/history`: Purges conversation messages for authenticated user.
-- **Voice & AI**:
+  - `GET /chat/history?limit=50&offset=0`: Paginated chat history.
+  - `POST /chat/message`: Save chat turn.
+  - `DELETE /chat/history`: Clear user chat history.
+- **Voice (STT / TTS)**:
   - `POST /stt/transcribe`: Audio to text transcription via Sarvam Saaras v3.
   - `POST /tts/synthesize`: Text to speech synthesis via Sarvam Bulbul v3.
-  - `POST /intent/parse`, `/intent/route`, `/intent/confirm`: Intent extraction and routing.
 
 ---
 

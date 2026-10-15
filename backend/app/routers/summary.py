@@ -434,6 +434,8 @@ def get_contact_detail(
     return ContactDetailResponse(
         contact_id=contact.id,
         contact_name=contact.name,
+        phone=contact.phone,
+        upi_id=contact.upi_id,
         total_sent=summary_item.total_sent,
         total_received=summary_item.total_received,
         net_balance=summary_item.net_balance,
@@ -441,6 +443,16 @@ def get_contact_detail(
         display_text=summary_item.display_text,
         transactions=formatted_txns,
     )
+
+
+@router.get("/people/{contact_id}/remind-text")
+def get_people_contact_remind_text(
+    contact_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    from app.routers.contacts import get_contact_remind_text
+    return get_contact_remind_text(contact_id=contact_id, db=db, current_user_id=current_user_id)
 
 
 class MergeContactsRequest(BaseModel):
