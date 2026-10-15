@@ -71,7 +71,7 @@ export default function SpendingChart({
     if (isControlled) {
       return selectedBarIndex;
     }
-    return peakIndex >= 0 ? peakIndex : 0;
+    return peakIndex;
   });
 
   const prevPeriodRef = useRef(period);
@@ -80,7 +80,7 @@ export default function SpendingChart({
       setInternalSelectedIndex(selectedBarIndex);
     } else if (prevPeriodRef.current !== period) {
       prevPeriodRef.current = period;
-      setInternalSelectedIndex(peakIndex >= 0 ? peakIndex : 0);
+      setInternalSelectedIndex(peakIndex);
     }
   }, [isControlled, selectedBarIndex, period, peakIndex]);
 
