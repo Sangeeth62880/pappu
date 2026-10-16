@@ -31,27 +31,12 @@ describe('Text-to-Speech (TTS) Integration', () => {
   });
 
   test('when transaction is executed, ConversationLog synthesizes and plays speech', async () => {
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 500, category: 'Food' },
-        matched_transactions: [],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'add',
-      confidence: 'high',
-      spoken_response: 'Added Food transaction for ₹500.',
-      execution_result: {
-        status: 'created',
-        transaction: { id: 'txn-1', amount: 500, category_name: 'Food' },
-      },
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Added Food transaction for ₹500.',
+      spoken_text: 'Added Food transaction for ₹500.',
+      results: [{ kind: 'added', amount: 500 }],
+      pending: null,
+      changed: true,
     });
 
     client.synthesizeSpeech.mockResolvedValueOnce({

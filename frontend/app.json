@@ -1,37 +1,55 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Pappu",
+    "slug": "pappu",
+    "scheme": "pappu",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/brand/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sangeeth122.frontend"
+      "bundleIdentifier": "com.sangeethps.pappu",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Pappu uses the microphone so you can speak your expenses"
+      }
     },
     "android": {
+      "package": "com.sangeethps.pappu",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/brand/adaptive-icon-foreground.png",
+        "backgroundColor": "#FFC83D"
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-      ],
-      "package": "com.sangeeth122.frontend"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/brand/icon.png"
     },
     "plugins": [
       "expo-status-bar",
       "expo-audio",
-      "expo-asset"
-    ]
+      "expo-asset",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/splash-logo.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF8E7"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "820f6460-3949-4eb1-9cd4-6e248d409bd8"
+      }
+    },
+    "owner": "sangeeth122"
   }
 }

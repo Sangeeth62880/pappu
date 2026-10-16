@@ -15,7 +15,7 @@ describe('MicButton & Voice Input Integration', () => {
     requestRecordingPermissionsAsync.mockResolvedValue({ status: 'granted', granted: true });
   });
 
-  test('renders in idle state with mic icon', async () => {
+  test('renders in idle state with mic icon and accessibility label', async () => {
     const { findByTestId } = await render(
       <MicButton token={mockToken} onTranscribed={jest.fn()} />
     );
@@ -23,10 +23,11 @@ describe('MicButton & Voice Input Integration', () => {
     const micBtn = await findByTestId('mic-button');
     const micIcon = await findByTestId('mic-icon');
     expect(micBtn).toBeTruthy();
-    expect(micIcon).toHaveTextContent('🎤');
+    expect(micIcon).toBeTruthy();
+    expect(micBtn.props.accessibilityLabel).toBe('Start voice recording');
   });
 
-  test('pressing mic button toggles to recording state', async () => {
+  test('pressing mic button toggles to recording state with pulse ring and stop icon', async () => {
     const { findByTestId, findByText } = await render(
       <MicButton token={mockToken} onTranscribed={jest.fn()} />
     );
@@ -35,8 +36,10 @@ describe('MicButton & Voice Input Integration', () => {
     fireEvent.press(micBtn);
 
     expect(await findByText('Listening...')).toBeTruthy();
+    expect(await findByTestId('mic-pulse-ring')).toBeTruthy();
     const stopIcon = await findByTestId('mic-icon');
-    expect(stopIcon).toHaveTextContent('⏹');
+    expect(stopIcon).toBeTruthy();
+    expect(micBtn.props.accessibilityLabel).toBe('Stop recording');
   });
 
   test('stopping recording triggers transcribeAudio with real file URI object and onTranscribed callback', async () => {
@@ -127,28 +130,13 @@ describe('MicButton & Voice Input Integration', () => {
       language_code: 'en-IN',
     });
 
-    // 2. Mock Intent Parsing
-    client.parseIntent.mockResolvedValueOnce({
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 400, category: 'Shopping' },
-        matched_transactions: [],
-        confidence: 'high',
-        requires_confirmation: false,
-        missing_fields: [],
-      },
-    });
-
-    // 3. Mock Intent Routing & Execution
-    client.routeIntent.mockResolvedValueOnce({
-      decision: 'EXECUTE',
-      action: 'add',
-      confidence: 'high',
-      execution_result: {
-        status: 'created',
-        transaction: { id: 'txn-voice-1', amount: 400, category_name: 'Shopping' },
-      },
+    // 2. Mock Assistant v2
+    client.sendAssistantMessage.mockResolvedValueOnce({
+      display_text: 'Added Shopping transaction for ₹400.',
+      spoken_text: 'Added Shopping transaction for ₹400.',
+      results: [{ kind: 'added', amount: 400 }],
+      pending: null,
+      changed: true,
     });
 
     const { findByTestId, findByText } = await render(
@@ -167,8 +155,10 @@ describe('MicButton & Voice Input Integration', () => {
     expect(await findByText('Added Shopping transaction for ₹400.')).toBeTruthy();
 
     await waitFor(() => {
-      expect(client.parseIntent).toHaveBeenCalledWith(mockToken, 'I spent 400 on shopping');
-      expect(client.routeIntent).toHaveBeenCalled();
+      expect(client.sendAssistantMessage).toHaveBeenCalledWith(
+        mockToken,
+        expect.objectContaining({ text: 'I spent 400 on shopping' })
+      );
       expect(mockOnMutated).toHaveBeenCalledTimes(1);
     });
   });

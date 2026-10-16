@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pappu - Home Screen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@600;700;800&family=Noto+Sans+Malayalam:wght@600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* DESIGN TOKENS */
+    :root {
+      --bg: #FFF8E7;
+      --surface: #FFFFFF;
+      --border: #F0E4C8;
+      --gold: #FFC83D;
+      --gold-edge: #D99A00;
+      --ink: #1F2937;
+      --ink-muted: #6B7280;
+      --income: #1F8A5B;
+      --expense: #E5484D;
+      --teal: #0E7C86;
+      --food: #F97316;
+      --shopping: #0E7C86;
+      --transport: #38BDF8;
+      --other: #9CA3AF;
+      --people: #8B5CF6;
+    }
+
+    body {
+      background-color: #E5DFD0;
+      font-family: 'Nunito', sans-serif;
+      color: #1F2937;
+      margin: 0;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-baloo {
+      font-family: 'Baloo Chettan 2', cursive, sans-serif;
+      font-feature-settings: "tnum" 1;
+    }
+
+    .font-malayalam {
+      font-family: 'Noto Sans Malayalam', sans-serif;
+    }
+
+    /* Screen frame */
+    .mobile-screen {
+      width: 390px;
+      min-height: 844px;
+      background-color: var(--bg);
+      border-radius: 40px;
+      border: 4px solid #1F2937;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px rgba(31, 41, 55, 0.08);
+    }
+
+    /* Strict card & button styling */
+    .pappu-card {
+      background-color: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    /* Tab bar center button */
+    .coin-tab-btn {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background-color: var(--gold);
+      border: 4px solid var(--ink);
+      box-shadow: 0 4px 0 var(--gold-edge);
+      position: absolute;
+      top: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Full Scrolling Mobile Frame (Tall Frame showing full content) -->
+  <div class="mobile-screen">
+
+    <!-- Status Bar (47px) -->
+    <div class="w-full h-[47px] px-6 pt-3 flex justify-between items-center z-20 shrink-0 select-none">
+      <span class="font-baloo font-bold text-[15px] text-[#1F2937] tracking-tight">9:41</span>
+      <div class="flex items-center space-x-2 text-[#1F2937]">
+        <!-- Signal -->
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="none">
+          <rect x="0.5" y="7" width="2.5" height="3.5" rx="0.5" fill="#1F2937"/>
+          <rect x="4.5" y="5" width="2.5" height="5.5" rx="0.5" fill="#1F2937"/>
+          <rect x="8.5" y="2.5" width="2.5" height="8" rx="0.5" fill="#1F2937"/>
+          <rect x="12.5" y="0.5" width="2.5" height="10" rx="0.5" fill="#1F2937"/>
+        </svg>
+        <!-- Wifi -->
+        <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
+          <path d="M7.5 10.5C8.05228 10.5 8.5 10.0523 8.5 9.5C8.5 8.94772 8.05228 8.5 7.5 8.5C6.94772 8.5 6.5 8.94772 6.5 9.5C6.5 10.0523 6.94772 10.5 7.5 10.5Z" fill="#1F2937"/>
+          <path d="M4.5 7C5.35 6.1 6.38 5.6 7.5 5.6C8.62 5.6 9.65 6.1 10.5 7" stroke="#1F2937" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M1.8 4C3.35 2.5 5.35 1.6 7.5 1.6C9.65 1.6 11.65 2.5 13.2 4" stroke="#1F2937" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <!-- Battery -->
+        <div class="w-6 h-3 border-2 border-[#1F2937] rounded-[4px] p-[1.5px] flex items-center">
+          <div class="h-full w-4 bg-[#1F2937] rounded-[1px]"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP HEADER (height 64, white-less, sits on bg, wordmark left, nothing right per lock) -->
+    <header class="w-full h-[64px] px-5 flex items-center justify-between shrink-0 select-none">
+      <div class="flex items-center gap-2">
+        <!-- Coin-P mark 32px -->
+        <div class="w-8 h-8 rounded-full bg-[#FFC83D] border-[2.5px] border-[#1F2937] flex items-center justify-center relative shadow-[0_2px_0_#D99A00]">
+          <!-- Inner rim -->
+          <div class="w-[22px] h-[22px] rounded-full border border-[#D99A00] flex items-center justify-center">
+            <span class="font-baloo font-extrabold text-[15px] text-[#1F2937] leading-none pb-[1px]">P</span>
+          </div>
+        </div>
+        <!-- Pappu Baloo 800 22px #1F2937 -->
+        <span class="font-baloo font-extrabold text-[22px] text-[#1F2937] leading-none pt-0.5">Pappu</span>
+      </div>
+      <!-- Right: nothing except screen-specific button where specified (none specified for Home) -->
+      <div></div>
+    </header>
+
+    <!-- SCROLLING CONTENT CONTAINER (with side margins 20px, bottom padding 24px above tab bar) -->
+    <main class="flex-1 px-5 pb-[108px] flex flex-col gap-4 overflow-y-auto">
+
+      <!-- 1. GREETING ROW -->
+      <!-- Pappu Worried pose at 48px on the left, 12px gap, text on the right in Body 16 -->
+      <section class="flex items-center gap-3">
+        <!-- Pappu Worried Pose 48px SVG (Strict Character Reference Sheet compliance) -->
+        <div class="w-12 h-12 shrink-0 relative flex items-center justify-center">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <!-- Arms: limp / worried down-forward -->
+            <path d="M 12 28 C 9 32 8 35 10 37" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="10" cy="37" r="2.2" fill="#1F2937"/>
+            <path d="M 36 28 C 39 32 40 35 38 37" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="38" cy="37" r="2.2" fill="#1F2937"/>
+            <!-- Legs -->
+            <path d="M 20 37 L 20 44" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round"/>
+            <ellipse cx="19" cy="44" rx="3.5" ry="2" fill="#1F2937"/>
+            <path d="M 28 37 L 28 44" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round"/>
+            <ellipse cx="29" cy="44" rx="3.5" ry="2" fill="#1F2937"/>
+
+            <!-- Coin Body (48px scale: coin diameter 34px) -->
+            <circle cx="24" cy="22" r="17" fill="#FFC83D" stroke="#1F2937" stroke-width="2.5"/>
+            <!-- Inner rim ring #D99A00 inset -->
+            <circle cx="24" cy="22" r="13" stroke="#D99A00" stroke-width="1.2"/>
+            <!-- Embossed ₹ on forehead in #D99A00 -->
+            <text x="24" y="14" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="7.5" fill="#D99A00" text-anchor="middle">₹</text>
+
+            <!-- Worried Eyebrows raised/slanted inward -->
+            <path d="M 17 15 L 21 16.5" stroke="#1F2937" stroke-width="1.2" stroke-linecap="round"/>
+            <path d="M 31 15 L 27 16.5" stroke="#1F2937" stroke-width="1.2" stroke-linecap="round"/>
+
+            <!-- Eyes (white ovals, black pupils, highlight) -->
+            <ellipse cx="19" cy="21" rx="3.2" ry="4" fill="#FFFFFF" stroke="#1F2937" stroke-width="1"/>
+            <ellipse cx="29" cy="21" rx="3.2" ry="4" fill="#FFFFFF" stroke="#1F2937" stroke-width="1"/>
+            <circle cx="20" cy="21.5" r="2" fill="#1F2937"/>
+            <circle cx="28" cy="21.5" r="2" fill="#1F2937"/>
+            <circle cx="20.7" cy="20.5" r="0.7" fill="#FFFFFF"/>
+            <circle cx="28.7" cy="20.5" r="0.7" fill="#FFFFFF"/>
+
+            <!-- Worried wavy mouth line -->
+            <path d="M 20.5 28.5 Q 22 27 24 28.5 Q 26 30 27.5 28.5" stroke="#1F2937" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+            <!-- Sweat drop on temple -->
+            <path d="M 32 17 C 32 17 33.5 18.5 33.5 19.5 C 33.5 20.5 32.7 21 32 21 C 31.3 21 30.5 20.5 30.5 19.5 C 30.5 18.5 32 17 32 17 Z" fill="#38BDF8"/>
+          </svg>
+        </div>
+        <!-- Greeting text -->
+        <div class="flex flex-col justify-center leading-tight">
+          <p class="text-[16px] font-semibold text-[#1F2937] leading-[22px]">Good evening, Sangeeth.</p>
+          <p class="text-[16px] font-semibold text-[#1F2937] leading-[22px]">
+            You've spent <span class="font-baloo font-bold text-[18px] text-[#1F2937]">₹5,109</span> this week.
+          </p>
+        </div>
+      </section>
+
+      <!-- 2. SEGMENTED CONTROL -->
+      <!-- full width, height 44, track white with 2px #F0E4C8 border, radius 999, three equal segments "Week", "Month", "Year". Selected = gold fill with ink text Baloo 700 and a 3px #D99A00 bottom edge; others ink-muted. Week selected. -->
+      <section class="w-full h-[44px] bg-white border-2 border-[#F0E4C8] rounded-[999px] p-[2px] flex items-center select-none">
+        <!-- Week (Selected) -->
+        <div class="flex-1 h-full bg-[#FFC83D] rounded-[999px] flex items-center justify-center font-baloo font-bold text-[15px] text-[#1F2937] shadow-[0_3px_0_#D99A00] pb-[1px] cursor-pointer">
+          Week
+        </div>
+        <!-- Month -->
+        <div class="flex-1 h-full rounded-[999px] flex items-center justify-center text-[14px] font-bold text-[#6B7280] cursor-pointer">
+          Month
+        </div>
+        <!-- Year -->
+        <div class="flex-1 h-full rounded-[999px] flex items-center justify-center text-[14px] font-bold text-[#6B7280] cursor-pointer">
+          Year
+        </div>
+      </section>
+
+      <!-- 3. SPEND CARD -->
+      <!-- Caption "Spent this week" ink-muted; Display 32 "₹5,109"; Caption in coral "₹4,759 more than last week"; 1px divider; two columns: "Income" Caption + "+₹65,000" Baloo 700 income green | "Net" Caption + "+₹59,891" Baloo 700 income green. -->
+      <section class="pappu-card flex flex-col gap-3">
+        <div>
+          <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Spent this week</span>
+          <div class="font-baloo font-extrabold text-[32px] text-[#1F2937] leading-[36px] mt-1">₹5,109</div>
+          <span class="text-[13px] font-bold text-[#E5484D] leading-[18px] mt-1 inline-block">₹4,759 more than last week</span>
+        </div>
+
+        <!-- 1px divider #F0E4C8 -->
+        <div class="w-full h-[1px] bg-[#F0E4C8] my-1"></div>
+
+        <!-- Two columns: Income | Net -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="flex flex-col">
+            <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Income</span>
+            <span class="font-baloo font-bold text-[18px] text-[#1F8A5B] leading-[22px] mt-0.5">+₹65,000</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Net</span>
+            <span class="font-baloo font-bold text-[18px] text-[#1F8A5B] leading-[22px] mt-0.5">+₹59,891</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. DAILY SPENDING CARD -->
+      <!-- H2 "Daily spending", right Caption "Avg ₹730/day". Bar chart for Mon-Sun, card inner chart area 160px high. RULE: the tallest bar occupies at most 112px so there is always 48px of free headroom above every bar. Day labels below bars, Caption 13. Values: Mon ₹0, Tue ₹3,250, Wed ₹1,859, Thu-Sun ₹0. Zero days show a 6px gold-faint stub (#F0E4C8). Wed bar fill #FFC83D, Tue selected bar fill #FFC83D with a 2px ink outline. Selected-bar tooltip: a small white pill (2px border, radius 12, arrow pointing down) sitting ABOVE the Tue bar with text "₹3,250", centered on the bar. The tooltip and amount text MUST NOT overlap any bar. -->
+      <section class="pappu-card flex flex-col gap-3">
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <h2 class="font-baloo font-bold text-[18px] text-[#1F2937] leading-[22px]">Daily spending</h2>
+          <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Avg ₹730/day</span>
+        </div>
+
+        <!-- Chart Area: inner chart area 160px high -->
+        <div class="w-full h-[160px] relative flex flex-col justify-end pt-12 pb-0">
+          
+          <!-- Tue Tooltip: small white pill (2px border, radius 12, arrow pointing down) sitting ABOVE Tue bar, centered, no overlap -->
+          <!-- Tue is index 1 of 7 (each column ~14.28% width, Tue center is at ~21.4%) -->
+          <div class="absolute top-1 left-[21.4%] -translate-x-1/2 flex flex-col items-center z-10">
+            <div class="bg-white border-2 border-[#F0E4C8] rounded-[12px] px-2 py-0.5 shadow-sm">
+              <span class="font-baloo font-bold text-[13px] text-[#1F2937] leading-none">₹3,250</span>
+            </div>
+            <!-- Arrow pointing down -->
+            <div class="w-2 h-2 bg-white border-b-2 border-r-2 border-[#F0E4C8] rotate-45 -mt-1"></div>
+          </div>
+
+          <!-- Bars Container: 7 columns flex -->
+          <div class="w-full h-[112px] flex items-end justify-between px-2">
+            <!-- Mon: ₹0 (6px stub) -->
+            <div class="w-8 flex flex-col items-center justify-end h-full">
+              <div class="w-6 h-[6px] rounded-t-[4px] bg-[#F0E4C8]"></div>
+            </div>
+            <!-- Tue: ₹3,250 (Tallest bar = 112px, fill #FFC83D with 2px ink outline) -->
+            <div class="w-8 flex flex-col items-center justify-end h-full">
+              <div class="w-6 h-[112px] rounded-t-[6px] bg-[#FFC83D] border-2 border-[#1F2937] border-b-0"></div>
+            </div>
+            <!-- Wed: ₹1,859 (Proportional: ~64px height, fill #FFC83D) -->
+            <div class="w-8 flex flex-col items-center justify-end h-full">
+              <div class="w-6 h-[64px] rounded-t-[6px] bg-[#FFC83D]"></div>
+            </div>
+            <!-- Thu: ₹0 (6px stub) -->
+            <div class="w-8 flex flex-col items-center justify-end h-full">
+              <div class="w-6 h-[6px] rounded-t-[4px] bg-[#F0E4C8]"></div>
+            </div>
+            <!-- Fri: ₹0 (6px stub) -->
+            <div class="w-8 flex flex-col items-center justify-end h-full">
+              <div class="w-6 h-[6px] rounded-t-[4px] bg-[#F0E4C8]"></div>
+            </div>
+            <!-- Sat: ₹0 (6px stub) -->
+            <div class="w-8 flex flex-col items-center justify-end h-full">
+              <div class="w-6 h-[6px] rounded-t-[4px] bg-[#F0E4C8]"></div>
+            </div>
+            <!-- Sun: ₹0 (6px stub) -->
+            <div class="w-8 flex flex-col items-center justify-end h-full">
+              <div class="w-6 h-[6px] rounded-t-[4px] bg-[#F0E4C8]"></div>
+            </div>
+          </div>
+
+          <!-- Bottom axis line -->
+          <div class="w-full h-[1px] bg-[#F0E4C8]"></div>
+
+          <!-- Day Labels below bars, Caption 13 -->
+          <div class="w-full flex justify-between px-2 pt-1.5">
+            <span class="w-8 text-center text-[13px] font-bold text-[#6B7280]">Mon</span>
+            <span class="w-8 text-center text-[13px] font-bold text-[#1F2937]">Tue</span>
+            <span class="w-8 text-center text-[13px] font-bold text-[#6B7280]">Wed</span>
+            <span class="w-8 text-center text-[13px] font-bold text-[#6B7280]">Thu</span>
+            <span class="w-8 text-center text-[13px] font-bold text-[#6B7280]">Fri</span>
+            <span class="w-8 text-center text-[13px] font-bold text-[#6B7280]">Sat</span>
+            <span class="w-8 text-center text-[13px] font-bold text-[#6B7280]">Sun</span>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 5. PEOPLE CARD -->
+      <!-- two flat tiles side by side (equal width, radius 16, bg #FFF8E7, 2px border): "Owed to you" Caption + "₹6,700" Baloo 700 income green | "You owe" Caption + "₹1,000" Baloo 700 expense coral. Below, two list rows: avatar circle 40 with initial "P" + "Pooja" + right "+₹6,200" green; avatar "R" + "Rony" + "+₹500" green. Row link "View all" teal. -->
+      <section class="pappu-card flex flex-col gap-3">
+        <!-- Two flat tiles side by side -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-[#FFF8E7] border-2 border-[#F0E4C8] rounded-[16px] p-3 flex flex-col">
+            <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Owed to you</span>
+            <span class="font-baloo font-bold text-[18px] text-[#1F8A5B] leading-[22px] mt-0.5">₹6,700</span>
+          </div>
+          <div class="bg-[#FFF8E7] border-2 border-[#F0E4C8] rounded-[16px] p-3 flex flex-col">
+            <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">You owe</span>
+            <span class="font-baloo font-bold text-[18px] text-[#E5484D] leading-[22px] mt-0.5">₹1,000</span>
+          </div>
+        </div>
+
+        <!-- List Rows with 1px #F0E4C8 dividers -->
+        <div class="flex flex-col mt-1">
+          <!-- Row 1: Pooja -->
+          <div class="py-2.5 flex items-center justify-between border-b border-[#F0E4C8]">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center font-baloo font-bold text-[16px] text-[#8B5CF6]">
+                P
+              </div>
+              <span class="text-[16px] font-semibold text-[#1F2937]">Pooja</span>
+            </div>
+            <span class="font-baloo font-bold text-[16px] text-[#1F8A5B]">+₹6,200</span>
+          </div>
+
+          <!-- Row 2: Rony -->
+          <div class="py-2.5 flex items-center justify-between border-b border-[#F0E4C8]">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center font-baloo font-bold text-[16px] text-[#8B5CF6]">
+                R
+              </div>
+              <span class="text-[16px] font-semibold text-[#1F2937]">Rony</span>
+            </div>
+            <span class="font-baloo font-bold text-[16px] text-[#1F8A5B]">+₹500</span>
+          </div>
+        </div>
+
+        <!-- Row link "View all" teal -->
+        <div class="flex justify-center pt-1">
+          <button class="font-baloo font-bold text-[15px] text-[#0E7C86] hover:opacity-80 transition-opacity">
+            View all
+          </button>
+        </div>
+      </section>
+
+      <!-- 6. "WHERE IT WENT" CARD -->
+      <!-- H2 title. Four rows, each: 12px colored dot + category name + Caption percent + right amount, then a full-width 8px rounded horizontal bar under each row filled to its percent in the category color. Data: Food 63% ₹3,225 | Shopping 24% ₹1,204 | Other 10% ₹500 | Transport 3% ₹180. -->
+      <section class="pappu-card flex flex-col gap-3">
+        <h2 class="font-baloo font-bold text-[18px] text-[#1F2937] leading-[22px]">Where it went</h2>
+
+        <div class="flex flex-col gap-3.5">
+          <!-- Food 63% ₹3,225 (Food color #F97316) -->
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-[#F97316] shrink-0"></span>
+                <span class="text-[16px] font-semibold text-[#1F2937]">Food</span>
+                <span class="text-[13px] font-bold text-[#6B7280]">63%</span>
+              </div>
+              <span class="font-baloo font-bold text-[16px] text-[#1F2937]">₹3,225</span>
+            </div>
+            <!-- Full-width 8px rounded bar -->
+            <div class="w-full h-2 rounded-[999px] bg-[#F0E4C8] overflow-hidden">
+              <div class="h-full bg-[#F97316] rounded-[999px] w-[63%]"></div>
+            </div>
+          </div>
+
+          <!-- Shopping 24% ₹1,204 (Shopping color #0E7C86) -->
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-[#0E7C86] shrink-0"></span>
+                <span class="text-[16px] font-semibold text-[#1F2937]">Shopping</span>
+                <span class="text-[13px] font-bold text-[#6B7280]">24%</span>
+              </div>
+              <span class="font-baloo font-bold text-[16px] text-[#1F2937]">₹1,204</span>
+            </div>
+            <!-- Full-width 8px rounded bar -->
+            <div class="w-full h-2 rounded-[999px] bg-[#F0E4C8] overflow-hidden">
+              <div class="h-full bg-[#0E7C86] rounded-[999px] w-[24%]"></div>
+            </div>
+          </div>
+
+          <!-- Other 10% ₹500 (Other color #9CA3AF) -->
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-[#9CA3AF] shrink-0"></span>
+                <span class="text-[16px] font-semibold text-[#1F2937]">Other</span>
+                <span class="text-[13px] font-bold text-[#6B7280]">10%</span>
+              </div>
+              <span class="font-baloo font-bold text-[16px] text-[#1F2937]">₹500</span>
+            </div>
+            <!-- Full-width 8px rounded bar -->
+            <div class="w-full h-2 rounded-[999px] bg-[#F0E4C8] overflow-hidden">
+              <div class="h-full bg-[#9CA3AF] rounded-[999px] w-[10%]"></div>
+            </div>
+          </div>
+
+          <!-- Transport 3% ₹180 (Transport color #38BDF8) -->
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-[#38BDF8] shrink-0"></span>
+                <span class="text-[16px] font-semibold text-[#1F2937]">Transport</span>
+                <span class="text-[13px] font-bold text-[#6B7280]">3%</span>
+              </div>
+              <span class="font-baloo font-bold text-[16px] text-[#1F2937]">₹180</span>
+            </div>
+            <!-- Full-width 8px rounded bar -->
+            <div class="w-full h-2 rounded-[999px] bg-[#F0E4C8] overflow-hidden">
+              <div class="h-full bg-[#38BDF8] rounded-[999px] w-[3%]"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. "RECENT" CARD -->
+      <!-- "Recent" H2 with right "See all" teal. List card of 4 rows (icon in 40px tinted circle, title Body, Caption subtitle, right amount): "രാഹുൽ" / "Received · 14 Oct" / "+₹300" green | "Salary" / "Income · 14 Oct" / "+₹15,000" green | "auto" / "Transport · 14 Oct" / "−₹80" coral | "bench" / "Food · 14 Oct" / "−₹50" coral. -->
+      <section class="flex flex-col gap-2">
+        <div class="flex items-center justify-between px-1">
+          <h2 class="font-baloo font-bold text-[18px] text-[#1F2937] leading-[22px]">Recent</h2>
+          <button class="font-baloo font-bold text-[15px] text-[#0E7C86] hover:opacity-80">See all</button>
+        </div>
+
+        <div class="pappu-card p-0 overflow-hidden divide-y divide-[#F0E4C8]">
+          <!-- Row 1: രാഹുൽ -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- 40px tinted circle (People/Income) -->
+              <div class="w-10 h-10 rounded-full bg-[#EFF4FF] border border-[#F0E4C8] flex items-center justify-center shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-malayalam font-bold text-[16px] text-[#1F2937] leading-tight">രാഹുൽ</span>
+                <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Received · 14 Oct</span>
+              </div>
+            </div>
+            <span class="font-baloo font-bold text-[16px] text-[#1F8A5B]">+₹300</span>
+          </div>
+
+          <!-- Row 2: Salary -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- 40px tinted circle (Income) -->
+              <div class="w-10 h-10 rounded-full bg-[#EFF4FF] border border-[#F0E4C8] flex items-center justify-center shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                </svg>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[16px] font-semibold text-[#1F2937] leading-tight">Salary</span>
+                <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Income · 14 Oct</span>
+              </div>
+            </div>
+            <span class="font-baloo font-bold text-[16px] text-[#1F8A5B]">+₹15,000</span>
+          </div>
+
+          <!-- Row 3: auto -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- 40px tinted circle (Transport) -->
+              <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border border-[#F0E4C8] flex items-center justify-center shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="9" rx="2"/>
+                  <path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"/>
+                  <circle cx="7.5" cy="16.5" r="1.5" fill="#1F2937"/>
+                  <circle cx="16.5" cy="16.5" r="1.5" fill="#1F2937"/>
+                </svg>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[16px] font-semibold text-[#1F2937] leading-tight">auto</span>
+                <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Transport · 14 Oct</span>
+              </div>
+            </div>
+            <span class="font-baloo font-bold text-[16px] text-[#E5484D]">−₹80</span>
+          </div>
+
+          <!-- Row 4: bench -->
+          <div class="p-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <!-- 40px tinted circle (Food) -->
+              <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border border-[#F0E4C8] flex items-center justify-center shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+                  <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                  <line x1="6" y1="1" x2="6" y2="4"/>
+                  <line x1="10" y1="1" x2="10" y2="4"/>
+                  <line x1="14" y1="1" x2="14" y2="4"/>
+                </svg>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[16px] font-semibold text-[#1F2937] leading-tight">bench</span>
+                <span class="text-[13px] font-bold text-[#6B7280] leading-[18px]">Food · 14 Oct</span>
+              </div>
+            </div>
+            <span class="font-baloo font-bold text-[16px] text-[#E5484D]">−₹50</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- TAB BAR (identical on Home, History, People, Me; height 84 including 20px safe area, white fill, 2px top border #F0E4C8. Five slots: Home, History, [center coin button], People, Me. Tab = icon 24px + label Caption 13px. Active tab: icon and label ink, a 6px gold dot under the label. Inactive: ink-muted. Center slot = Pappu coin button, 72px circle, gold #FFC83D, 4px ink outline, 4px bottom edge #D99A00, raised 24px above the bar, containing the mascot face with a small mic mark under it. Same size and position on every screen.) -->
+    <nav class="absolute bottom-0 left-0 right-0 h-[84px] bg-white border-t-2 border-[#F0E4C8] flex items-center justify-between px-3 pb-[18px] z-30 select-none">
+      
+      <!-- Slot 1: Home (Active) -->
+      <div class="flex-1 flex flex-col items-center justify-center cursor-pointer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="text-[13px] font-bold text-[#1F2937] leading-none mt-1">Home</span>
+        <!-- 6px gold dot under label for active tab -->
+        <span class="w-1.5 h-1.5 rounded-full bg-[#FFC83D] mt-1"></span>
+      </div>
+
+      <!-- Slot 2: History (Inactive) -->
+      <div class="flex-1 flex flex-col items-center justify-center cursor-pointer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span class="text-[13px] font-bold text-[#6B7280] leading-none mt-1">History</span>
+        <span class="w-1.5 h-1.5 mt-1"></span>
+      </div>
+
+      <!-- Slot 3: Center Pappu Coin Button (72px circle, gold #FFC83D, 4px ink outline, 4px bottom edge #D99A00, raised 24px above bar) -->
+      <div class="flex-1 relative flex items-center justify-center">
+        <div class="coin-tab-btn cursor-pointer">
+          <!-- Pappu Mascot Face Mark (Idle face + small mic mark under it) -->
+          <svg width="56" height="56" viewBox="0 0 56 56" fill="none" class="mt-[-2px]">
+            <!-- Inner rim ring inset -->
+            <circle cx="28" cy="27" r="21" stroke="#D99A00" stroke-width="1.8"/>
+            <!-- Embossed ₹ on forehead -->
+            <text x="28" y="16" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="10" fill="#D99A00" text-anchor="middle">₹</text>
+
+            <!-- Eyes -->
+            <ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"/>
+            <ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"/>
+            <circle cx="22" cy="26" r="2.8" fill="#1F2937"/>
+            <circle cx="34" cy="26" r="2.8" fill="#1F2937"/>
+            <circle cx="23" cy="24.8" r="1" fill="#FFFFFF"/>
+            <circle cx="35" cy="24.8" r="1" fill="#FFFFFF"/>
+
+            <!-- Smile -->
+            <path d="M 23 34 C 25 36.5 31 36.5 33 34" stroke="#1F2937" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+            <!-- Small mic mark under mascot face -->
+            <g transform="translate(24, 40)">
+              <rect x="2.5" y="0" width="3" height="5" rx="1.5" fill="#1F2937"/>
+              <path d="M 1 2.5 C 1 4.5 7 4.5 7 2.5" stroke="#1F2937" stroke-width="1" stroke-linecap="round" fill="none"/>
+              <line x1="4" y1="5" x2="4" y2="6.5" stroke="#1F2937" stroke-width="1"/>
+            </g>
+          </svg>
+        </div>
+        <!-- Inactive spacing placeholder for slot -->
+        <span class="w-1.5 h-1.5 mt-auto"></span>
+      </div>
+
+      <!-- Slot 4: People (Inactive) -->
+      <div class="flex-1 flex flex-col items-center justify-center cursor-pointer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <span class="text-[13px] font-bold text-[#6B7280] leading-none mt-1">People</span>
+        <span class="w-1.5 h-1.5 mt-1"></span>
+      </div>
+
+      <!-- Slot 5: Me (Inactive) -->
+      <div class="flex-1 flex flex-col items-center justify-center cursor-pointer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span class="text-[13px] font-bold text-[#6B7280] leading-none mt-1">Me</span>
+        <span class="w-1.5 h-1.5 mt-1"></span>
+      </div>
+
+    </nav>
+
+  </div>
+
+</body>
+</html>

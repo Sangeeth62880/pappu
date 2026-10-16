@@ -1,9 +1,9 @@
 import {
   fetchSummary,
   fetchTransactions,
-  parseIntent,
-  routeIntent,
-  confirmAction,
+  sendAssistantMessage,
+  answerPending,
+  fetchActivePending,
   undoTransaction,
   transcribeAudio,
 } from '../src/api/client';
@@ -62,81 +62,79 @@ describe('Frontend API Client', () => {
     );
   });
 
-  test('parseIntent sends text in body', async () => {
-    const mockIntentResponse = {
-      intent: {
-        action: 'add',
-        language: 'en',
-        fields: { amount: 500, category: 'Food' },
-      },
+  test('sendAssistantMessage sends text and input in body', async () => {
+    const mockResponse = {
+      display_text: 'Added 500 for Food',
+      spoken_text: 'Added 500 for Food',
+      results: [{ kind: 'added', amount: 500 }],
+      pending: null,
+      changed: true,
     };
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: jest.fn().mockResolvedValue(mockIntentResponse),
+      json: jest.fn().mockResolvedValue(mockResponse),
     });
 
-    const result = await parseIntent(mockToken, 'I spent 500 on food today');
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/intent\/parse$/),
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ text: 'I spent 500 on food today' }),
-      })
-    );
-    expect(result).toEqual(mockIntentResponse);
-  });
-
-  test('routeIntent sends intent object in body', async () => {
-    const mockIntent = {
-      action: 'add',
-      language: 'en',
-      fields: { amount: 500, category: 'Food' },
-      matched_transactions: [],
-      confidence: 'high',
-      requires_confirmation: false,
-      missing_fields: [],
-    };
-
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: jest.fn().mockResolvedValue({ decision: 'EXECUTE' }),
+    const result = await sendAssistantMessage(mockToken, {
+      text: 'I spent 500 on food today',
+      input: 'typed',
+      client_msg_id: 'c1',
     });
-
-    const result = await routeIntent(mockToken, mockIntent);
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/intent\/route$/),
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ intent: mockIntent }),
-      })
-    );
-    expect(result.decision).toBe('EXECUTE');
-  });
-
-  test('confirmAction sends confirmation payload', async () => {
-    const txnId = '123e4567-e89b-12d3-a456-426614174000';
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: jest.fn().mockResolvedValue({ status: 'executed', action: 'delete' }),
-    });
-
-    const result = await confirmAction(mockToken, txnId, 'delete');
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringMatching(/\/intent\/confirm$/),
+      expect.stringMatching(/\/assistant\/message$/),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          transaction_id: txnId,
-          action: 'delete',
-          fields: null,
+          text: 'I spent 500 on food today',
+          input: 'typed',
+          client_msg_id: 'c1',
         }),
       })
     );
-    expect(result.status).toBe('executed');
+    expect(result).toEqual(mockResponse);
+  });
+
+  test('answerPending sends answer and optional index', async () => {
+    const mockResponse = {
+      display_text: 'Deleted transaction',
+      spoken_text: 'Deleted transaction',
+      results: [{ kind: 'deleted', transaction_id: '123' }],
+      pending: null,
+      changed: true,
+    };
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue(mockResponse),
+    });
+
+    const result = await answerPending(mockToken, 'pend_1', 'confirm', 0);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/assistant\/pending\/pend_1\/answer$/),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ answer: 'confirm', index: 0 }),
+      })
+    );
+    expect(result.changed).toBe(true);
+  });
+
+  test('fetchActivePending sends GET request', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({ pending: null }),
+    });
+
+    const result = await fetchActivePending(mockToken);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/assistant\/pending$/),
+      expect.objectContaining({ method: 'GET' })
+    );
+    expect(result).toEqual({ pending: null });
   });
 
   test('undoTransaction sends undo request', async () => {

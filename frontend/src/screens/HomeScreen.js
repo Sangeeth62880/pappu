@@ -1,30 +1,238 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  NavigationContainer,
+  NavigationContext,
+} from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
 import Dashboard from '../components/Dashboard';
 import ConversationLog from '../components/ConversationLog';
 import HistoryScreen from '../components/HistoryScreen';
 import PeopleScreen from '../components/PeopleScreen';
 import AuthScreen from './AuthScreen';
+import MeScreen from './MeScreen';
+import PersonDetailScreen from './PersonDetailScreen';
+import AppHeader from '../components/ui/AppHeader';
+import CustomTabBar from '../components/ui/CustomTabBar';
+import Toast from '../components/ui/Toast';
+import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
+
+import { colors, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
-import { undoTransaction } from '../api/client';
+import { undoTransaction, clearChatHistory } from '../api/client';
+import { queryClient } from '../data/queryClient';
+import { queryKeys } from '../data/queryKeys';
+import { removeChunkedItem } from '../utils/chunkedSecureStore';
 
-const TABS = [
-  { key: 'dashboard', label: 'Dashboard', icon: '₹' },
-  { key: 'assistant', label: 'Assistant', icon: '💬' },
-  { key: 'history',   label: 'History',   icon: '📋' },
-  { key: 'people',    label: 'People',    icon: '👥' },
-];
+const RootStack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
-export default function HomeScreen({ initialToken = null, initialSession = null }) {
+function MainTabNavigator({
+  token,
+  userEmail,
+  refreshTrigger,
+  handleUndo,
+  showToast,
+  handleTransactionMutated,
+  historyFilter,
+  setHistoryFilter,
+  selectedPersonId,
+  setSelectedPersonId,
+  handleClearChatHistory,
+  handleSignOut,
+  setVoiceSheetVisible,
+  rootNavigation,
+  initialTooltipVisible = null,
+}) {
+  const [currentTab, setCurrentTab] = useState('Home');
+  const [historySearchTrigger, setHistorySearchTrigger] = useState(0);
+  const [addPersonTrigger, setAddPersonTrigger] = useState(0);
+
+  return (
+    <SafeAreaView testID="home-screen" style={styles.screen} edges={['top', 'left', 'right']}>
+      <StatusBar style="dark" />
+
+      {/* ── App Header (identical on Home, History, People and Me per Stitch) ── */}
+      <AppHeader
+        screen={currentTab.toLowerCase()}
+        onSearchPress={() => {
+          setHistorySearchTrigger((prev) => prev + 1);
+        }}
+        onAddPersonPress={() => {
+          setAddPersonTrigger((prev) => prev + 1);
+        }}
+      />
+
+      {/* ── Tab Navigator with Custom 5-Slot Tab Bar ── */}
+      <View style={styles.tabContentContainer}>
+        <Tab.Navigator
+          tabBar={(tabProps) => (
+            <CustomTabBar
+              {...tabProps}
+              rootNavigation={rootNavigation}
+              initialTooltipVisible={initialTooltipVisible}
+            />
+          )}
+          screenOptions={{ headerShown: false }}
+          backBehavior="firstRoute"
+          screenListeners={{
+            state: (e) => {
+              const route = e.data?.state?.routes[e.data?.state?.index];
+              if (route?.name) setCurrentTab(route.name);
+            },
+          }}
+        >
+          <Tab.Screen name="Home">
+            {(props) => (
+              <Dashboard
+                {...props}
+                token={token}
+                refreshTrigger={refreshTrigger}
+                onUndo={handleUndo}
+                onShowToast={showToast}
+                onTransactionMutated={handleTransactionMutated}
+                onNavigateToHistory={(filter) => {
+                  setHistoryFilter(filter);
+                  props.navigation.navigate('History');
+                }}
+                onNavigateToPeople={(personId) => {
+                  setSelectedPersonId(personId);
+                  props.navigation.navigate('People');
+                }}
+              />
+            )}
+          </Tab.Screen>
+
+          <Tab.Screen name="History">
+            {(props) => (
+              <HistoryScreen
+                {...props}
+                token={token}
+                refreshTrigger={refreshTrigger}
+                initialFilter={historyFilter}
+                searchTrigger={historySearchTrigger}
+                onShowToast={showToast}
+                onTransactionMutated={handleTransactionMutated}
+                onBack={() => {
+                  setHistoryFilter(null);
+                  props.navigation.navigate('Home');
+                }}
+              />
+            )}
+          </Tab.Screen>
+
+          <Tab.Screen name="People">
+            {(props) => (
+              <PeopleScreen
+                {...props}
+                token={token}
+                refreshTrigger={refreshTrigger}
+                addPersonTrigger={addPersonTrigger}
+                showHeader={false}
+                initialContactId={selectedPersonId}
+                onShowToast={showToast}
+                onTransactionMutated={handleTransactionMutated}
+                onSelectPerson={(personId) => {
+                  rootNavigation.navigate('PersonDetail', { contactId: personId });
+                }}
+                onBack={() => {
+                  setSelectedPersonId(null);
+                  props.navigation.navigate('Home');
+                }}
+              />
+            )}
+          </Tab.Screen>
+
+          <Tab.Screen name="Me">
+            {(props) => (
+              <MeScreen
+                {...props}
+                token={token}
+                userEmail={userEmail}
+                onClearChatHistory={handleClearChatHistory}
+                onSignOut={handleSignOut}
+              />
+            )}
+          </Tab.Screen>
+        </Tab.Navigator>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function InnerHomeScreen({
+  initialToken = null,
+  initialSession = null,
+  initialTooltipVisible = null,
+}) {
   const [session, setSession] = useState(initialSession);
   const [token, setToken] = useState(initialToken || initialSession?.access_token || null);
   const [authChecking, setAuthChecking] = useState(!initialToken && !initialSession);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [voiceSheetVisible, setVoiceSheetVisible] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState(null);
+  const [selectedPersonId, setSelectedPersonId] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+  const [toastVisible, setToastVisible] = useState(false);
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  };
+
+  const [conversationMessages, setConversationMessages] = useState(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const cached = window.localStorage.getItem('pappu_chat_messages');
+        if (cached) return JSON.parse(cached);
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const handleUpdateMessages = (updater) => {
+    setConversationMessages((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem('pappu_chat_messages', JSON.stringify(next));
+        } catch (e) {}
+      }
+      return next;
+    });
+  };
+
+  const handleClearMessages = async () => {
+    setConversationMessages([]);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem('pappu_chat_messages');
+      } catch (e) {}
+    }
+    if (token && typeof clearChatHistory === 'function') {
+      try {
+        const p = clearChatHistory(token);
+        if (p && typeof p.then === 'function') await p;
+      } catch (e) {}
+    }
+  };
+
+  const handleClearChatHistory = async () => {
+    await handleClearMessages();
+    queryClient.invalidateQueries({ queryKey: queryKeys.chatHistory() });
+    showToast('Chat history cleared');
+  };
 
   useEffect(() => {
-    // Check existing active session on mount
     if (!initialToken && !initialSession) {
       getSession()
         .then((sess) => {
@@ -33,9 +241,7 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
             setToken(sess.access_token);
           }
         })
-        .catch(() => {
-          // No session found
-        })
+        .catch(() => {})
         .finally(() => {
           setAuthChecking(false);
         });
@@ -43,7 +249,6 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
       setAuthChecking(false);
     }
 
-    // Listen to Supabase auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
       setSession(currentSession);
       setToken(currentSession?.access_token || null);
@@ -54,19 +259,33 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     };
   }, [initialToken, initialSession]);
 
+  useEffect(() => {
+    if (!authChecking) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [authChecking]);
+
   const handleAuthenticated = (newSession) => {
     setSession(newSession);
-    setToken(newSession.access_token);
+    setToken(newSession?.access_token || null);
+    setHistoryFilter(null);
+    setSelectedPersonId(null);
   };
 
   const handleSignOut = async () => {
     try {
       await signOut();
+      queryClient.clear();
+      await handleClearMessages();
+      // Clear session chunks from secure store
+      try {
+        await removeChunkedItem('supabase-auth-token');
+      } catch (_e) {}
       setSession(null);
       setToken(null);
-    } catch (err) {
-      // Sign out error handling
-    }
+      setHistoryFilter(null);
+      setSelectedPersonId(null);
+    } catch (err) {}
   };
 
   const handleTransactionMutated = () => {
@@ -78,124 +297,152 @@ export default function HomeScreen({ initialToken = null, initialSession = null 
     try {
       await undoTransaction(token);
       handleTransactionMutated();
+      showToast('Action undone successfully');
     } catch (err) {
-      // Undo error
+      showToast(err.message || 'Failed to undo');
     }
   };
 
-  // ── Auth checking state ──
   if (authChecking) {
     return (
-      <SafeAreaView testID="auth-loading-screen" className="flex-1 bg-ink-navy items-center justify-center">
-        <ActivityIndicator size="large" color="#C9A227" />
-        <Text className="text-bone-darker font-sans mt-3 text-sm">Checking session…</Text>
+      <SafeAreaView testID="auth-loading-screen" style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.gold} />
       </SafeAreaView>
     );
   }
 
-  // ── Auth gate ──
-  if (!token) {
-    return <AuthScreen onAuthenticated={handleAuthenticated} />;
-  }
-
   const userEmail = session?.user?.email || 'Logged In';
 
-  // ── Render active tab content ──
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <Dashboard
-            token={token}
-            refreshTrigger={refreshTrigger}
-            onUndo={handleUndo}
-          />
-        );
-      case 'assistant':
-        return (
-          <ConversationLog
-            token={token}
-            onTransactionMutated={handleTransactionMutated}
-          />
-        );
-      case 'history':
-        return (
-          <HistoryScreen
-            token={token}
-            refreshTrigger={refreshTrigger}
-          />
-        );
-      case 'people':
-        return (
-          <PeopleScreen
-            token={token}
-            refreshTrigger={refreshTrigger}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
-    <SafeAreaView testID="home-screen" className="flex-1 bg-ink-navy">
-      {/* ── Header ── */}
-      <View className="px-5 py-3 flex-row justify-between items-center border-b border-ink-navy-lighter">
-        <Text
-          className="text-warm-brass text-xl font-bold tracking-tight"
-          style={{ fontFamily: 'Libre Baskerville, Georgia, serif' }}
-        >
-          Pappu
-        </Text>
-
-        <View className="flex-row items-center">
-          <Text testID="user-email-header" className="text-bone-darker font-sans text-xs mr-3" numberOfLines={1}>
-            {userEmail}
-          </Text>
-          <TouchableOpacity
-            testID="auth-signout-button"
-            onPress={handleSignOut}
-            className="py-1.5 px-3 rounded-lg border border-ink-navy-lighter active:bg-ink-navy-lighter"
-          >
-            <Text className="text-bone-darker font-sans text-xs font-medium">Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ── Tab Content ── */}
-      <View className="flex-1">
-        {renderTabContent()}
-      </View>
-
-      {/* ── Bottom Tab Bar ── */}
-      <View className="flex-row bg-ink-navy-light border-t border-ink-navy-lighter">
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              testID={`tab-${tab.key}`}
-              onPress={() => setActiveTab(tab.key)}
-              className="flex-1 items-center py-3"
-            >
-              <Text className={`text-lg mb-0.5 ${isActive ? '' : 'opacity-40'}`}>
-                {tab.icon}
-              </Text>
-              <Text
-                className={`font-sans text-[10px] font-medium uppercase tracking-wider ${
-                  isActive ? 'text-warm-brass' : 'text-bone-darker'
-                }`}
-              >
-                {tab.label}
-              </Text>
-              {/* Active indicator bar */}
-              {isActive && (
-                <View className="absolute top-0 left-4 right-4 h-[2px] bg-warm-brass rounded-full" />
+    <View style={styles.container}>
+      <RootStack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
+        }}
+      >
+        {!token ? (
+          <RootStack.Screen name="Auth">
+            {(props) => <AuthScreen {...props} onAuthenticated={handleAuthenticated} />}
+          </RootStack.Screen>
+        ) : (
+          <>
+            <RootStack.Screen name="Main">
+              {(props) => (
+                <MainTabNavigator
+                  {...props}
+                  token={token}
+                  userEmail={userEmail}
+                  refreshTrigger={refreshTrigger}
+                  handleUndo={handleUndo}
+                  showToast={showToast}
+                  handleTransactionMutated={handleTransactionMutated}
+                  historyFilter={historyFilter}
+                  setHistoryFilter={setHistoryFilter}
+                  selectedPersonId={selectedPersonId}
+                  setSelectedPersonId={setSelectedPersonId}
+                  handleClearChatHistory={handleClearChatHistory}
+                  handleSignOut={handleSignOut}
+                  setVoiceSheetVisible={setVoiceSheetVisible}
+                  rootNavigation={props.navigation}
+                  initialTooltipVisible={initialTooltipVisible}
+                />
               )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </SafeAreaView>
+            </RootStack.Screen>
+
+            {/* Assistant Modal Stack Screen over tabs */}
+            <RootStack.Screen
+              name="Assistant"
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+                headerShown: false,
+              }}
+            >
+              {(props) => (
+                <ConversationLog
+                  {...props}
+                  token={token}
+                  onTransactionMutated={handleTransactionMutated}
+                  messages={conversationMessages}
+                  setMessages={handleUpdateMessages}
+                  onClearMessages={handleClearMessages}
+                  onBack={() => props.navigation.goBack()}
+                />
+              )}
+            </RootStack.Screen>
+
+            {/* Person Detail Stack Screen */}
+            <RootStack.Screen
+              name="PersonDetail"
+              options={{
+                animation: 'slide_from_right',
+                headerShown: false,
+              }}
+            >
+              {(props) => (
+                <PersonDetailScreen
+                  {...props}
+                  token={token}
+                  onShowToast={showToast}
+                  onTransactionMutated={handleTransactionMutated}
+                />
+              )}
+            </RootStack.Screen>
+          </>
+        )}
+      </RootStack.Navigator>
+
+      {/* Toast Notification */}
+      <Toast
+        testID="home-toast"
+        visible={toastVisible}
+        message={toastMessage}
+        actionText="Undo"
+        onAction={handleUndo}
+        onDismiss={() => setToastVisible(false)}
+      />
+
+      {/* Voice Listening Sheet */}
+      <VoiceListeningSheet
+        visible={voiceSheetVisible}
+        onClose={() => setVoiceSheetVisible(false)}
+        token={token}
+        onTransactionMutated={handleTransactionMutated}
+        setMessages={handleUpdateMessages}
+      />
+    </View>
   );
 }
+
+export default function HomeScreen(props) {
+  const hasParentNavigation = React.useContext(NavigationContext);
+  if (hasParentNavigation) {
+    return <InnerHomeScreen {...props} />;
+  }
+  return (
+    <NavigationContainer>
+      <InnerHomeScreen {...props} />
+    </NavigationContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  screen: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabContentContainer: {
+    flex: 1,
+  },
+});

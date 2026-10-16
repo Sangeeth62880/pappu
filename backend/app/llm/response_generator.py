@@ -3,18 +3,7 @@ Bilingual spoken response generator for Pappu.
 Generates concise, natural spoken responses matching the user's input language (English / Malayalam / code-mixed).
 """
 
-import os
 from typing import Optional, Dict, Any
-
-RESPONSE_PROMPT_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "response_prompt.md"
-)
-
-
-def load_response_prompt() -> str:
-    """Load the versioned response prompt markdown template."""
-    with open(RESPONSE_PROMPT_PATH, "r", encoding="utf-8") as f:
-        return f.read()
 
 
 def generate_spoken_response(
@@ -56,13 +45,12 @@ def generate_spoken_response(
             else:
                 return f"Added {category} transaction for {formatted_amount}."
         elif action == "query":
-            count = execution_result.get("count", 0) if execution_result else matched_count
             if lang == "ml":
-                return f"{count} ഇടപാടുകൾ കണ്ടെത്തി."
+                return "വിവരങ്ങൾ ശേഖരിക്കുന്നു. വിശദാംശങ്ങൾ ചാറ്റിൽ കാണാം."
             elif lang == "mixed":
-                return f"{count} matching transactions കണ്ടെത്തിയിട്ടുണ്ട്."
+                return "Data fetch ചെയ്യുന്നുണ്ട്. Details chat-il kaanam."
             else:
-                return f"Found {count} matching transactions."
+                return "Fetching your data. Details are displayed below."
         elif action in ("edit", "delete"):
             if lang == "ml":
                 return f"ഇടപാട് വിജയകരമായി { 'തിരുത്തി' if action == 'edit' else 'ഡിലീറ്റ് ചെയ്തു'}."

@@ -11,7 +11,7 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_recycle=300,
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
 Base = declarative_base()
 
 def check_db_connection() -> bool:
@@ -59,6 +59,34 @@ def init_db(bind_engine=None):
                     ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
                     DROP POLICY IF EXISTS "Users can manage their own transactions" ON transactions;
                     CREATE POLICY "Users can manage their own transactions" ON transactions
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
+
+                    ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own chat messages" ON chat_messages;
+                    CREATE POLICY "Users can manage their own chat messages" ON chat_messages
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
+
+                    ALTER TABLE undo_actions ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own undo actions" ON undo_actions;
+                    CREATE POLICY "Users can manage their own undo actions" ON undo_actions
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
+
+                    ALTER TABLE assistant_traces ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own traces" ON assistant_traces;
+                    CREATE POLICY "Users can manage their own traces" ON assistant_traces
+                        FOR ALL
+                        USING (user_id = auth.uid())
+                        WITH CHECK (user_id = auth.uid());
+
+                    ALTER TABLE pending_actions ENABLE ROW LEVEL SECURITY;
+                    DROP POLICY IF EXISTS "Users can manage their own pending actions" ON pending_actions;
+                    CREATE POLICY "Users can manage their own pending actions" ON pending_actions
                         FOR ALL
                         USING (user_id = auth.uid())
                         WITH CHECK (user_id = auth.uid());

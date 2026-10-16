@@ -1,0 +1,738 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Pappu Design System — Voice &amp; Text Assistant</title>
+<!-- Tailwind CSS v3 CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Baloo Chettan 2, Nunito, Noto Sans Malayalam -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@600;700;800&amp;family=Noto+Sans+Malayalam:wght@600;700&amp;family=Nunito:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<!-- Tailwind Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            appBg: '#FFF8E7',
+            surface: '#FFFFFF',
+            borderCream: '#F0E4C8',
+            gold: '#FFC83D',
+            goldEdge: '#D99A00',
+            ink: '#1F2937',
+            inkMuted: '#6B7280',
+            income: '#1F8A5B',
+            expense: '#E5484D',
+            expenseEdge: '#B4232A',
+            tealAccent: '#0E7C86',
+            violetTint: '#8B5CF6'
+          },
+          fontFamily: {
+            baloo: ['"Baloo Chettan 2"', 'sans-serif'],
+            nunito: ['"Nunito"', 'sans-serif'],
+            malayalam: ['"Noto Sans Malayalam"', '"Nunito"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles for Scrollbars and Mascot Micro-details -->
+<style data-purpose="custom-layout">
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .phone-container {
+      width: 390px;
+      min-width: 390px;
+      height: 844px;
+      max-height: 844px;
+    }
+    .dot-flashing {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #D99A00;
+      margin: 0 2px;
+    }
+  </style>
+</head>
+<body class="bg-[#F5EFE0] text-ink font-nunito antialiased min-h-screen py-10 px-4 flex flex-col items-center">
+<!-- BEGIN: CanvasHeader -->
+<header class="text-center mb-10 max-w-4xl" data-purpose="canvas-header">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-white border-2 border-borderCream rounded-full text-xs font-bold text-inkMuted uppercase tracking-wider mb-3">
+      Design Lock Verified • Reference Sheet Compliant
+    </div>
+<h1 class="font-baloo text-3xl md:text-4xl font-extrabold text-ink leading-tight">
+      Pappu Design System — Voice &amp; Text Assistant
+    </h1>
+<p class="font-nunito font-semibold text-inkMuted text-sm md:text-base mt-2">
+      390×844px Mobile Sheet • Strict Design Lock Compliance • 4 Distinct Assistant States
+    </p>
+</header>
+<!-- END: CanvasHeader -->
+<!-- BEGIN: PresentationGrid -->
+<main class="w-full max-w-[1680px] overflow-x-auto pb-8 no-scrollbar" data-purpose="multi-frame-showcase">
+<div class="flex items-start justify-center gap-8 min-w-max mx-auto px-4">
+<!-- ========================================== -->
+<!-- FRAME 1: LISTENING STATE (DEFAULT)         -->
+<!-- ========================================== -->
+<section class="flex flex-col items-center" data-purpose="frame-1-listening">
+<!-- Phone Frame Wrapper -->
+<div class="phone-container rounded-[40px] border-[8px] border-ink bg-appBg flex flex-col overflow-hidden relative shadow-none">
+<!-- Top Bar -->
+<div class="h-14 px-5 flex items-center justify-between shrink-0">
+<!-- 40px Circle Close Button -->
+<button aria-label="Close Assistant" class="w-10 h-10 rounded-full bg-white border-2 border-borderCream flex items-center justify-center text-ink active:scale-95 transition-transform" type="button">
+<svg fill="none" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" width="20">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+<div class="text-xs font-nunito font-bold text-inkMuted">6:17 PM</div>
+</div>
+<!-- Mascot Header: Listening Pose -->
+<div class="flex flex-col items-center pt-1 pb-3 shrink-0">
+<!-- SVG Pappu Listening (120px) -->
+<div class="w-[120px] h-[120px] relative">
+<svg fill="none" height="120" viewBox="0 0 120 120" width="120" xmlns="http://www.w3.org/2000/svg">
+<!-- Legs (stroke-width 6 noodle legs y=94 to y=108) -->
+<path d="M48 94 V108" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<path d="M72 94 V108" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<!-- Shoes / Feet -->
+<path d="M50 112 H42 A5 5 0 0 1 37 107 A5 5 0 0 1 42 102 H50 A3 3 0 0 1 53 105 V109 A3 3 0 0 1 50 112 Z" fill="#1F2937"></path>
+<path d="M70 112 H78 A5 5 0 0 0 83 107 A5 5 0 0 0 78 102 H70 A3 3 0 0 0 67 105 V109 A3 3 0 0 0 70 112 Z" fill="#1F2937"></path>
+<!-- Left Noodle Arm: on hip -->
+<path d="M26 62 C16 68 18 80 28 78" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<circle cx="28" cy="78" fill="#1F2937" r="6"></circle>
+<!-- Right Noodle Arm: raised to ear listening -->
+<path d="M94 62 C104 56 102 44 94 40" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<circle cx="94" cy="40" fill="#1F2937" r="6"></circle>
+<!-- Listening Audio Wave Arc -->
+<path d="M103 30 C109 35 111 45 105 52" fill="none" stroke="#0E7C86" stroke-linecap="round" stroke-width="3"></path>
+<!-- Main Coin Body -->
+<circle cx="60" cy="54" fill="#FFC83D" r="42" stroke="#1F2937" stroke-width="4"></circle>
+<!-- Inner Rim Ring -->
+<circle cx="60" cy="54" fill="none" r="34" stroke="#D99A00" stroke-width="2"></circle>
+<!-- Embossed Rupee Sign on Forehead -->
+<text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="14" font-weight="800" text-anchor="middle" x="60" y="32">₹</text>
+<!-- Left Eye (Attentive/Curious) -->
+<ellipse cx="47" cy="52" fill="#FFFFFF" rx="7" ry="9" stroke="#1F2937" stroke-width="2.5"></ellipse>
+<circle cx="48" cy="52" fill="#1F2937" r="4"></circle>
+<circle cx="46.5" cy="49.5" fill="#FFFFFF" r="1.5"></circle>
+<!-- Right Eye -->
+<ellipse cx="73" cy="52" fill="#FFFFFF" rx="7" ry="9" stroke="#1F2937" stroke-width="2.5"></ellipse>
+<circle cx="74" cy="52" fill="#1F2937" r="4"></circle>
+<circle cx="72.5" cy="49.5" fill="#FFFFFF" r="1.5"></circle>
+<!-- Smile -->
+<path d="M54 66 C57 70 63 70 66 66" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+</div>
+<!-- Caption -->
+<p class="font-nunito font-bold text-[13px] text-inkMuted mt-1">Listening…</p>
+</div>
+<!-- Chat Conversation Scroll Area -->
+<div class="flex-1 px-5 overflow-y-auto no-scrollbar space-y-3 pb-2">
+<!-- User Bubble 1 -->
+<div class="flex flex-col items-end">
+<div class="max-w-[80%] bg-gold text-ink font-nunito font-semibold text-[15px] leading-snug rounded-[20px] px-4 py-2.5">
+                Change my last transaction to 300.
+              </div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 mr-1">6:16 PM</span>
+</div>
+<!-- Pappu Response 1 -->
+<div class="flex flex-col items-start">
+<div class="flex items-start gap-2 max-w-[88%]">
+<!-- Mascot 32px Mini Avatar -->
+<div class="w-8 h-8 rounded-full bg-gold border-2 border-ink flex-shrink-0 flex items-center justify-center relative mt-0.5 overflow-hidden">
+<span class="font-baloo font-extrabold text-[10px] text-ink leading-none mt-[-1px]">₹</span>
+</div>
+<!-- Bubble -->
+<div class="bg-white border-2 border-borderCream rounded-[20px] px-4 py-2.5 text-ink font-nunito font-semibold text-[15px] flex items-center gap-2">
+<span class="">Done. Rahul's ₹300 is updated.</span>
+<!-- Inline 20px Speaker Icon -->
+<svg class="w-5 h-5 text-ink shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+<path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+</svg>
+</div>
+</div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 ml-10">6:16 PM</span>
+</div>
+<!-- User Bubble 2 -->
+<div class="flex flex-col items-end">
+<div class="max-w-[80%] bg-gold text-ink font-nunito font-semibold text-[15px] leading-snug rounded-[20px] px-4 py-2.5">
+                Delete the last transaction
+              </div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 mr-1">6:17 PM</span>
+</div>
+<!-- Pappu Confirmation Action Card -->
+<div class="flex items-start gap-2 max-w-[94%]">
+<!-- Mini Avatar -->
+<div class="w-8 h-8 rounded-full bg-gold border-2 border-ink flex-shrink-0 flex items-center justify-center relative mt-1">
+<span class="font-baloo font-extrabold text-[10px] text-ink leading-none">₹</span>
+</div>
+<!-- Card Body -->
+<div class="bg-white border-2 border-borderCream rounded-[20px] p-3.5 w-full">
+<h2 class="font-baloo font-bold text-[16px] text-ink leading-tight mb-3">
+                  Delete ₹300 to Rahul on 14 Oct?
+                </h2>
+<!-- Transaction Mini Row -->
+<div class="flex items-center justify-between pb-3.5 border-b border-borderCream">
+<div class="flex items-center gap-2.5">
+<div class="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violetTint border border-violet-200">
+<svg fill="none" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="20">
+<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+<circle cx="12" cy="7" r="4"></circle>
+</svg>
+</div>
+<div>
+<p class="font-nunito font-bold text-[15px] text-ink leading-tight">Rahul</p>
+<p class="font-nunito font-semibold text-[12px] text-inkMuted">14 Oct</p>
+</div>
+</div>
+<div class="font-baloo font-bold text-[18px] text-expense leading-none">
+                    -₹300
+                  </div>
+</div>
+<!-- Action Buttons: Delete & Keep It -->
+<div class="flex items-center gap-2.5 pt-3">
+<!-- Destructive Button: 52px height, 4px edge -->
+<button class="flex-1 h-[52px] bg-expense border-b-4 border-expenseEdge text-white font-baloo font-bold text-[17px] rounded-[16px] px-3 flex items-center justify-center active:translate-y-0.5 whitespace-nowrap" type="button">
+                    Delete
+                  </button>
+<!-- Secondary Button: 52px height, 4px edge -->
+<button class="flex-1 h-[52px] bg-white border-2 border-borderCream border-b-4 text-ink font-baloo font-bold text-[17px] rounded-[16px] px-3 flex items-center justify-center active:translate-y-0.5 whitespace-nowrap" type="button">
+                    Keep it
+                  </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Suggestion Chips Row -->
+<div class="px-5 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap active:bg-amber-50">
+              Sent 500 to Pooja
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-malayalam font-semibold text-ink whitespace-nowrap active:bg-amber-50">
+              ചായ 20 രൂപ
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap active:bg-amber-50">
+              Food this week?
+            </button>
+</div>
+<!-- Bottom Input Bar -->
+<div class="px-5 pb-5 pt-1 relative shrink-0">
+<div class="relative flex items-center">
+<!-- Text Input Pill -->
+<div class="h-14 w-full rounded-full bg-white border-2 border-borderCream pl-4 pr-16 flex items-center gap-3">
+<!-- Keyboard Outline Icon -->
+<svg class="w-5 h-5 text-inkMuted shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<rect height="16" rx="2" ry="2" width="20" x="2" y="4"></rect>
+<line x1="6" x2="6" y1="8" y2="8"></line>
+<line x1="10" x2="10" y1="8" y2="8"></line>
+<line x1="14" x2="14" y1="8" y2="8"></line>
+<line x1="18" x2="18" y1="8" y2="8"></line>
+<line x1="6" x2="6" y1="12" y2="12"></line>
+<line x1="10" x2="10" y1="12" y2="12"></line>
+<line x1="14" x2="14" y1="12" y2="12"></line>
+<line x1="18" x2="18" y1="12" y2="12"></line>
+<line x1="7" x2="17" y1="16" y2="16"></line>
+</svg>
+<span class="text-[14px] font-nunito font-semibold text-inkMuted truncate">
+                  Type or hold the coin to talk
+                </span>
+</div>
+<!-- 72px Coin Mic Button Overlapping -->
+<button aria-label="Hold to talk" class="absolute -right-1 w-[70px] h-[70px] rounded-full bg-gold border-[3.5px] border-ink border-b-[6px] border-b-goldEdge flex flex-col items-center justify-center active:scale-95 transition-transform z-10" type="button">
+<!-- Pappu Face in Mic Button -->
+<div class="w-8 h-8 relative flex items-center justify-center">
+<div class="font-baloo font-extrabold text-[9px] text-goldEdge absolute top-0">₹</div>
+<!-- Mini Eyes -->
+<div class="flex items-center gap-2 mt-2">
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+</div>
+</div>
+<!-- Mic Icon under mouth -->
+<svg class="w-3.5 h-3.5 text-ink -mt-0.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+<path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+<line x1="12" x2="12" y1="19" y2="23"></line>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<!-- Frame Label -->
+<div class="text-center mt-4">
+<h2 class="font-baloo font-bold text-lg text-ink">State 1: Assistant — Listening</h2>
+<p class="font-nunito font-semibold text-xs text-inkMuted">Default voice capture with interactive action confirmation</p>
+</div>
+</section>
+<!-- ========================================== -->
+<!-- FRAME 2: THINKING STATE                    -->
+<!-- ========================================== -->
+<section class="flex flex-col items-center" data-purpose="frame-2-thinking">
+<div class="phone-container rounded-[40px] border-[8px] border-ink bg-appBg flex flex-col overflow-hidden relative shadow-none">
+<!-- Top Bar -->
+<div class="h-14 px-5 flex items-center justify-between shrink-0">
+<button aria-label="Close Assistant" class="w-10 h-10 rounded-full bg-white border-2 border-borderCream flex items-center justify-center text-ink" type="button">
+<svg fill="none" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" width="20">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+<div class="text-xs font-nunito font-bold text-inkMuted">6:17 PM</div>
+</div>
+<!-- Mascot Header: Thinking Pose -->
+<div class="flex flex-col items-center pt-1 pb-3 shrink-0">
+<!-- SVG Pappu Thinking (120px) -->
+<div class="w-[120px] h-[120px] relative">
+<svg fill="none" height="120" viewBox="0 0 120 120" width="120" xmlns="http://www.w3.org/2000/svg">
+<!-- Legs (stroke-width 6 noodle legs y=94 to y=108) -->
+<path d="M48 94 V108" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<path d="M72 94 V108" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<!-- Shoes / Feet -->
+<path d="M50 112 H42 A5 5 0 0 1 37 107 A5 5 0 0 1 42 102 H50 A3 3 0 0 1 53 105 V109 A3 3 0 0 1 50 112 Z" fill="#1F2937"></path>
+<path d="M70 112 H78 A5 5 0 0 0 83 107 A5 5 0 0 0 78 102 H70 A3 3 0 0 0 67 105 V109 A3 3 0 0 0 70 112 Z" fill="#1F2937"></path>
+<!-- Thought Dots -->
+<circle cx="88" cy="22" fill="#1F2937" opacity="0.8" r="3.5"></circle>
+<circle cx="96" cy="14" fill="#1F2937" opacity="0.8" r="5"></circle>
+<!-- Left Arm: Hand scratching chin -->
+<path d="M32 72 C26 62 30 52 42 62" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<circle cx="42" cy="62" fill="#1F2937" r="6"></circle>
+<!-- Right Arm: Noodle resting downwards -->
+<path d="M88 70 C92 78 86 86 82 88" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<circle cx="82" cy="88" fill="#1F2937" r="6"></circle>
+<!-- Coin Tilted for Pensive Look -->
+<g transform="rotate(7 60 54)">
+<!-- Main Coin Body -->
+<circle cx="60" cy="54" fill="#FFC83D" r="42" stroke="#1F2937" stroke-width="4"></circle>
+<!-- Inner Rim Ring -->
+<circle cx="60" cy="54" fill="none" r="34" stroke="#D99A00" stroke-width="2"></circle>
+<!-- Embossed Rupee Sign on Forehead -->
+<text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="14" font-weight="800" text-anchor="middle" x="60" y="32">₹</text>
+<!-- Eyes looking upper-right -->
+<ellipse cx="47" cy="52" fill="#FFFFFF" rx="7" ry="9" stroke="#1F2937" stroke-width="2.5"></ellipse>
+<circle cx="50" cy="49" fill="#1F2937" r="4"></circle>
+<circle cx="50" cy="47" fill="#FFFFFF" r="1.5"></circle>
+<ellipse cx="73" cy="52" fill="#FFFFFF" rx="7" ry="9" stroke="#1F2937" stroke-width="2.5"></ellipse>
+<circle cx="76" cy="49" fill="#1F2937" r="4"></circle>
+<circle cx="76" cy="47" fill="#FFFFFF" r="1.5"></circle>
+<!-- Pensive Mouth -->
+<path d="M56 67 Q60 65 66 68" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="3"></path>
+</g>
+</svg>
+</div>
+<!-- Caption -->
+<p class="font-nunito font-bold text-[13px] text-inkMuted mt-1">One sec…</p>
+</div>
+<!-- Chat Conversation -->
+<div class="flex-1 px-5 overflow-y-auto no-scrollbar space-y-3 pb-2">
+<!-- User Bubble 1 -->
+<div class="flex flex-col items-end">
+<div class="max-w-[80%] bg-gold text-ink font-nunito font-semibold text-[15px] leading-snug rounded-[20px] px-4 py-2.5">
+                Change my last transaction to 300.
+              </div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 mr-1">6:16 PM</span>
+</div>
+<!-- Pappu Response 1 -->
+<div class="flex flex-col items-start">
+<div class="flex items-start gap-2 max-w-[88%]">
+<div class="w-8 h-8 rounded-full bg-gold border-2 border-ink flex-shrink-0 flex items-center justify-center mt-0.5">
+<span class="font-baloo font-extrabold text-[10px] text-ink">₹</span>
+</div>
+<div class="bg-white border-2 border-borderCream rounded-[20px] px-4 py-2.5 text-ink font-nunito font-semibold text-[15px] flex items-center gap-2">
+<span class="">Done. Rahul's ₹300 is updated.</span>
+<svg class="w-5 h-5 text-ink shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+<path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+</svg>
+</div>
+</div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 ml-10">6:16 PM</span>
+</div>
+<!-- User Bubble 2 -->
+<div class="flex flex-col items-end">
+<div class="max-w-[80%] bg-gold text-ink font-nunito font-semibold text-[15px] leading-snug rounded-[20px] px-4 py-2.5">
+                Delete the last transaction
+              </div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 mr-1">6:17 PM</span>
+</div>
+<!-- Pappu Typing Bubble with 3 Bouncing Dots -->
+<div class="flex items-start gap-2 max-w-[85%] pt-1">
+<div class="w-8 h-8 rounded-full bg-gold border-2 border-ink flex-shrink-0 flex items-center justify-center mt-0.5">
+<span class="font-baloo font-extrabold text-[10px] text-ink">₹</span>
+</div>
+<div class="bg-white border-2 border-borderCream rounded-[20px] px-5 py-3.5 flex items-center space-x-1.5">
+<span class="dot-flashing animate-pulse"></span>
+<span class="dot-flashing animate-pulse delay-150"></span>
+<span class="dot-flashing animate-pulse delay-300"></span>
+</div>
+</div>
+</div>
+<!-- Suggestion Chips Row -->
+<div class="px-5 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap">
+              Sent 500 to Pooja
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-malayalam font-semibold text-ink whitespace-nowrap">
+              ചായ 20 രൂപ
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap">
+              Food this week?
+            </button>
+</div>
+<!-- Bottom Input Bar -->
+<div class="px-5 pb-5 pt-1 relative shrink-0">
+<div class="relative flex items-center">
+<div class="h-14 w-full rounded-full bg-white border-2 border-borderCream pl-4 pr-16 flex items-center gap-3">
+<svg class="w-5 h-5 text-inkMuted shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<rect height="16" rx="2" ry="2" width="20" x="2" y="4"></rect>
+<line x1="7" x2="17" y1="16" y2="16"></line>
+</svg>
+<span class="text-[14px] font-nunito font-semibold text-inkMuted truncate">
+                  Type or hold the coin to talk
+                </span>
+</div>
+<button aria-label="Hold to talk" class="absolute -right-1 w-[70px] h-[70px] rounded-full bg-gold border-[3.5px] border-ink border-b-[6px] border-b-goldEdge flex flex-col items-center justify-center" type="button">
+<div class="w-8 h-8 relative flex items-center justify-center">
+<div class="font-baloo font-extrabold text-[9px] text-goldEdge absolute top-0">₹</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+</div>
+</div>
+<svg class="w-3.5 h-3.5 text-ink -mt-0.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+<path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<div class="text-center mt-4">
+<h2 class="font-baloo font-bold text-lg text-ink">State 2: Assistant — Thinking</h2>
+<p class="font-nunito font-semibold text-xs text-inkMuted">Natural query parsing &amp; database lookup state</p>
+</div>
+</section>
+<!-- ========================================== -->
+<!-- FRAME 3: SPEAKING STATE                    -->
+<!-- ========================================== -->
+<section class="flex flex-col items-center" data-purpose="frame-3-speaking">
+<div class="phone-container rounded-[40px] border-[8px] border-ink bg-appBg flex flex-col overflow-hidden relative shadow-none">
+<!-- Top Bar -->
+<div class="h-14 px-5 flex items-center justify-between shrink-0">
+<button aria-label="Close Assistant" class="w-10 h-10 rounded-full bg-white border-2 border-borderCream flex items-center justify-center text-ink" type="button">
+<svg fill="none" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" width="20">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+<div class="text-xs font-nunito font-bold text-inkMuted">6:17 PM</div>
+</div>
+<!-- Mascot Header: Speaking Pose -->
+<div class="flex flex-col items-center pt-1 pb-3 shrink-0">
+<!-- SVG Pappu Speaking (120px) -->
+<div class="w-[120px] h-[120px] relative">
+<svg fill="none" height="120" viewBox="0 0 120 120" width="120" xmlns="http://www.w3.org/2000/svg">
+<!-- Legs (stroke-width 6 noodle legs y=94 to y=108) -->
+<path d="M48 94 V108" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<path d="M72 94 V108" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<!-- Shoes / Feet -->
+<path d="M50 112 H42 A5 5 0 0 1 37 107 A5 5 0 0 1 42 102 H50 A3 3 0 0 1 53 105 V109 A3 3 0 0 1 50 112 Z" fill="#1F2937"></path>
+<path d="M70 112 H78 A5 5 0 0 0 83 107 A5 5 0 0 0 78 102 H70 A3 3 0 0 0 67 105 V109 A3 3 0 0 0 70 112 Z" fill="#1F2937"></path>
+<!-- Left Arm: Relaxed down -->
+<path d="M26 62 C18 68 20 80 28 78" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<circle cx="28" cy="78" fill="#1F2937" r="6"></circle>
+<!-- Right Arm: Raised animated speaking gesture -->
+<path d="M94 62 C102 52 104 42 98 36" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="6"></path>
+<circle cx="98" cy="36" fill="#1F2937" r="6"></circle>
+<!-- Speech Accent Marks (Teal) -->
+<path d="M102 28 L110 22" stroke="#0E7C86" stroke-linecap="round" stroke-width="3"></path>
+<path d="M106 34 L112 32" stroke="#0E7C86" stroke-linecap="round" stroke-width="3"></path>
+<!-- Main Coin Body -->
+<circle cx="60" cy="54" fill="#FFC83D" r="42" stroke="#1F2937" stroke-width="4"></circle>
+<!-- Inner Rim Ring -->
+<circle cx="60" cy="54" fill="none" r="34" stroke="#D99A00" stroke-width="2"></circle>
+<!-- Embossed Rupee Sign on Forehead -->
+<text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="14" font-weight="800" text-anchor="middle" x="60" y="32">₹</text>
+<!-- Left Eye -->
+<ellipse cx="47" cy="52" fill="#FFFFFF" rx="7" ry="9" stroke="#1F2937" stroke-width="2.5"></ellipse>
+<circle cx="48" cy="52" fill="#1F2937" r="4"></circle>
+<circle cx="46.5" cy="49.5" fill="#FFFFFF" r="1.5"></circle>
+<!-- Right Eye -->
+<ellipse cx="73" cy="52" fill="#FFFFFF" rx="7" ry="9" stroke="#1F2937" stroke-width="2.5"></ellipse>
+<circle cx="74" cy="52" fill="#1F2937" r="4"></circle>
+<circle cx="72.5" cy="49.5" fill="#FFFFFF" r="1.5"></circle>
+<!-- Speaking Animated Open Mouth "O" -->
+<ellipse cx="60" cy="68" fill="#1F2937" rx="5" ry="6.5"></ellipse>
+</svg>
+</div>
+<!-- Caption -->
+<p class="font-nunito font-bold text-[13px] text-inkMuted mt-1">Pappu is talking</p>
+</div>
+<!-- Chat Area -->
+<div class="flex-1 px-5 overflow-y-auto no-scrollbar space-y-3 pb-2">
+<!-- User Prompt -->
+<div class="flex flex-col items-end">
+<div class="max-w-[80%] bg-gold text-ink font-nunito font-semibold text-[15px] leading-snug rounded-[20px] px-4 py-2.5">
+                Did I pay Rahul today?
+              </div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 mr-1">6:17 PM</span>
+</div>
+<!-- Pappu Speaking Bubble with Active Sound Waves -->
+<div class="flex flex-col items-start">
+<div class="flex items-start gap-2 max-w-[90%]">
+<div class="w-8 h-8 rounded-full bg-gold border-2 border-ink flex-shrink-0 flex items-center justify-center mt-0.5">
+<span class="font-baloo font-extrabold text-[10px] text-ink">₹</span>
+</div>
+<!-- Bubble with active audio playback styling -->
+<div class="bg-white border-2 border-borderCream rounded-[20px] px-4 py-3 text-ink font-nunito font-semibold text-[15px] leading-relaxed shadow-none">
+<p class="mb-2">Yes, you sent ₹300 to Rahul at 4:15 PM under Other expenses.</p>
+<!-- Voice wave bar & speaker -->
+<div class="flex items-center justify-between pt-2 border-t border-borderCream/60">
+<div class="flex items-center gap-1">
+<span class="w-1 h-3.5 bg-tealAccent rounded-full animate-bounce"></span>
+<span class="w-1 h-5 bg-tealAccent rounded-full animate-bounce delay-75"></span>
+<span class="w-1 h-2 bg-tealAccent rounded-full animate-bounce delay-150"></span>
+<span class="w-1 h-6 bg-tealAccent rounded-full animate-bounce delay-100"></span>
+<span class="w-1 h-3 bg-tealAccent rounded-full animate-bounce delay-200"></span>
+<span class="w-1 h-4 bg-tealAccent rounded-full animate-bounce delay-75"></span>
+</div>
+<div class="flex items-center gap-1.5 text-tealAccent font-nunito font-bold text-[12px]">
+<span class="">Playing audio</span>
+<svg class="w-4 h-4 text-tealAccent" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+<path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+<path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+</svg>
+</div>
+</div>
+</div>
+</div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 ml-10">6:17 PM</span>
+</div>
+<!-- Follow-up Suggestion Bubble -->
+<div class="flex flex-col items-start ml-10">
+<div class="bg-amber-50/80 border border-borderCream rounded-[16px] px-3.5 py-2 text-inkMuted font-nunito font-semibold text-[13px]">
+                Rahul currently owes you ₹6,700 overall.
+              </div>
+</div>
+</div>
+<!-- Suggestion Chips Row -->
+<div class="px-5 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap">
+              See Rahul's history
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-malayalam font-semibold text-ink whitespace-nowrap">
+              ബാക്കി തുക എത്ര?
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap">
+              Remind Rahul
+            </button>
+</div>
+<!-- Bottom Input Bar -->
+<div class="px-5 pb-5 pt-1 relative shrink-0">
+<div class="relative flex items-center">
+<div class="h-14 w-full rounded-full bg-white border-2 border-borderCream pl-4 pr-16 flex items-center gap-3">
+<svg class="w-5 h-5 text-inkMuted shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<rect height="16" rx="2" ry="2" width="20" x="2" y="4"></rect>
+<line x1="7" x2="17" y1="16" y2="16"></line>
+</svg>
+<span class="text-[14px] font-nunito font-semibold text-inkMuted truncate">
+                  Type or hold the coin to talk
+                </span>
+</div>
+<button aria-label="Hold to talk" class="absolute -right-1 w-[70px] h-[70px] rounded-full bg-gold border-[3.5px] border-ink border-b-[6px] border-b-goldEdge flex flex-col items-center justify-center" type="button">
+<div class="w-8 h-8 relative flex items-center justify-center">
+<div class="font-baloo font-extrabold text-[9px] text-goldEdge absolute top-0">₹</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+</div>
+</div>
+<svg class="w-3.5 h-3.5 text-ink -mt-0.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+<path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<div class="text-center mt-4">
+<h2 class="font-baloo font-bold text-lg text-ink">State 3: Assistant — Speaking</h2>
+<p class="font-nunito font-semibold text-xs text-inkMuted">Active TTS voice playback with waveform and transcript</p>
+</div>
+</section>
+<!-- ========================================== -->
+<!-- FRAME 4: CONFUSED / RETRY STATE           -->
+<!-- ========================================== -->
+<section class="flex flex-col items-center" data-purpose="frame-4-confused">
+<div class="phone-container rounded-[40px] border-[8px] border-ink bg-appBg flex flex-col overflow-hidden relative shadow-none">
+<!-- Top Bar -->
+<div class="h-14 px-5 flex items-center justify-between shrink-0">
+<button aria-label="Close Assistant" class="w-10 h-10 rounded-full bg-white border-2 border-borderCream flex items-center justify-center text-ink" type="button">
+<svg fill="none" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" width="20">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+<div class="text-xs font-nunito font-bold text-inkMuted">6:18 PM</div>
+</div>
+<!-- Mascot Header: Confused Pose with Question Mark & Retry Button -->
+<div class="flex flex-col items-center pt-1 pb-3 shrink-0">
+<!-- SVG Pappu Confused (120px) -->
+<div class="w-[120px] h-[120px] relative">
+<svg fill="none" height="120" viewBox="0 0 120 120" width="120" xmlns="http://www.w3.org/2000/svg">
+<!-- Feet & Legs -->
+<ellipse cx="49" cy="113" fill="#1F2937" rx="7" ry="5"></ellipse>
+<ellipse cx="71" cy="113" fill="#1F2937" rx="7" ry="5"></ellipse>
+<path d="M49 100 V110" stroke="#1F2937" stroke-linecap="round" stroke-width="5"></path>
+<path d="M71 100 V110" stroke="#1F2937" stroke-linecap="round" stroke-width="5"></path>
+<!-- Shrug Pose: Arms flared outward both sides with open palms -->
+<path d="M28 65 C16 66 18 80 24 82" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="5"></path>
+<ellipse cx="23" cy="80" fill="#1F2937" rx="5" ry="4"></ellipse>
+<path d="M92 65 C104 66 102 80 96 82" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="5"></path>
+<ellipse cx="97" cy="80" fill="#1F2937" rx="5" ry="4"></ellipse>
+<!-- Red question mark floating above head -->
+<text fill="#E5484D" font-family="'Baloo Chettan 2', sans-serif" font-size="19" font-weight="800" x="76" y="22">?</text>
+<!-- Coin tilted slightly left -->
+<g transform="rotate(-5 60 58)">
+<!-- Main Coin Body -->
+<circle cx="60" cy="58" fill="#FFC83D" r="42" stroke="#1F2937" stroke-width="4"></circle>
+<circle cx="60" cy="58" fill="none" r="34" stroke="#D99A00" stroke-width="2"></circle>
+<!-- Rupee Forehead -->
+<text fill="#D99A00" font-family="'Baloo Chettan 2', sans-serif" font-size="13" font-weight="800" text-anchor="middle" x="60" y="38">₹</text>
+<!-- Asymmetrical Eyes / Eyebrows: One raised, one straight -->
+<path d="M42 42 Q48 40 53 43" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="2.5"></path>
+<ellipse cx="48" cy="53" fill="#FFFFFF" rx="7" ry="8" stroke="#1F2937" stroke-width="2"></ellipse>
+<ellipse cx="49" cy="53" fill="#1F2937" rx="4.5" ry="5"></ellipse>
+<circle cx="47" cy="50" fill="#FFFFFF" r="1.8"></circle>
+<!-- Right Eye higher arched brow -->
+<path d="M66 38 Q72 34 78 39" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="2.5"></path>
+<ellipse cx="72" cy="53" fill="#FFFFFF" rx="7" ry="9" stroke="#1F2937" stroke-width="2"></ellipse>
+<ellipse cx="73" cy="53" fill="#1F2937" rx="4.5" ry="5.5"></ellipse>
+<circle cx="71" cy="50" fill="#FFFFFF" r="2"></circle>
+<!-- Confused wavy / straight small mouth -->
+<path d="M53 72 Q60 69 67 73" fill="none" stroke="#1F2937" stroke-linecap="round" stroke-width="3"></path>
+</g>
+</svg>
+</div>
+<!-- Caption -->
+<p class="font-nunito font-bold text-[13px] text-inkMuted mt-1">Didn't catch that. Try again?</p>
+<!-- Secondary Retry Button: 44px height, 4px edge -->
+<button class="mt-2 h-11 px-5 bg-white border-2 border-borderCream border-b-4 rounded-[16px] font-baloo font-bold text-[15px] text-ink inline-flex items-center gap-2 active:translate-y-0.5" type="button">
+<svg class="w-4 h-4 text-ink" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<polyline points="1 4 1 10 7 10"></polyline>
+<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+</svg>
+<span class="">Try again</span>
+</button>
+</div>
+<!-- Chat Area -->
+<div class="flex-1 px-5 overflow-y-auto no-scrollbar space-y-3 pb-2">
+<!-- Previous Conversation History -->
+<div class="flex flex-col items-end">
+<div class="max-w-[80%] bg-gold text-ink font-nunito font-semibold text-[15px] leading-snug rounded-[20px] px-4 py-2.5">
+                Sent 500 to Pooja
+              </div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 mr-1">6:17 PM</span>
+</div>
+<!-- Inaudible user audio record representation -->
+<div class="flex flex-col items-end">
+<div class="bg-amber-200/50 border border-goldEdge/40 text-ink font-nunito font-semibold text-[14px] rounded-[18px] px-3.5 py-2 flex items-center gap-2">
+<svg class="w-4 h-4 text-inkMuted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+<path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+</svg>
+<span class="italic text-inkMuted">"••• [Unclear audio] •••"</span>
+</div>
+<span class="text-[12px] font-nunito font-bold text-inkMuted mt-1 mr-1">6:18 PM</span>
+</div>
+<!-- Pappu Clarification Prompt -->
+<div class="flex items-start gap-2 max-w-[92%]">
+<div class="w-8 h-8 rounded-full bg-gold border-2 border-ink flex-shrink-0 flex items-center justify-center mt-0.5">
+<span class="font-baloo font-extrabold text-[10px] text-ink">₹</span>
+</div>
+<div class="bg-white border-2 border-borderCream rounded-[20px] px-4 py-2.5 text-ink font-nunito font-semibold text-[15px] leading-snug">
+                I couldn't hear the amount. You can tap below or hold the coin and say "₹20 for tea".
+              </div>
+</div>
+</div>
+<!-- Suggestion Chips Row -->
+<div class="px-5 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap">
+              Food this week?
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-malayalam font-semibold text-ink whitespace-nowrap">
+              ചായ 20 രൂപ
+            </button>
+<button class="h-9 rounded-full bg-white border-2 border-borderCream px-3.5 text-[14px] font-nunito font-semibold text-ink whitespace-nowrap">
+              Sent 500 to Pooja
+            </button>
+</div>
+<!-- Bottom Input Bar -->
+<div class="px-5 pb-5 pt-1 relative shrink-0">
+<div class="relative flex items-center">
+<div class="h-14 w-full rounded-full bg-white border-2 border-borderCream pl-4 pr-16 flex items-center gap-3">
+<svg class="w-5 h-5 text-inkMuted shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<rect height="16" rx="2" ry="2" width="20" x="2" y="4"></rect>
+<line x1="7" x2="17" y1="16" y2="16"></line>
+</svg>
+<span class="text-[14px] font-nunito font-semibold text-inkMuted truncate">
+                  Type or hold the coin to talk
+                </span>
+</div>
+<button aria-label="Hold to talk" class="absolute -right-1 w-[70px] h-[70px] rounded-full bg-gold border-[3.5px] border-ink border-b-[6px] border-b-goldEdge flex flex-col items-center justify-center" type="button">
+<div class="w-8 h-8 relative flex items-center justify-center">
+<div class="font-baloo font-extrabold text-[9px] text-goldEdge absolute top-0">₹</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+<span class="w-1.5 h-2 bg-ink rounded-full inline-block"></span>
+</div>
+</div>
+<svg class="w-3.5 h-3.5 text-ink -mt-0.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+<path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<div class="text-center mt-4">
+<h2 class="font-baloo font-bold text-lg text-ink">State 4: Assistant — Confused / Retry</h2>
+<p class="font-nunito font-semibold text-xs text-inkMuted">Graceful fallback with inline quick-tap retry &amp; prompt suggestions</p>
+</div>
+</section>
+</div>
+</main>
+<!-- END: PresentationGrid -->
+<!-- BEGIN: DesignSpecificationSummary -->
+<footer class="mt-8 max-w-4xl w-full bg-white border-2 border-borderCream rounded-[24px] p-6 text-xs text-inkMuted flex flex-wrap items-center justify-between gap-4" data-purpose="design-spec-audit">
+<div class="flex items-center gap-3">
+<div class="w-6 h-6 rounded-full bg-gold border-2 border-ink flex items-center justify-center font-baloo font-black text-[9px] text-ink">₹</div>
+<span class="font-nunito font-bold text-ink">Design Lock Audit:</span>
+<span class="">Background #FFF8E7</span>
+<span class="">•</span>
+<span class="">Border #F0E4C8</span>
+<span class="">•</span>
+<span class="">Gold #FFC83D / #D99A00</span>
+<span class="">•</span>
+<span class="">Ink #1F2937</span>
+<span class="">•</span>
+<span class="">Expense #E5484D</span>
+</div>
+<div class="font-nunito font-semibold">
+      All 4 mascot poses locked to character specification sheet
+    </div>
+</footer>
+<!-- END: DesignSpecificationSummary -->
+
+
+</body></html>

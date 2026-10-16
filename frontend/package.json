@@ -3,17 +3,34 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
+    "@expo-google-fonts/baloo-chettan-2": "^0.4.2",
+    "@expo-google-fonts/noto-sans-malayalam": "^0.4.2",
+    "@expo-google-fonts/nunito": "^0.4.2",
+    "@expo/vector-icons": "^15.0.2",
+    "@react-navigation/bottom-tabs": "^7.21.0",
+    "@react-navigation/native": "^7.5.1",
+    "@react-navigation/native-stack": "^7.21.0",
     "@supabase/supabase-js": "^2.112.4",
+    "@tanstack/react-query": "^5.104.2",
     "expo": "^57.0.19",
     "expo-asset": "~57.0.16",
     "expo-audio": "~57.0.4",
+    "expo-blur": "~57.0.3",
+    "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
+    "expo-linear-gradient": "~57.0.2",
+    "expo-secure-store": "~57.0.4",
+    "expo-splash-screen": "~57.0.10",
     "expo-status-bar": "~57.0.1",
     "nativewind": "^4.2.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
     "react-native-web": "^0.21.2",
     "react-native-worklets": "0.10.1"
   },
@@ -26,10 +43,16 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "setupFiles": [
+      "./node_modules/react-native-gesture-handler/jestSetup.js"
+    ],
     "moduleNameMapper": {
       "\\.css$": "<rootDir>/tests/mocks/cssMock.js",
       "^tslib$": "<rootDir>/tests/mocks/tslibMock.js",
-      "^expo-audio$": "<rootDir>/tests/mocks/expoAudioMock.js"
+      "^expo-audio$": "<rootDir>/tests/mocks/expoAudioMock.js",
+      "^expo-font$": "<rootDir>/tests/mocks/expoFontMock.js",
+      "^expo-secure-store$": "<rootDir>/tests/mocks/expoSecureStoreMock.js",
+      "^expo-splash-screen$": "<rootDir>/tests/mocks/expoSplashScreenMock.js"
     }
   },
   "private": true,

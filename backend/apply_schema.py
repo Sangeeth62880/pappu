@@ -29,8 +29,32 @@ CREATE TABLE IF NOT EXISTS public.contacts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    aliases TEXT[] DEFAULT '{}'::text[],
     created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Ensure aliases, phone, and upi_id columns exist if table was created previously without them
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'contacts' AND column_name = 'aliases'
+    ) THEN
+        ALTER TABLE public.contacts ADD COLUMN aliases TEXT[] DEFAULT '{}'::text[];
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'contacts' AND column_name = 'phone'
+    ) THEN
+        ALTER TABLE public.contacts ADD COLUMN phone TEXT;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'contacts' AND column_name = 'upi_id'
+    ) THEN
+        ALTER TABLE public.contacts ADD COLUMN upi_id TEXT;
+    END IF;
+END $$;
 
 -- 3. Categories Table
 CREATE TABLE IF NOT EXISTS public.categories (
@@ -63,7 +87,67 @@ BEGIN
     END IF;
 END $$;
 
--- 5. Seed Categories (Fixed list per PROJECT_SPEC.md §4 & §7)
+-- 5. Undo Actions Table (sequential ledger for non-destructive reversions)
+CREATE TABLE IF NOT EXISTS public.undo_actions (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    action_type TEXT NOT NULL,
+    transaction_id UUID NOT NULL,
+    batch_id UUID,
+    previous_state TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Ensure batch_id column exists if table was created previously without it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'undo_actions' AND column_name = 'batch_id'
+    ) THEN
+        ALTER TABLE public.undo_actions ADD COLUMN batch_id UUID;
+    END IF;
+END $$;
+
+-- 6. Chat Messages Table (persistent conversation history)
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+    id SERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    text TEXT NOT NULL,
+    payload TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 7. Assistant Traces Table (observability & evaluation tracing)
+CREATE TABLE IF NOT EXISTS public.assistant_traces (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    message_text TEXT NOT NULL,
+    input_type TEXT NOT NULL DEFAULT 'text',
+    context_json JSONB,
+    raw_llm_output TEXT,
+    plan_json JSONB,
+    resolver_filters_json JSONB,
+    result_json JSONB,
+    latency_ms_per_stage JSONB,
+    schema_valid BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 8. Pending Actions Table (conversational confirmations and disambiguations)
+CREATE TABLE IF NOT EXISTS public.pending_actions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('confirm', 'disambiguate', 'contact_confirm', 'future_date')),
+    plan_json JSONB NOT NULL,
+    candidates_json JSONB,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'resolved', 'expired', 'superseded')),
+    expires_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 8. Seed Categories (Fixed list per PROJECT_SPEC.md §4 & §7)
 INSERT INTO public.categories (name, type) VALUES
     ('Food', 'expense'),
     ('Transport', 'expense'),
@@ -75,7 +159,7 @@ INSERT INTO public.categories (name, type) VALUES
     ('Other', 'expense')
 ON CONFLICT (name) DO UPDATE SET type = EXCLUDED.type;
 
--- 6. Row-Level Security (RLS)
+-- 9. Row-Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage their own profile" ON public.profiles;
 CREATE POLICY "Users can manage their own profile" ON public.profiles
@@ -93,6 +177,34 @@ CREATE POLICY "Users can manage their own contacts" ON public.contacts
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can manage their own transactions" ON public.transactions;
 CREATE POLICY "Users can manage their own transactions" ON public.transactions
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+ALTER TABLE public.undo_actions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own undo actions" ON public.undo_actions;
+CREATE POLICY "Users can manage their own undo actions" ON public.undo_actions
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own chat messages" ON public.chat_messages;
+CREATE POLICY "Users can manage their own chat messages" ON public.chat_messages
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+ALTER TABLE public.assistant_traces ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own traces" ON public.assistant_traces;
+CREATE POLICY "Users can manage their own traces" ON public.assistant_traces
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
+ALTER TABLE public.pending_actions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own pending actions" ON public.pending_actions;
+CREATE POLICY "Users can manage their own pending actions" ON public.pending_actions
     FOR ALL
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
@@ -139,12 +251,12 @@ def apply_schema():
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 
-              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions')
+              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions')
             ORDER BY table_name;
         """))
         tables = [row[0] for row in result.fetchall()]
         print(f"Found public tables: {tables}")
-        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions'}, f"Missing tables! Expected profiles, contacts, categories, transactions. Got {tables}"
+        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces, pending_actions. Got {tables}"
 
         # Verify seed categories
         print("\n--- Verifying Seed Categories ---")
@@ -177,7 +289,7 @@ def apply_schema():
         for pol in policies:
             print(f"  Table: {pol[0]}, Policy: {pol[1]}, Cmd: {pol[2]}")
 
-    print("\n✅ Supabase database setup and verification complete!")
+    print("\n[SUCCESS] Supabase database setup and verification complete!")
 
 if __name__ == "__main__":
     apply_schema()

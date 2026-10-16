@@ -1,74 +1,230 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
+import { colors, radius, spacing } from '../../theme/tokens';
+import { useReduceMotion } from '../../utils/reduceMotion';
+
+function hasMalayalam(text) {
+  if (!text) return false;
+  return /[\u0D00-\u0D7F]/.test(text);
+}
+
+function formatAmount(val) {
+  const num = Number(val || 0);
+  return num.toLocaleString('en-IN');
+}
+
+const CATEGORY_COLORS = {
+  Food: { bg: colors.bg, text: colors.categories.Food, icon: 'coffee' },
+  Transport: { bg: colors.bg, text: colors.categories.Transport, icon: 'truck' },
+  Shopping: { bg: colors.bg, text: colors.categories.Shopping, icon: 'shopping-bag' },
+  Salary: { bg: colors.bg, text: colors.categories.Salary, icon: 'briefcase' },
+  Bills: { bg: colors.bg, text: colors.categories.Bills, icon: 'file-text' },
+  Entertainment: { bg: colors.bg, text: colors.categories.Entertainment, icon: 'film' },
+  Other: { bg: colors.bg, text: colors.categories.Other, icon: 'tag' },
+  People: { bg: colors.bg, text: colors.categories.People, icon: 'users' },
+};
 
 /**
- * Passbook-style transaction row — quiet, dense, scannable.
- * No cards, no drop shadows. Just a bottom border between rows.
- *
- * Props:
- *   category    — string, e.g. "Food & Dining"
- *   description — string (optional)
- *   amount      — number or string
- *   type        — 'income' | 'expense'
- *   date        — string, e.g. "2026-08-31"
- *   testID      — string (optional)
+ * Shared Transaction Row matching Stitch specifications.
+ * - Subtitle uses the transaction type: Income for income, Expense (or Category) for expense.
+ * - No arrow glyphs anywhere.
+ * - Tabular formatted currency (+₹ / −₹).
+ * - Optional isNew slide-in animation over 200ms (translateY -16 -> 0, opacity 0 -> 1).
  */
-export default function TransactionRow({ category, description, amount, type, date, testID }) {
-  const isIncome = type === 'income';
-  const formattedAmount = Number(amount).toFixed(2);
-  const sign = isIncome ? '+' : '−';
-  const amountColor = isIncome ? 'text-banana-leaf' : 'text-clay-rust';
+export default function TransactionRow({
+  transaction,
+  category,
+  description,
+  amount,
+  type,
+  date,
+  contactName,
+  isLast = false,
+  isNew = false,
+  onPress,
+  testID,
+  style,
+}) {
+  const reduceMotion = useReduceMotion();
+  const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 
-  // Format date to a shorter display
-  const displayDate = formatDate(date);
+  const slideAnim = useRef(new Animated.Value(isNew && !reduceMotion && !isTest ? 0 : 1)).current;
 
-  return (
-    <View
-      testID={testID}
-      className="flex-row items-center py-3 border-b border-ink-navy-lighter"
-    >
-      {/* Date column */}
-      <Text className="text-bone-darker font-sans text-[11px] w-16 font-medium">
-        {displayDate}
-      </Text>
+  useEffect(() => {
+    if (isNew && !reduceMotion && !isTest) {
+      slideAnim.setValue(0);
+      Animated.timing(slideAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isNew, reduceMotion, isTest, slideAnim]);
 
-      {/* Category + Description */}
-      <View className="flex-1 px-3">
-        <Text className="text-bone font-sans text-sm font-medium" numberOfLines={1}>
-          {category || 'Transaction'}
-        </Text>
-        {description ? (
-          <Text className="text-bone-darker font-sans text-xs mt-0.5" numberOfLines={1}>
-            {description}
-          </Text>
-        ) : null}
+  // Normalize props from transaction object or direct props
+  const txnType = transaction?.type || type || 'expense';
+  const isIncome = txnType === 'income';
+  const txnAmount = transaction?.amount !== undefined ? transaction.amount : amount;
+  const txnCat = transaction?.category_name || category || '';
+  const txnDesc = transaction?.description || description || '';
+  const txnContact = transaction?.contact_name || contactName || '';
+
+  const isPeople = Boolean(txnContact || transaction?.contact_id);
+
+  // Title: For contact/person transactions, contact name takes precedence per Stitch spec
+  const title = isPeople
+    ? txnContact || txnDesc || 'Person'
+    : txnDesc || txnCat || (isIncome ? 'Income' : 'Expense');
+  const isMalayalam = hasMalayalam(title);
+
+  // Subtitle strictly derived from type (Rule 2 / Prompt 4 fix):
+  // Income rows say "Income" (or "Received" if contact transaction)
+  // Expense rows say category or "Expense" (or "Sent" if contact transaction)
+  const subtitle = isIncome
+    ? (isPeople ? 'Received' : 'Income')
+    : (isPeople ? 'Sent' : (txnCat || 'Expense'));
+
+  const catConfig = isIncome && !isPeople
+    ? CATEGORY_COLORS.Salary
+    : isPeople
+      ? CATEGORY_COLORS.People
+      : CATEGORY_COLORS[txnCat] || CATEGORY_COLORS.Other;
+
+  const rowContent = (
+    <View style={[styles.innerRow, style]}>
+      {/* 40px Circle Avatar / Category Icon */}
+      <View style={[styles.avatarCircle, { backgroundColor: catConfig.bg }]}>
+        {isPeople ? (
+          <Feather name="users" size={18} color={catConfig.text} />
+        ) : (
+          <Feather name={catConfig.icon || 'tag'} size={18} color={catConfig.text} />
+        )}
       </View>
 
-      {/* Amount — serif */}
-      <Text
-        className={`font-serif text-sm font-bold ${amountColor}`}
-        style={{ fontFamily: 'Libre Baskerville, Georgia, serif' }}
-      >
-        {sign}₹{formattedAmount}
-      </Text>
+      {/* Info Column */}
+      <View style={styles.infoCol}>
+        <Text
+          style={[
+            styles.titleText,
+            isMalayalam && styles.malayalamTitleText,
+          ]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        <Text style={styles.subtitleText} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      </View>
+
+      {/* Tabular Amount (Strictly No Arrow Glyphs) */}
+      <View style={styles.amountCol}>
+        <Text
+          style={[
+            styles.amountText,
+            { color: isIncome ? colors.income : colors.expense },
+          ]}
+        >
+          {isIncome ? '+₹' : '−₹'}{formatAmount(txnAmount)}
+        </Text>
+      </View>
     </View>
+  );
+
+  const animatedStyle = {
+    opacity: slideAnim,
+    transform: [
+      {
+        translateY: slideAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [-16, 0],
+        }),
+      },
+    ],
+  };
+
+  if (onPress) {
+    return (
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          testID={testID}
+          activeOpacity={0.7}
+          onPress={onPress}
+          style={[
+            styles.touchableWrapper,
+            !isLast && styles.divider,
+          ]}
+        >
+          {rowContent}
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <View testID={testID} style={[styles.touchableWrapper, !isLast && styles.divider]}>
+        {rowContent}
+      </View>
+    </Animated.View>
   );
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  try {
-    const d = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (d.toDateString() === today.toDateString()) return 'Today';
-    if (d.toDateString() === yesterday.toDateString()) return 'Y\'day';
-
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${d.getDate()} ${months[d.getMonth()]}`;
-  } catch {
-    return dateStr;
-  }
-}
+const styles = StyleSheet.create({
+  touchableWrapper: {
+    backgroundColor: colors.surface,
+  },
+  divider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  innerRow: {
+    height: 64,
+    paddingHorizontal: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  infoCol: {
+    flex: 1,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  titleText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 16,
+    lineHeight: 20,
+    color: colors.ink,
+  },
+  malayalamTitleText: {
+    fontFamily: 'NotoSansMalayalam_700Bold',
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  subtitleText: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.ink_muted,
+    marginTop: 1,
+  },
+  amountCol: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  amountText: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 16,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
+  },
+});

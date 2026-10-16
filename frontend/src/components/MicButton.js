@@ -1,5 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  Platform,
+  Animated,
+  Linking,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -7,33 +19,70 @@ import {
   setAudioModeAsync,
 } from 'expo-audio';
 import { transcribeAudio } from '../api/client';
+import { colors, radius, spacing, typography } from '../theme/tokens';
+import { useReduceMotion } from '../utils/reduceMotion';
 
+/**
+ * MicButton with support for both standard mic icon and 70px Stitch Coin Mic.
+ * Audio recording hook shared with CoinButton.
+ * Fixes permission denied recovery, error banner, and native cleanup.
+ */
 export default function MicButton({
   token,
   onTranscribed,
   languageCode = null,
   disabled = false,
+  size = 48,
+  isCoinStyle = false,
+  onRecordingStateChange = null,
 }) {
+  const reduceMotion = useReduceMotion();
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const isRecordingRef = useRef(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const isMountedRef = useRef(true);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // --- FIX: Use the useAudioRecorder hook instead of raw constructor ---
-  // This creates the AudioRecorder via useReleasingSharedObject, which properly
-  // registers the JS↔native SharedObject binding. The old code used
-  // `new AudioModule.AudioRecorder(preset)` in an event handler, which skipped
-  // this binding and caused the DynamicSharedObjectType NotFoundException crash.
-  const nativeRecorder = Platform.OS !== 'web'
+  // Pulse animation while recording (disabled on reduce motion)
+  useEffect(() => {
+    let animation;
+    if (isRecording && !reduceMotion) {
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: 750,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 750,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+    return () => {
+      if (animation) animation.stop();
+    };
+  }, [isRecording, reduceMotion, pulseAnim]);
+
+  // Native recorder hook for SDK 57
+  const nativeRecorder = Platform.OS !== 'web' && typeof useAudioRecorder === 'function'
     ? useAudioRecorder(RecordingPresets.HIGH_QUALITY)
     : null;
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       cleanupAudio();
@@ -41,17 +90,13 @@ export default function MicButton({
   }, []);
 
   const cleanupAudio = async () => {
-    // Cleanup native recording if active
     if (nativeRecorder && isRecordingRef.current) {
       try {
-        console.log('[MicButton] cleanup: stopping native recorder');
         await nativeRecorder.stop();
       } catch (err) {
         console.warn('[MicButton] Error during native recorder cleanup:', err);
       }
     }
-
-    // Cleanup web stream if active
     if (streamRef.current) {
       try {
         streamRef.current.getTracks().forEach((track) => track.stop());
@@ -60,18 +105,18 @@ export default function MicButton({
       }
       streamRef.current = null;
     }
+    isRecordingRef.current = false;
   };
 
   const startRecording = async () => {
     if (disabled || isTranscribing || isRecordingRef.current) return;
     setErrorMessage(null);
-    console.log('[MicButton] startRecording: begin');
+    setPermissionDenied(false);
 
     try {
       if (Platform.OS === 'web') {
-        // Web audio recording via MediaRecorder
         if (typeof navigator === 'undefined' || !navigator?.mediaDevices?.getUserMedia) {
-          throw new Error('Audio recording is not supported in this browser environment.');
+          throw new Error('Audio recording requires HTTPS or localhost in browser.');
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -117,40 +162,37 @@ export default function MicButton({
         mediaRecorderRef.current = mediaRecorder;
         mediaRecorder.start(100);
       } else {
-        // Native audio recording via expo-audio (SDK 57) — using hook-created recorder
-        console.log('[MicButton] startRecording: requesting permission');
+        // Native recording
         const permission = await requestRecordingPermissionsAsync();
-        console.log('[MicButton] startRecording: permission status =', permission.status);
-        if (permission.status !== 'granted') {
+        if (permission?.status !== 'granted') {
+          setPermissionDenied(true);
           throw new Error('Microphone permission is required to record voice commands.');
         }
 
-        console.log('[MicButton] startRecording: setting audio mode');
         await setAudioModeAsync({
           allowsRecording: true,
           playsInSilentMode: true,
         });
-        console.log('[MicButton] startRecording: audio mode set');
 
-        console.log('[MicButton] startRecording: calling prepareToRecordAsync');
-        await nativeRecorder.prepareToRecordAsync();
-        console.log('[MicButton] startRecording: prepareToRecordAsync complete');
-
-        console.log('[MicButton] startRecording: calling record()');
-        nativeRecorder.record();
-        console.log('[MicButton] startRecording: record() called successfully');
+        if (nativeRecorder?.prepareToRecordAsync) {
+          await nativeRecorder.prepareToRecordAsync();
+          nativeRecorder.record();
+        }
       }
 
       isRecordingRef.current = true;
       if (isMountedRef.current) {
         setIsRecording(true);
+        if (onRecordingStateChange) onRecordingStateChange(true);
       }
-      console.log('[MicButton] startRecording: recording started');
     } catch (err) {
       console.warn('[MicButton] startRecording failed:', err);
       isRecordingRef.current = false;
       if (isMountedRef.current) {
         setIsRecording(false);
+        if (onRecordingStateChange) onRecordingStateChange(false);
+        const isPerm = err.name === 'NotAllowedError' || err.name === 'SecurityError' || String(err.message).toLowerCase().includes('permission');
+        if (isPerm) setPermissionDenied(true);
         setErrorMessage(err.message || 'Microphone access denied or recording failed to start');
       }
     }
@@ -161,8 +203,8 @@ export default function MicButton({
     isRecordingRef.current = false;
     if (isMountedRef.current) {
       setIsRecording(false);
+      if (onRecordingStateChange) onRecordingStateChange(false);
     }
-    console.log('[MicButton] stopRecording: begin');
 
     try {
       if (Platform.OS === 'web' && mediaRecorderRef.current) {
@@ -170,13 +212,8 @@ export default function MicButton({
           mediaRecorderRef.current.stop();
         }
       } else if (nativeRecorder) {
-        console.log('[MicButton] stopRecording: calling recorder.stop()');
         await nativeRecorder.stop();
-        console.log('[MicButton] stopRecording: recorder stopped');
-
         const uri = nativeRecorder.uri;
-        console.log('[MicButton] stopRecording: uri =', uri);
-
         if (!uri) {
           throw new Error('Recording stopped but no audio file URI was returned.');
         }
@@ -245,47 +282,228 @@ export default function MicButton({
   };
 
   return (
-    <View className="items-center">
+    <View style={styles.container}>
       {errorMessage ? (
-        <View testID="mic-error-banner" className="mb-2 px-3 py-1 bg-clay-rust/15 border border-clay-rust/30 rounded-lg">
-          <Text className="text-clay-rust-light font-sans text-xs">{errorMessage}</Text>
+        <View testID="mic-error-banner" style={styles.errorBanner}>
+          <Feather name="alert-circle" size={13} color={colors.semantic.expense} style={{ marginRight: 4 }} />
+          <Text style={styles.errorText} numberOfLines={2}>{errorMessage}</Text>
+          {permissionDenied && Platform.OS !== 'web' && Linking?.openSettings && (
+            <TouchableOpacity
+              testID="mic-open-settings"
+              onPress={() => Linking.openSettings()}
+              style={styles.settingsLink}
+            >
+              <Text style={styles.settingsLinkText}>Settings</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
 
-      <Pressable
-        testID="mic-button"
-        onPress={handlePress}
-        disabled={disabled || isTranscribing}
-        className={`w-11 h-11 rounded-full items-center justify-center border-2 ${
-          isRecording
-            ? 'bg-clay-rust border-clay-rust-light'
-            : isTranscribing
-            ? 'bg-ink-navy-lighter border-warm-brass'
-            : 'bg-ink-navy-lighter border-warm-brass/40 active:border-warm-brass'
-        }`}
-      >
-        {isTranscribing ? (
-          <ActivityIndicator testID="mic-loading-spinner" size="small" color="#C9A227" />
-        ) : (
-          <Text
-            testID="mic-icon"
-            className={`text-base ${isRecording ? 'text-bone' : 'text-warm-brass'}`}
-          >
-            {isRecording ? '⏹' : '🎤'}
-          </Text>
+      <View style={styles.buttonWrapper}>
+        {isRecording && (
+          <Animated.View
+            testID="mic-pulse-ring"
+            pointerEvents="none"
+            style={[
+              styles.pulseRing,
+              {
+                width: size + 16,
+                height: size + 16,
+                borderRadius: (size + 16) / 2,
+                transform: [{ scale: pulseAnim }],
+                opacity: pulseAnim.interpolate({
+                  inputRange: [1, 1.3],
+                  outputRange: [0.5, 0],
+                }),
+              },
+            ]}
+          />
         )}
-      </Pressable>
+
+        <Pressable
+          testID="mic-button"
+          onPress={handlePress}
+          disabled={disabled || isTranscribing}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isRecording
+              ? 'Stop recording'
+              : isTranscribing
+              ? 'Transcribing audio'
+              : 'Start voice recording'
+          }
+          style={[
+            styles.button,
+            { width: size, height: size, borderRadius: size / 2 },
+            isCoinStyle
+              ? styles.coinButtonStyle
+              : isRecording
+              ? styles.buttonRecording
+              : isTranscribing
+              ? styles.buttonTranscribing
+              : styles.buttonIdle,
+            disabled && styles.buttonDisabled,
+          ]}
+        >
+          {isTranscribing ? (
+            <ActivityIndicator testID="mic-loading-spinner" size="small" color={colors.ink} />
+          ) : isCoinStyle ? (
+            /* Stitch Coin Mic Face */
+            <View style={styles.coinFace}>
+              <Text style={styles.coinRupee}>₹</Text>
+              <View style={styles.coinEyes}>
+                <View style={styles.coinEye} />
+                <View style={styles.coinEye} />
+              </View>
+              <View testID="mic-icon">
+                <MaterialIcons
+                  name={isRecording ? 'stop' : 'mic'}
+                  size={16}
+                  color={colors.ink}
+                />
+              </View>
+            </View>
+          ) : (
+            <View testID="mic-icon" style={styles.iconContainer}>
+              <MaterialIcons
+                name={isRecording ? 'stop' : 'mic'}
+                size={size >= 48 ? 24 : 20}
+                color={isRecording ? colors.surface : colors.ink}
+              />
+            </View>
+          )}
+        </Pressable>
+      </View>
 
       {isRecording ? (
-        <Text testID="mic-recording-label" className="text-clay-rust font-sans text-[10px] font-medium mt-1">
+        <Text testID="mic-recording-label" style={styles.recordingLabel}>
           Listening...
         </Text>
       ) : null}
       {isTranscribing ? (
-        <Text testID="mic-transcribing-label" className="text-warm-brass font-sans text-[10px] font-medium mt-1">
+        <Text testID="mic-transcribing-label" style={styles.transcribingLabel}>
           Transcribing...
         </Text>
       ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  pulseRing: {
+    position: 'absolute',
+    backgroundColor: colors.warningBg || colors.bg,
+    borderWidth: 2,
+    borderColor: colors.gold_edge,
+  },
+  button: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonIdle: {
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  buttonRecording: {
+    backgroundColor: colors.semantic.expense,
+  },
+  buttonTranscribing: {
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  coinButtonStyle: {
+    backgroundColor: colors.gold,
+    borderWidth: 3.5,
+    borderColor: colors.ink,
+    borderBottomWidth: 6,
+    borderBottomColor: colors.gold_edge,
+  },
+  coinFace: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coinRupee: {
+    fontFamily: typography.fonts.display,
+    fontWeight: '800',
+    fontSize: 9,
+    color: colors.gold_edge,
+  },
+  coinEyes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 1,
+    marginBottom: 2,
+  },
+  coinEye: {
+    width: 4,
+    height: 5,
+    borderRadius: 2,
+    backgroundColor: colors.ink,
+  },
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.errorBg || colors.surface,
+    borderWidth: 1,
+    borderColor: colors.errorBorder || colors.expense,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 4,
+    maxWidth: 240,
+  },
+  errorText: {
+    fontFamily: typography.fonts.body,
+    fontSize: 11,
+    color: colors.semantic.expense,
+    flex: 1,
+  },
+  settingsLink: {
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: colors.surface,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  settingsLinkText: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '700',
+    fontSize: 10,
+    color: colors.ink,
+  },
+  recordingLabel: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '700',
+    fontSize: 11,
+    color: colors.ink_muted,
+    marginTop: 2,
+  },
+  transcribingLabel: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '600',
+    fontSize: 11,
+    color: colors.ink_muted,
+    marginTop: 2,
+  },
+});

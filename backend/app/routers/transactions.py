@@ -13,7 +13,7 @@ from app.schemas.transaction import (
     TransactionResponse,
 )
 
-from app.services.undo import undo_last_transaction
+from app.services.undo import undo_last_transaction, record_undo_action
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -80,6 +80,9 @@ def create_transaction(
     db.commit()
     db.refresh(txn)
 
+    # Record undo action for non-destructive reversal
+    record_undo_action(db, current_user_id, "add", txn.id)
+
     return TransactionResponse(
         id=txn.id,
         user_id=txn.user_id,
@@ -136,6 +139,7 @@ def list_transactions(
         for txn in txns
     ]
 
+@router.patch("/{id}", response_model=TransactionResponse)
 @router.put("/{id}", response_model=TransactionResponse)
 def update_transaction(
     id: uuid.UUID,
@@ -150,6 +154,16 @@ def update_transaction(
             detail=f"Transaction with id {id} not found",
         )
 
+    # Capture prior state before mutation
+    prev_state = {
+        "type": txn.type,
+        "amount": str(txn.amount),
+        "category_id": txn.category_id,
+        "contact_id": str(txn.contact_id) if txn.contact_id else None,
+        "description": txn.description,
+        "txn_date": str(txn.txn_date),
+    }
+
     if payload.category_id is not None:
         category = db.query(Category).filter(Category.id == payload.category_id).first()
         if not category:
@@ -158,6 +172,14 @@ def update_transaction(
                 detail=f"Category with id {payload.category_id} does not exist",
             )
         txn.category_id = payload.category_id
+    elif payload.category_name is not None:
+        category = db.query(Category).filter(Category.name.ilike(payload.category_name.strip())).first()
+        if not category:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Category '{payload.category_name}' does not exist",
+            )
+        txn.category_id = category.id
 
     if payload.contact_id is not None:
         contact = db.query(Contact).filter(
@@ -182,6 +204,9 @@ def update_transaction(
 
     db.commit()
     db.refresh(txn)
+
+    # Record undo action for edit
+    record_undo_action(db, current_user_id, "edit", txn.id, prev_state)
 
     return TransactionResponse(
         id=txn.id,
@@ -211,7 +236,20 @@ def delete_transaction(
             detail=f"Transaction with id {id} not found",
         )
 
+    # Capture state before deleting to allow clean undo
+    prev_state = {
+        "type": txn.type,
+        "amount": str(txn.amount),
+        "category_id": txn.category_id,
+        "contact_id": str(txn.contact_id) if txn.contact_id else None,
+        "description": txn.description,
+        "txn_date": str(txn.txn_date),
+    }
+
+    record_undo_action(db, current_user_id, "delete", txn.id, prev_state)
+
     db.delete(txn)
     db.commit()
 
     return {"status": "deleted", "id": str(id)}
+

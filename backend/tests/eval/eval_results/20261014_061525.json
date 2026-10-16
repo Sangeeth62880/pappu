@@ -1,0 +1,330 @@
+{
+  "planner": "v2",
+  "execute_mode": true,
+  "timestamp": "2026-10-14T06:15:25.738995+00:00",
+  "total_cases": 5,
+  "total_passed": 0,
+  "total_expressible": 5,
+  "total_inexpressible": 0,
+  "overall_accuracy": 0.0,
+  "expressible_accuracy": 0.0,
+  "schema_failure_rate": 0.0,
+  "p50_latency_ms": 499.7,
+  "p95_latency_ms": 670.5,
+  "avg_input_tokens": 38.4,
+  "elapsed_seconds": 2.34,
+  "failures_by_cause": {
+    "planner": 0,
+    "resolver": 0,
+    "executor": 5,
+    "composer": 0
+  },
+  "regression_cases": {},
+  "group_stats": {
+    "basic_add": {
+      "total": 5,
+      "passed": 0,
+      "expressible": 5,
+      "not_expressible": 0,
+      "accuracy": 0.0,
+      "expressible_accuracy": 0.0
+    }
+  },
+  "results": [
+    {
+      "id": "basic_add_01",
+      "group": "basic_add",
+      "input": "Spent 250 on lunch",
+      "expressible": true,
+      "passed": false,
+      "schema_valid": true,
+      "latency_ms": 670.4575829207897,
+      "token_count": 48,
+      "reason": "Execution error: name 'uuid' is not defined",
+      "failure_cause": "executor",
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "lunch"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "lunch"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "category": "Food",
+            "description": "lunch"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "category": "Food",
+            "description": "lunch"
+          }
+        ]
+      }
+    },
+    {
+      "id": "basic_add_02",
+      "group": "basic_add",
+      "input": "Paid 150 for coffee",
+      "expressible": true,
+      "passed": false,
+      "schema_valid": true,
+      "latency_ms": 649.7386246919632,
+      "token_count": 36,
+      "reason": "Execution error: name 'uuid' is not defined",
+      "failure_cause": "executor",
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "coffee"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "coffee"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "category": "Food",
+            "description": "coffee"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 150,
+            "category": "Food",
+            "description": "coffee"
+          }
+        ]
+      }
+    },
+    {
+      "id": "basic_add_03",
+      "group": "basic_add",
+      "input": "Uber ride 320",
+      "expressible": true,
+      "passed": false,
+      "schema_valid": true,
+      "latency_ms": 499.74295776337385,
+      "token_count": 36,
+      "reason": "Execution error: name 'uuid' is not defined",
+      "failure_cause": "executor",
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 320,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "Uber ride"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 320,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "Uber ride"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 320,
+            "category": "Transport",
+            "description": "uber ride"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 320,
+            "category": "Transport",
+            "description": "uber ride"
+          }
+        ]
+      }
+    },
+    {
+      "id": "basic_add_04",
+      "group": "basic_add",
+      "input": "Bought groceries for 1200",
+      "expressible": true,
+      "passed": false,
+      "schema_valid": true,
+      "latency_ms": 479.40108412876725,
+      "token_count": 36,
+      "reason": "Execution error: name 'uuid' is not defined",
+      "failure_cause": "executor",
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1200,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "groceries"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1200,
+            "direction": null,
+            "contact": null,
+            "category": "Shopping",
+            "date": null,
+            "description": "groceries"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1200,
+            "category": "Shopping",
+            "description": "groceries"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 1200,
+            "category": "Shopping",
+            "description": "groceries"
+          }
+        ]
+      }
+    },
+    {
+      "id": "basic_add_05",
+      "group": "basic_add",
+      "input": "Electricity bill 850",
+      "expressible": true,
+      "passed": false,
+      "schema_valid": true,
+      "latency_ms": 486.88679095357656,
+      "token_count": 36,
+      "reason": "Execution error: name 'uuid' is not defined",
+      "failure_cause": "executor",
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "direction": null,
+            "contact": null,
+            "category": "Bills",
+            "date": null,
+            "description": "Electricity bill"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "direction": null,
+            "contact": null,
+            "category": "Bills",
+            "date": null,
+            "description": "Electricity bill"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "category": "Bills",
+            "description": "electricity bill"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 850,
+            "category": "Bills",
+            "description": "electricity bill"
+          }
+        ]
+      }
+    }
+  ]
+}

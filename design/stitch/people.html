@@ -1,0 +1,556 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pappu People Screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Chettan+2:wght@600;700;800&amp;family=Noto+Sans+Malayalam:wght@600;700&amp;family=Nunito:wght@600;700&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background-color: #F4EEDC;
+    font-family: 'Nunito', sans-serif;
+    color: #1F2937;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .font-baloo {
+    font-family: 'Baloo Chettan 2', cursive, sans-serif;
+  }
+  .font-malayalam {
+    font-family: 'Noto Sans Malayalam', sans-serif;
+  }
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .device-frame {
+    width: 390px;
+    height: 844px;
+    background-color: #FFF8E7;
+    position: relative;
+    overflow: hidden;
+    border-radius: 44px;
+    border: 8px solid #1F2937;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 40px rgba(31, 41, 55, 0.12);
+    flex-shrink: 0;
+  }
+  /* Buttons */
+  .btn-primary {
+    height: 52px;
+    background-color: #FFC83D;
+    color: #1F2937;
+    font-family: 'Baloo Chettan 2', cursive, sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    border-radius: 16px;
+    border-bottom: 4px solid #D99A00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .btn-secondary {
+    height: 52px;
+    background-color: #FFFFFF;
+    color: #1F2937;
+    font-family: 'Baloo Chettan 2', cursive, sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    border-radius: 16px;
+    border: 2px solid #F0E4C8;
+    border-bottom: 4px solid #F0E4C8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  /* Tab Bar */
+  .tab-bar {
+    height: 84px;
+    background-color: #FFFFFF;
+    border-top: 2px solid #F0E4C8;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 10px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+  }
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: #6B7280;
+    gap: 3px;
+  }
+  .tab-item.active {
+    color: #1F2937;
+  }
+  .tab-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background-color: #FFC83D;
+  }
+  .center-coin-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 999px;
+    background-color: #FFC83D;
+    border: 4px solid #1F2937;
+    box-shadow: 0 4px 0 #D99A00;
+    margin-top: -30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="flex flex-col items-center gap-10">
+
+  <!-- Header Banner -->
+  <div class="text-center">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] text-[#1F2937] text-xs font-bold uppercase tracking-wider mb-2">
+      Strict Design Lock • Character Sheet Compliant
+    </div>
+    <h1 class="font-baloo text-3xl font-extrabold text-[#1F2937]">Pappu People Screens</h1>
+    <p class="text-sm font-semibold text-[#6B7280]">People Directory • Add Person Bottom Sheet • Person Detail (Pooja)</p>
+  </div>
+
+  <div class="flex flex-wrap justify-center gap-10 items-start">
+
+    <!-- ======================================================== -->
+    <!-- FRAME 1: MAIN PEOPLE SCREEN                              -->
+    <!-- ======================================================== -->
+    <div class="flex flex-col items-center">
+      <div class="device-frame">
+        <!-- Status Bar -->
+        <div class="h-[47px] w-full pt-3 px-7 flex justify-between items-center text-xs font-bold text-[#1F2937] select-none z-30">
+          <span class="">9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path></svg>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5"><rect x="1" y="6" width="18" height="12" rx="3"></rect><path d="M23 10v4"></path></svg>
+          </div>
+        </div>
+
+        <!-- App Header (64px) sits on bg -->
+        <div class="h-[64px] px-5 flex items-center justify-between z-30">
+          <!-- Left: Pappu Wordmark Logo -->
+          <div class="flex items-center gap-2">
+            <!-- 32px coin-P mark -->
+            <div class="w-8 h-8 rounded-full bg-[#FFC83D] border-[2.5px] border-[#1F2937] flex items-center justify-center relative shadow-[0_2px_0_#D99A00]">
+              <span class="font-baloo font-bold text-xs text-[#1F2937]">P</span>
+            </div>
+            <span class="font-baloo text-[22px] font-extrabold text-[#1F2937] leading-none">Pappu</span>
+          </div>
+          <!-- Right: Primary-style 40px gold circle "+" button -->
+          <button class="w-10 h-10 rounded-full bg-[#FFC83D] border-2 border-[#1F2937] border-b-[3px] border-b-[#D99A00] flex items-center justify-center cursor-pointer active:translate-y-0.5" aria-label="Add person">
+            <svg class="w-5 h-5 text-[#1F2937]" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <div class="flex-1 overflow-y-auto px-5 pb-[108px] flex flex-col gap-4 hide-scrollbar">
+
+          <!-- 1. Search field -->
+          <div class="h-[52px] bg-white rounded-2xl border-2 border-[#F0E4C8] px-4 flex items-center gap-3">
+            <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" placeholder="Search people" class="w-full bg-transparent text-base text-[#1F2937] placeholder-[#6B7280] outline-none font-semibold" readonly="" value="">
+          </div>
+
+          <!-- 2. Two tiles side by side + Net balance row card -->
+          <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] p-4 flex flex-col gap-3">
+            <div class="flex gap-3">
+              <!-- Tile 1: Owed to you -->
+              <div class="flex-1 bg-[#FFF8E7] rounded-2xl border-2 border-[#F0E4C8] p-3 flex flex-col gap-1">
+                <span class="text-[13px] font-bold text-[#6B7280]">Owed to you</span>
+                <span class="font-baloo text-xl font-bold text-[#1F8A5B] tabular-nums leading-tight">₹6,700</span>
+                <span class="text-[12px] font-bold text-[#6B7280]">2 friends</span>
+              </div>
+              <!-- Tile 2: You owe -->
+              <div class="flex-1 bg-[#FFF8E7] rounded-2xl border-2 border-[#F0E4C8] p-3 flex flex-col gap-1">
+                <span class="text-[13px] font-bold text-[#6B7280]">You owe</span>
+                <span class="font-baloo text-xl font-bold text-[#E5484D] tabular-nums leading-tight">₹1,000</span>
+                <span class="text-[12px] font-bold text-[#6B7280]">2 friends</span>
+              </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="h-[1px] bg-[#F0E4C8] w-full"></div>
+
+            <!-- Net balance row -->
+            <div class="flex justify-between items-center px-1">
+              <span class="text-sm font-bold text-[#1F2937]">Net balance</span>
+              <span class="font-baloo text-lg font-bold text-[#1F8A5B] tabular-nums">+₹5,700</span>
+            </div>
+          </div>
+
+          <!-- 3. Filter chips -->
+          <div class="flex gap-2 overflow-x-auto hide-scrollbar py-0.5">
+            <!-- All 4 (Selected) -->
+            <button class="h-10 px-4 rounded-full bg-[#FFC83D] border-b-[3px] border-[#D99A00] text-sm font-bold font-baloo text-[#1F2937] flex items-center justify-center whitespace-nowrap">
+              All 4
+            </button>
+            <!-- Owed to you 2 -->
+            <button class="h-10 px-4 rounded-full bg-white border-2 border-[#F0E4C8] text-sm font-bold font-baloo text-[#6B7280] flex items-center justify-center whitespace-nowrap">
+              Owed to you 2
+            </button>
+            <!-- You owe 2 -->
+            <button class="h-10 px-4 rounded-full bg-white border-2 border-[#F0E4C8] text-sm font-bold font-baloo text-[#6B7280] flex items-center justify-center whitespace-nowrap">
+              You owe 2
+            </button>
+          </div>
+
+          <!-- 4. List card rows -->
+          <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] overflow-hidden">
+
+            <!-- Row 1: Anu -->
+            <div class="p-4 flex items-center justify-between border-b border-[#F0E4C8]">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937] font-baloo font-bold text-lg">
+                  A
+                </div>
+                <div class="flex flex-col">
+                  <span class="font-baloo text-[18px] font-bold text-[#1F2937] leading-tight">Anu</span>
+                  <span class="text-[13px] font-bold text-[#6B7280]">1 transaction</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-baloo text-[17px] font-bold text-[#E5484D] tabular-nums">−₹400</span>
+                <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+
+            <!-- Row 2: Pooja -->
+            <div class="p-4 flex items-center justify-between border-b border-[#F0E4C8] bg-[#FFFDF7]">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937] font-baloo font-bold text-lg">
+                  P
+                </div>
+                <div class="flex flex-col">
+                  <span class="font-baloo text-[18px] font-bold text-[#1F2937] leading-tight">Pooja</span>
+                  <span class="text-[13px] font-bold text-[#6B7280]">7 transactions</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-baloo text-[17px] font-bold text-[#1F8A5B] tabular-nums">+₹6,200</span>
+                <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+
+            <!-- Row 3: Rony -->
+            <div class="p-4 flex items-center justify-between border-b border-[#F0E4C8]">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937] font-baloo font-bold text-lg">
+                  R
+                </div>
+                <div class="flex flex-col">
+                  <span class="font-baloo text-[18px] font-bold text-[#1F2937] leading-tight">Rony</span>
+                  <span class="text-[13px] font-bold text-[#6B7280]">1 transaction</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-baloo text-[17px] font-bold text-[#1F8A5B] tabular-nums">+₹500</span>
+                <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+
+            <!-- Row 4: രാഹുൽ -->
+            <div class="p-4 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center text-[#1F2937] font-malayalam font-bold text-lg">
+                  ര
+                </div>
+                <div class="flex flex-col">
+                  <span class="font-malayalam text-[17px] font-bold text-[#1F2937] leading-tight">രാഹുൽ</span>
+                  <span class="text-[13px] font-bold text-[#6B7280]">2 transactions</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-baloo text-[17px] font-bold text-[#E5484D] tabular-nums">−₹600</span>
+                <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Tab Bar (Identical per lock, People active) -->
+        <div class="tab-bar">
+          <!-- Home -->
+          <div class="tab-item">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span class="text-[13px] font-bold">Home</span>
+          </div>
+          <!-- History -->
+          <div class="tab-item">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span class="text-[13px] font-bold">History</span>
+          </div>
+          <!-- Center Pappu Coin Mic Button -->
+          <div class="flex-1 relative flex items-center justify-center"><div class="w-[72px] h-[72px] rounded-full bg-[#FFC83D] border-4 border-[#1F2937] shadow-[0_4px_0_#D99A00] absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center z-30 cursor-pointer"><svg width="56" height="56" viewBox="0 0 56 56" fill="none" class="mt-[-2px]"><circle cx="28" cy="27" r="21" stroke="#D99A00" stroke-width="1.8"></circle><text x="28" y="16" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="10" fill="#D99A00" text-anchor="middle">₹</text><ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill="#FFFFFF" stroke="#1F2937" stroke-width="1.5"></ellipse><circle cx="22" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="34" cy="26" r="2.8" fill="#1F2937"></circle><circle cx="23" cy="24.8" r="1" fill="#FFFFFF"></circle><circle cx="35" cy="24.8" r="1" fill="#FFFFFF"></circle><path d="M 23 34 C 25 36.5 31 36.5 33 34" stroke="#1F2937" stroke-width="2.2" stroke-linecap="round" fill="none"></path><g transform="translate(24, 40)"><rect x="2.5" y="0" width="3" height="5" rx="1.5" fill="#1F2937"></rect><path d="M 1 2.5 C 1 4.5 7 4.5 7 2.5" stroke="#1F2937" stroke-width="1" stroke-linecap="round" fill="none"></path><line x1="4" y1="5" x2="4" y2="6.5" stroke="#1F2937" stroke-width="1"></line></g></svg></div><span class="w-1.5 h-1.5 mt-auto"></span></div>
+          <!-- People (Active) -->
+          <div class="tab-item active">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span class="text-[13px] font-bold">People</span>
+            <div class="tab-dot"></div>
+          </div>
+          <!-- Me -->
+          <div class="tab-item">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span class="text-[13px] font-bold">Me</span>
+          </div>
+        </div>
+
+      </div>
+      <span class="mt-3 text-xs font-bold text-[#6B7280]">1. People (Default Directory)</span>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- FRAME 2: "ADD PERSON" BOTTOM SHEET OVERLAY               -->
+    <!-- ======================================================== -->
+    <div class="flex flex-col items-center">
+      <div class="device-frame">
+        <!-- Status Bar -->
+        <div class="h-[47px] w-full pt-3 px-7 flex justify-between items-center text-xs font-bold text-[#1F2937] select-none z-30">
+          <span class="">9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path></svg>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5"><rect x="1" y="6" width="18" height="12" rx="3"></rect><path d="M23 10v4"></path></svg>
+          </div>
+        </div>
+
+        <!-- Dimmed underlying screen content preview -->
+        <div class="px-5 pt-3 opacity-30 select-none pointer-events-none">
+          <div class="h-10 flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-[#FFC83D] border-2 border-[#1F2937] flex items-center justify-center font-baloo font-bold text-xs">P</div>
+              <span class="font-baloo text-xl font-extrabold text-[#1F2937]">Pappu</span>
+            </div>
+            <div class="w-10 h-10 rounded-full bg-[#FFC83D] border-2 border-[#1F2937]"></div>
+          </div>
+          <div class="h-12 bg-white rounded-2xl border-2 border-[#F0E4C8] mb-3"></div>
+          <div class="h-28 bg-white rounded-2xl border-2 border-[#F0E4C8] mb-3"></div>
+        </div>
+
+        <!-- Bottom Sheet Container (Sliding up from bottom) -->
+        <div class="absolute inset-x-0 bottom-0 bg-white rounded-t-[28px] border-t-2 border-[#F0E4C8] px-5 pt-3 pb-8 z-50 flex flex-col gap-4">
+          <!-- Drag Handle -->
+          <div class="w-10 h-1.5 rounded-full bg-[#F0E4C8] mx-auto mb-1"></div>
+
+          <!-- Header -->
+          <div class="flex justify-between items-center">
+            <h2 class="font-baloo text-[24px] font-bold text-[#1F2937] leading-tight">Add person</h2>
+            <div class="w-9 h-9 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center cursor-pointer">
+              <svg class="w-4 h-4 text-[#1F2937]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+          </div>
+
+          <!-- Field 1: Name -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[13px] font-bold text-[#1F2937]">Name</label>
+            <div class="h-[52px] bg-white rounded-2xl border-2 border-[#FFC83D] px-4 flex items-center gap-3">
+              <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <input type="text" value="Deepak" class="w-full bg-transparent text-base text-[#1F2937] outline-none font-semibold" readonly="">
+            </div>
+          </div>
+
+          <!-- Field 2: Phone (optional) -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[13px] font-bold text-[#1F2937]">Phone (optional)</label>
+            <div class="h-[52px] bg-white rounded-2xl border-2 border-[#F0E4C8] px-4 flex items-center gap-3">
+              <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              <input type="text" placeholder="+91 98765 43210" class="w-full bg-transparent text-base text-[#1F2937] placeholder-[#6B7280] outline-none font-semibold" readonly="">
+            </div>
+          </div>
+
+          <!-- Field 3: UPI ID (optional) -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[13px] font-bold text-[#1F2937]">UPI ID (optional)</label>
+            <div class="h-[52px] bg-white rounded-2xl border-2 border-[#F0E4C8] px-4 flex items-center gap-3">
+              <svg class="w-5 h-5 text-[#6B7280]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+              <input type="text" placeholder="name@upi" class="w-full bg-transparent text-base text-[#1F2937] placeholder-[#6B7280] outline-none font-semibold" readonly="">
+            </div>
+          </div>
+
+          <!-- Buttons (Equal width, 12px gap) -->
+          <div class="flex gap-3 pt-2">
+            <button class="btn-secondary flex-1">
+              Cancel
+            </button>
+            <button class="btn-primary flex-1">
+              Save
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+      <span class="mt-3 text-xs font-bold text-[#6B7280]">2. "Add person" Bottom Sheet</span>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- FRAME 3: PERSON DETAIL (POOJA)                           -->
+    <!-- ======================================================== -->
+    <div class="flex flex-col items-center">
+      <div class="device-frame">
+        <!-- Status Bar -->
+        <div class="h-[47px] w-full pt-3 px-7 flex justify-between items-center text-xs font-bold text-[#1F2937] select-none z-30">
+          <span class="">9:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"></path></svg>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#1F2937" stroke-width="2.5"><rect x="1" y="6" width="18" height="12" rx="3"></rect><path d="M23 10v4"></path></svg>
+          </div>
+        </div>
+
+        <!-- Custom Top Bar: Back arrow on left -->
+        <div class="h-[56px] px-5 flex items-center justify-between z-30">
+          <button class="w-10 h-10 rounded-full bg-white border-2 border-[#F0E4C8] flex items-center justify-center cursor-pointer active:translate-y-0.5" aria-label="Back">
+            <svg class="w-5 h-5 text-[#1F2937]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          </button>
+          <div class="w-10 h-10"></div> <!-- Spacer to balance header -->
+        </div>
+
+        <!-- Scrollable Detail Body -->
+        <div class="flex-1 overflow-y-auto px-5 pb-6 flex flex-col gap-4 hide-scrollbar">
+
+          <!-- Person Profile Header Card -->
+          <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] p-5 flex flex-col items-center text-center">
+            <!-- Avatar 72px -->
+            <div class="w-[72px] h-[72px] rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center font-baloo font-bold text-3xl text-[#1F2937] mb-2 shadow-[0_2px_0_#F0E4C8]">
+              P
+            </div>
+            <!-- Name -->
+            <h2 class="font-baloo text-[24px] font-bold text-[#1F2937] leading-tight mb-1">Pooja</h2>
+            <!-- Big "+₹6,200" green -->
+            <div class="font-baloo text-[32px] font-extrabold text-[#1F8A5B] tabular-nums leading-tight">
+              +₹6,200
+            </div>
+            <!-- Caption "Pooja owes you" -->
+            <span class="text-[13px] font-bold text-[#6B7280] mb-4">Pooja owes you</span>
+
+            <!-- Primary button "Remind Pooja" with small Pappu Concerned pose beside it -->
+            <div class="w-full flex items-center gap-2">
+              <!-- Pappu Concerned Pose (44px) -->
+              <div class="w-11 h-11 flex-shrink-0 flex items-center justify-center"><svg class="w-11 h-11" viewBox="0 0 100 100" fill="none"><!-- Noodle Legs --><path d="M42 74 L42 88" stroke="#1F2937" stroke-width="5" stroke-linecap="round"></path><path d="M58 74 L58 88" stroke="#1F2937" stroke-width="5" stroke-linecap="round"></path><ellipse cx="40" cy="89" rx="6" ry="3.5" fill="#1F2937"></ellipse><ellipse cx="60" cy="89" rx="6" ry="3.5" fill="#1F2937"></ellipse><!-- Noodle Arms Concerned / Gesturing --><path d="M24 50 C 14 52, 10 59, 9 66" stroke="#1F2937" stroke-width="5.5" stroke-linecap="round" fill="none"></path><circle cx="9" cy="66" r="4.5" fill="#1F2937"></circle><path d="M76 50 C 86 52, 90 59, 91 66" stroke="#1F2937" stroke-width="5.5" stroke-linecap="round" fill="none"></path><circle cx="91" cy="66" r="4.5" fill="#1F2937"></circle><!-- Coin Body --><circle cx="50" cy="48" r="32" fill="#FFC83D" stroke="#1F2937" stroke-width="4"></circle><!-- Inner Rim Ring (inset 8px) --><circle cx="50" cy="48" r="24" stroke="#D99A00" stroke-width="2" fill="none"></circle><!-- Forehead ₹ --><text x="50" y="32" font-family="'Baloo Chettan 2', cursive, sans-serif" font-weight="800" font-size="14" fill="#D99A00" text-anchor="middle">₹</text><!-- Eyebrows Concerned --><path d="M36 37 L44 40" stroke="#1F2937" stroke-width="2" stroke-linecap="round"></path><path d="M64 37 L56 40" stroke="#1F2937" stroke-width="2" stroke-linecap="round"></path><!-- Eyes --><ellipse cx="39" cy="46" rx="5" ry="6.5" fill="#FFFFFF"></ellipse><circle cx="40" cy="46" r="3.5" fill="#1F2937"></circle><circle cx="41.5" cy="44.5" r="1.2" fill="#FFFFFF"></circle><ellipse cx="61" cy="46" rx="5" ry="6.5" fill="#FFFFFF"></ellipse><circle cx="60" cy="46" r="3.5" fill="#1F2937"></circle><circle cx="61.5" cy="44.5" r="1.2" fill="#FFFFFF"></circle><!-- Cheeks --><ellipse cx="32" cy="52" rx="3.5" ry="2" fill="#F97316" fill-opacity="0.3"></ellipse><ellipse cx="68" cy="52" rx="3.5" ry="2" fill="#F97316" fill-opacity="0.3"></ellipse><!-- Mouth (worried/concerned curve) --><path d="M45 59 Q 50 56 55 59" stroke="#1F2937" stroke-width="2.5" stroke-linecap="round" fill="none"></path></svg></div>
+
+              <!-- Primary Button -->
+              <button class="btn-primary flex-1">
+                Remind Pooja
+              </button>
+            </div>
+          </div>
+
+          <!-- Transaction list section -->
+          <div class="flex flex-col gap-2">
+            <span class="font-baloo text-[18px] font-bold text-[#1F2937]">Transactions</span>
+
+            <div class="bg-white rounded-[20px] border-2 border-[#F0E4C8] overflow-hidden">
+
+              <!-- Row 1: Dinner split -->
+              <div class="p-4 flex items-center justify-between border-b border-[#F0E4C8]">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[#F97316]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="font-baloo text-[16px] font-bold text-[#1F2937] leading-tight">Dinner at Paragon</span>
+                    <span class="text-[13px] font-bold text-[#6B7280]">12 Oct · Food</span>
+                  </div>
+                </div>
+                <span class="font-baloo text-[16px] font-bold text-[#1F8A5B] tabular-nums">+₹3,500</span>
+              </div>
+
+              <!-- Row 2: Cab share -->
+              <div class="p-4 flex items-center justify-between border-b border-[#F0E4C8]">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[#38BDF8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="9" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="font-baloo text-[16px] font-bold text-[#1F2937] leading-tight">Uber to Lulu</span>
+                    <span class="text-[13px] font-bold text-[#6B7280]">10 Oct · Transport</span>
+                  </div>
+                </div>
+                <span class="font-baloo text-[16px] font-bold text-[#1F8A5B] tabular-nums">+₹200</span>
+              </div>
+
+              <!-- Row 3: Concert tickets -->
+              <div class="p-4 flex items-center justify-between border-b border-[#F0E4C8]">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[#0E7C86]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="font-baloo text-[16px] font-bold text-[#1F2937] leading-tight">Concert tickets</span>
+                    <span class="text-[13px] font-bold text-[#6B7280]">08 Oct · Shopping</span>
+                  </div>
+                </div>
+                <span class="font-baloo text-[16px] font-bold text-[#1F8A5B] tabular-nums">+₹2,500</span>
+              </div>
+
+              <!-- Row 4: Settlement received -->
+              <div class="p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-[#FFF8E7] border-2 border-[#F0E4C8] flex items-center justify-center">
+                    <svg class="w-5 h-5 text-[#1F8A5B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="font-baloo text-[16px] font-bold text-[#1F2937] leading-tight">UPI from Pooja</span>
+                    <span class="text-[13px] font-bold text-[#6B7280]">05 Oct · Received</span>
+                  </div>
+                </div>
+                <span class="font-baloo text-[16px] font-bold text-[#E5484D] tabular-nums">−₹1,000</span>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+      <span class="mt-3 text-xs font-bold text-[#6B7280]">3. Person Detail (Pooja)</span>
+    </div>
+
+  </div>
+
+</div>
+
+
+
+
+
+
+
+</body></html>

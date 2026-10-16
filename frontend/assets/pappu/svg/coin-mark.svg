@@ -1,0 +1,16 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mascot face only, no text, gold background -->
+  <circle cx="50" cy="50" r="38" fill="#FFC83D" stroke="#1F2937" stroke-width="4" />
+  <circle cx="50" cy="50" r="30" stroke="#D99A00" stroke-width="2.5" fill="none" />
+  <!-- Forehead embossed rupee -->
+  <text x="50" y="34" font-family="'Baloo Chettan 2', sans-serif" font-weight="700" font-size="15" fill="#D99A00" text-anchor="middle">₹</text>
+  <!-- Eyes -->
+  <ellipse cx="40" cy="50" rx="7" ry="9.5" fill="#FFFFFF" />
+  <circle cx="41.5" cy="50" r="4.2" fill="#1F2937" />
+  <circle cx="43.5" cy="48" r="1.5" fill="#FFFFFF" />
+  <ellipse cx="60" cy="50" rx="7" ry="9.5" fill="#FFFFFF" />
+  <circle cx="58.5" cy="50" r="4.2" fill="#1F2937" />
+  <circle cx="60.5" cy="48" r="1.5" fill="#FFFFFF" />
+  <!-- Smile -->
+  <path d="M 44 65 Q 50 71 56 65" stroke="#1F2937" stroke-width="3" stroke-linecap="round" fill="none" />
+</svg>

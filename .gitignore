@@ -1,7 +1,9 @@
 # Environment variables
 .env
-.env*.local
+.env*
 *.env
+!.env.example
+!**/.env.example
 
 # Python
 __pycache__/
@@ -11,14 +13,27 @@ __pycache__/
 env/
 venv/
 .pytest_cache/
+backend/tests/eval/eval_results/
 
-# Node / React Native / Expo
+# Node / React Native / Expo / Mobile
 node_modules/
 .expo/
 dist/
+build/
+*.apk
+*.aab
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+
+# Exports and artifacts
+exports/
+
+# Android / iOS Keys & Credentials
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
 
 # OS
 .DS_Store

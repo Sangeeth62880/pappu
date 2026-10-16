@@ -17,12 +17,19 @@ with open(os.path.join(os.path.dirname(__file__), "..", "frontend", ".env"), "r"
 
 API_BASE_URL = "http://127.0.0.1:8000"
 
+TEST_USER_EMAIL = os.getenv("TEST_USER_EMAIL", "test@pappu.dev")
+TEST_USER_PASSWORD = os.getenv("TEST_USER_PASSWORD")
+
+if not TEST_USER_PASSWORD:
+    print("Warning: TEST_USER_PASSWORD is not set in environment. Set TEST_USER_PASSWORD to run live API tests.")
+    exit(1)
+
 with httpx.Client(timeout=30.0) as client:
     print(f"Signing in with Supabase Auth at {SUPABASE_URL}...")
     auth_res = client.post(
         f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
         headers={"apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json"},
-        json={"email": "test@pappu.dev", "password": "testpass123"},
+        json={"email": TEST_USER_EMAIL, "password": TEST_USER_PASSWORD},
     )
 
     if auth_res.status_code != 200:

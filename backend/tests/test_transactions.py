@@ -179,3 +179,118 @@ def test_delete_transaction(test_db_session):
     # Verify not in list
     list_res = client.get("/transactions", headers={"Authorization": f"Bearer {token}"})
     assert len(list_res.json()) == 0
+
+def test_patch_transaction_and_category_name_lookup(test_db_session):
+    user_id = str(uuid.uuid4())
+    token = create_test_es256_jwt(user_id)
+    food_cat = test_db_session.query(Category).filter_by(name="Food").first()
+
+    create_res = client.post(
+        "/transactions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"type": "expense", "amount": 100.00, "category_id": food_cat.id, "txn_date": "2026-08-15"},
+    )
+    txn_id = create_res.json()["id"]
+
+    # PATCH using category_name
+    patch_res = client.patch(
+        f"/transactions/{txn_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"amount": 250.00, "category_name": "Shopping", "description": "New shoes"},
+    )
+    assert patch_res.status_code == 200
+    data = patch_res.json()
+    assert float(data["amount"]) == 250.00
+    assert data["category_name"] == "Shopping"
+    assert data["description"] == "New shoes"
+
+def test_user_isolation_patch_and_delete_returns_404_never_403(test_db_session):
+    user_a = str(uuid.uuid4())
+    user_b = str(uuid.uuid4())
+    token_a = create_test_es256_jwt(user_a)
+    token_b = create_test_es256_jwt(user_b)
+    food_cat = test_db_session.query(Category).filter_by(name="Food").first()
+
+    # User A creates transaction
+    create_res = client.post(
+        "/transactions",
+        headers={"Authorization": f"Bearer {token_a}"},
+        json={"type": "expense", "amount": 100.00, "category_id": food_cat.id, "txn_date": "2026-08-15"},
+    )
+    txn_id = create_res.json()["id"]
+
+    # User B tries to PATCH User A's transaction -> MUST return 404
+    patch_res = client.patch(
+        f"/transactions/{txn_id}",
+        headers={"Authorization": f"Bearer {token_b}"},
+        json={"amount": 999.00},
+    )
+    assert patch_res.status_code == 404
+    assert patch_res.status_code != 403
+
+    # User B tries to DELETE User A's transaction -> MUST return 404
+    del_res = client.delete(
+        f"/transactions/{txn_id}",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert del_res.status_code == 404
+    assert del_res.status_code != 403
+
+def test_non_destructive_undo_for_edit_and_delete(test_db_session):
+    user_id = str(uuid.uuid4())
+    token = create_test_es256_jwt(user_id)
+    food_cat = test_db_session.query(Category).filter_by(name="Food").first()
+
+    # 1. Create transaction (amount 100)
+    create_res = client.post(
+        "/transactions",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"type": "expense", "amount": 100.00, "category_id": food_cat.id, "description": "Lunch", "txn_date": "2026-08-15"},
+    )
+    txn_id = create_res.json()["id"]
+
+    # 2. Edit transaction (amount 300, new description)
+    patch_res = client.patch(
+        f"/transactions/{txn_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"amount": 300.00, "description": "Buffet lunch"},
+    )
+    assert patch_res.status_code == 200
+    assert float(patch_res.json()["amount"]) == 300.00
+
+    # 3. Call undo -> should restore amount 100 and description "Lunch" without deleting the transaction!
+    undo_res = client.post(
+        "/transactions/undo",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert undo_res.status_code == 200
+    undo_data = undo_res.json()
+    assert undo_data["status"] == "undone"
+    assert undo_data["transaction"]["action_undone"] == "edit"
+
+    # Verify transaction still exists and has original amount 100
+    get_res = client.get("/transactions", headers={"Authorization": f"Bearer {token}"})
+    assert len(get_res.json()) == 1
+    assert float(get_res.json()[0]["amount"]) == 100.00
+    assert get_res.json()[0]["description"] == "Lunch"
+
+    # 4. Now delete the transaction
+    del_res = client.delete(f"/transactions/{txn_id}", headers={"Authorization": f"Bearer {token}"})
+    assert del_res.status_code == 200
+
+    # Verify empty
+    assert len(client.get("/transactions", headers={"Authorization": f"Bearer {token}"}).json()) == 0
+
+    # 5. Call undo -> should restore the deleted transaction
+    undo_del_res = client.post(
+        "/transactions/undo",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert undo_del_res.status_code == 200
+    assert undo_del_res.json()["transaction"]["action_undone"] == "delete"
+
+    # Verify restored transaction exists
+    restored_txns = client.get("/transactions", headers={"Authorization": f"Bearer {token}"}).json()
+    assert len(restored_txns) == 1
+    assert float(restored_txns[0]["amount"]) == 100.00
+

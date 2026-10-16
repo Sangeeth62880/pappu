@@ -3,13 +3,14 @@
  * Provides authenticated helper methods using the user's Supabase JWT.
  */
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.29.82:8000';
+import { getApiBaseUrl } from '../config/api';
 
 /**
  * Helper to execute HTTP requests with auth headers.
  */
 async function request(endpoint, { method = 'GET', token, body, params } = {}) {
-  let url = `${API_BASE_URL.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
+  const baseUrl = getApiBaseUrl();
+  let url = `${baseUrl.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
 
   if (params) {
     const searchParams = new URLSearchParams();
@@ -56,10 +57,11 @@ async function request(endpoint, { method = 'GET', token, body, params } = {}) {
 }
 
 /**
- * GET /summary - Fetches balance, totals, and category breakdown.
+ * GET /summary - Fetches period analytics (week | month | year) or all-time summary.
  */
-export async function fetchSummary(token) {
-  return request('/summary', { method: 'GET', token });
+export async function fetchSummary(token, period = null) {
+  const params = period ? { period } : {};
+  return request('/summary', { method: 'GET', token, params });
 }
 
 /**
@@ -76,6 +78,24 @@ export async function fetchContactDetail(token, contactId) {
   return request(`/summary/people/${contactId}`, { method: 'GET', token });
 }
 
+/**
+ * POST /contacts - Creates a new contact with optional phone and upi_id.
+ */
+export async function createContact(token, { name, phone = null, upi_id = null }) {
+  return request('/contacts', {
+    method: 'POST',
+    token,
+    body: { name, phone, upi_id },
+  });
+}
+
+/**
+ * GET /contacts/{contact_id}/remind-text - Fetches personalized reminder text for sharing.
+ */
+export async function fetchContactRemindText(token, contactId) {
+  return request(`/contacts/${contactId}/remind-text`, { method: 'GET', token });
+}
+
 
 /**
  * GET /transactions - Fetches transaction history with optional filters.
@@ -84,40 +104,26 @@ export async function fetchTransactions(token, filters = {}) {
   return request('/transactions', { method: 'GET', token, params: filters });
 }
 
+
+
 /**
- * POST /intent/parse - Converts plain text into a validated IntentObject.
+ * PATCH /transactions/{id} - Updates an existing transaction.
  */
-export async function parseIntent(token, text) {
-  return request('/intent/parse', {
-    method: 'POST',
+export async function updateTransaction(token, id, payload) {
+  return request(`/transactions/${id}`, {
+    method: 'PATCH',
     token,
-    body: { text },
+    body: payload,
   });
 }
 
 /**
- * POST /intent/route - Routes IntentObject per 4-tier rules and executes or returns prompts.
+ * DELETE /transactions/{id} - Deletes an existing transaction.
  */
-export async function routeIntent(token, intent) {
-  return request('/intent/route', {
-    method: 'POST',
+export async function deleteTransaction(token, id) {
+  return request(`/transactions/${id}`, {
+    method: 'DELETE',
     token,
-    body: { intent },
-  });
-}
-
-/**
- * POST /intent/confirm - Confirms and executes an edit or delete action.
- */
-export async function confirmAction(token, transactionId, action, fields = null) {
-  return request('/intent/confirm', {
-    method: 'POST',
-    token,
-    body: {
-      transaction_id: transactionId,
-      action,
-      fields,
-    },
   });
 }
 
@@ -136,7 +142,8 @@ export async function undoTransaction(token) {
  * Accepts binary Blob/File or { uri, name, type } object or raw URI string.
  */
 export async function transcribeAudio(token, audioData, languageCode = null) {
-  let url = `${API_BASE_URL.replace(/\/$/, '')}/stt/transcribe`;
+  const baseUrl = getApiBaseUrl();
+  let url = `${baseUrl.replace(/\/$/, '')}/stt/transcribe`;
 
   const formData = new FormData();
   if (audioData instanceof Blob || (typeof File !== 'undefined' && audioData instanceof File)) {
@@ -239,6 +246,118 @@ export async function synthesizeSpeech(token, text, languageCode = 'en-IN', spea
       speaker,
       pace,
     },
+  });
+}
+
+/**
+ * GET /chat/history - Fetches paginated chat messages for the current user.
+ */
+export async function fetchChatHistory(token, { limit = 50, offset = 0 } = {}) {
+  return request('/chat/history', {
+    method: 'GET',
+    token,
+    params: { limit, offset },
+  });
+}
+
+/**
+ * POST /chat/message - Saves a new chat message to persistent backend storage.
+ */
+export async function saveChatMessage(token, { role, text, payload = null }) {
+  return request('/chat/message', {
+    method: 'POST',
+    token,
+    body: { role, text, payload },
+  });
+}
+
+/**
+ * DELETE /chat/history - Deletes all chat messages for the authenticated user.
+ */
+export async function clearChatHistory(token) {
+  return request('/chat/history', {
+    method: 'DELETE',
+    token,
+  });
+}
+
+/**
+ * @typedef {'neutral' | 'happy' | 'excited' | 'concerned' | 'confused'} AssistantMood
+ *
+ * @typedef {Object} AssistantResponse
+ * @property {string} reply_text - Display text formatted for user bubble
+ * @property {string} spoken_text - Concise spoken text for TTS
+ * @property {string} language - Response language code ('en', 'ml', 'mixed')
+ * @property {Array<Object>} results - Executed action results
+ * @property {Object|null} pending - Active pending item awaiting confirmation or disambiguation
+ * @property {boolean} changed - Whether financial state changed
+ * @property {AssistantMood} mood - Pappu mascot mood derived from result kinds
+ */
+
+/**
+ * POST /assistant/message - Unified message endpoint for Assistant v2.
+ * @returns {Promise<AssistantResponse>}
+ */
+export async function sendAssistantMessage(token, { text, input = 'typed', client_msg_id = null }) {
+  const normInput = input === 'voice' ? 'voice' : 'typed';
+  const body = { text, input: normInput };
+  if (client_msg_id) {
+    body.client_msg_id = client_msg_id;
+  }
+  return request('/assistant/message', {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
+/**
+ * POST /assistant/pending/{id}/answer - Deterministically resolves an active pending item.
+ * @returns {Promise<AssistantResponse>}
+ */
+export async function answerPending(token, pendingId, answer, index = null) {
+  const body = { answer };
+  if (index !== null && index !== undefined) {
+    body.index = index;
+  }
+  return request(`/assistant/pending/${pendingId}/answer`, {
+    method: 'POST',
+    token,
+    body,
+  });
+}
+
+/**
+ * GET /assistant/pending - Fetches the single active pending item for the user if any.
+ */
+export async function fetchActivePending(token) {
+  return request('/assistant/pending', {
+    method: 'GET',
+    token,
+  });
+}
+
+/**
+ * GET /profile - Fetches read-only user profile (name, email, language).
+ */
+export async function fetchProfile(token) {
+  return request('/profile', {
+    method: 'GET',
+    token,
+  });
+}
+
+/**
+ * PATCH /profile - Updates user preferences (language, voice_replies).
+ */
+export async function patchProfile(token, { language, voice_replies } = {}) {
+  const body = {};
+  if (language !== undefined) body.language = language;
+  if (voice_replies !== undefined) body.voice_replies = voice_replies;
+  return request('/profile', {
+    method: 'PATCH',
+    token,
+    body,
   });
 }
 

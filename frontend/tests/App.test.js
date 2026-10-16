@@ -19,7 +19,7 @@ describe('App root screen rendering', () => {
   it('renders without throwing error and displays app name and auth screen', async () => {
     const { findByText } = await render(<App />);
     expect(await findByText('Pappu')).toBeTruthy();
-    expect(await findByText('Bilingual Voice-First Financial Assistant')).toBeTruthy();
-    expect(await findByText('Sign In to Pappu')).toBeTruthy();
+    expect(await findByText('Just say it. Pappu keeps track.')).toBeTruthy();
+    expect(await findByText('Sign in')).toBeTruthy();
   });
 });

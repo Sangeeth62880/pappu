@@ -182,3 +182,114 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 - Regression pass: re-run Phase 8's end-to-end test to confirm polish didn't break the core flow.
 
 **Acceptance criteria**: Analytics features are correct against known test data, and the core voice flow still passes its end-to-end test after all polish work.
+
+---
+
+## Phase 10 — Light Design System & Analytics Redesign
+
+*Note: This phase satisfies the previously unfinished Phase 5 "trends" requirement and implements key parts of Phase 9 analytics (spending patterns, highest category, period comparison, daily buckets, delta vs previous period). Phase 9 itself remains in progress for remaining predictive budgeting/alerts.*
+
+**Tasks**
+1. Document data semantics, light-only design system tokens, glass policy, and new `/summary?period=` contract in `PROJECT_SPEC.md`.
+2. Build design system tokens and reusable UI primitives (`Screen`, `Card`, `GlassCard`, `Button`, `IconButton`, `Chip/SegmentedControl`, `Avatar`, `AmountText`, `ListRow`, `SectionHeader`, `EmptyState`, `Skeleton`, `Toast`, `BottomSheet`) in `frontend/src/components/ui/` with unit tests.
+3. Extend backend `GET /summary` with `period=week|month|year` parameter, returning period-scoped totals (spent, income, net), previous period delta, zero-filled daily buckets, expense-only category percentages, top 3 contacts, and top 3 expenses.
+4. Restructure `Dashboard` into an analytics-first overview: slim header + profile sheet, segmented period selector, blue gradient hero card, 7-day spending chart, people card, expense proportion bars, and capped recent activity (max 5) with "See all" navigation.
+5. Rebuild bottom navigation bar with floating frosted-card styling and outline icons.
+6. Restyle remaining screens (`Assistant`, `History`, `People`, `Auth`) using design tokens and primitives, ensuring zero old dark-navy/gold colors remain.
+7. Add pull-to-refresh, skeleton loading states, and comprehensive test coverage.
+
+**Tests**
+- pytest: backend `/summary?period=` covers multi-week dataset totals, zero-filled buckets, IST calendar boundaries (Sunday/Monday and month rollover), previous-period delta, two-user isolation, and empty-data user handling.
+- Jest/RNTL: UI primitive token tests (contrast validation, AmountText formatting variants, Button states), Dashboard period toggle re-rendering, Recent rows cap at 5, People empty states, and filter passing to History.
+
+**Acceptance criteria**: Modern light-only design system fully replaces dark passbook theme across all screens, zero hardcoded legacy navy/gold colors, all frontend and backend tests pass, and complete data isolation and auth behaviors remain intact.
+
+---
+
+## Phase 11 — Post-Stitch Migration Polish, Manual CRUD, Persistent Chat & Universal Voice Access
+
+**Tasks**
+1. **Touch Targets & Exit Paths (Fix 2 & 3)**:
+   - Fixed `Toast.js` unmount bug that permanently blocked touch targets above the floating nav bar.
+   - Enhanced `BottomSheet.js` with swipe-down dismissal and accessible close button.
+   - Added Android hardware `BackHandler` on `HomeScreen`, `AuthScreen`, `HistoryScreen`, and `PeopleScreen` to close active sheets or return to root dashboard before exiting.
+   - Floating navbar dynamically hides during typing (`keyboardWillShow` / `keyboardDidShow`) and provides 48px touch targets at `zIndex: 100`.
+2. **Accessible Microphone & Vector Iconography (Fix 4)**:
+   - Replaced all raw unicode emojis ('🎤', '⏹', food emojis) with `MaterialIcons` (`mic`, `stop`, `restaurant`, etc.).
+   - Added animated pulsing ring, clear error banner, and `Linking.openSettings()` on microphone permission denial.
+3. **Manual Transaction Editing, Deletion & Non-Destructive Undo (Fix 1)**:
+   - Implemented `PATCH /transactions/{id}` and `DELETE /transactions/{id}` in FastAPI with strict 404 user scoping (never 403 to prevent enumeration).
+   - Added integer-ordered `undo_actions` model for deterministic sequential undo resolution across both SQLite and PostgreSQL.
+   - Built frontend `TransactionEditSheet` accessible across Dashboard, History, and People screens.
+4. **Persistent Chat History (Fix 5)**:
+   - Added `chat_messages` model (`id`, `user_id`, `role`, `text`, `payload`, `created_at`) with PostgreSQL RLS.
+   - Added `GET /chat/history?limit=50&offset=0`, `POST /chat/message`, and `DELETE /chat/history`.
+   - Updated `ConversationLog.js` with skeleton loader on mount, automatic history sync, safe error fallbacks, and marked historical confirmation cards as resolved.
+   - Added "Clear Chat History" action in Profile settings bottom sheet and ConversationLog header.
+5. **Universal Voice Entry Points (Fix 6)**:
+   - Added header microphone action on Home, History, and People screens that opens a unified `VoiceListeningSheet`.
+   - Allows hands-free recording, transcription, intent routing, and real-time dashboard updates without leaving the current screen.
+   - Kept Assistant tab dedicated to single conversation composer mic to prevent duplicate triggers.
+
+**Tests**
+- pytest: 171 backend tests passing (including `test_chat.py` pagination, user isolation, and `test_transactions.py` patch/delete/undo).
+- Jest: 81 frontend tests passing (including `transaction_edit.test.js`, `chat_history.test.js`, `voice_listening_sheet.test.js`).
+
+**Acceptance criteria**: All six UI/UX/logic issues resolved with root-cause fixes, zero regressions, full test coverage across frontend and backend.
+
+---
+
+## Phase 12: Pappu Assistant v2 Architecture and Intent Layer Migration
+
+Note: The compare and group_by operations implemented in this phase cover analytics capabilities of Phase 9. Phase 9 is not marked complete because budgets remain unsupported.
+
+**Tasks**
+1. Evaluation Harness: Created golden dataset cases.jsonl (149 test cases covering English, Malayalam, and Manglish) and runner.py with pluggable planners.
+2. Schemas and Context: Defined PlanV2 and ActionV2 schemas with strict Pydantic validation (max 5 operations per plan). Built parallel context loader gathering IST date, top contacts with aliases, recent chat turns, last touched transaction, and active pending state.
+3. LLM Planner: Authored single call prompt.md generating declarative PlanV2 JSON. Handled add, edit, delete, query, clarify, and chat operations without regex or keyword classification.
+4. Deterministic Resolver: Implemented multi candidate disambiguation, fuzzy alias matching with jaro winkler similarity, relative date parser, and contact confirmation routing.
+5. Deterministic Executors: Implemented transactional add, edit, delete, and query executors with isolation guarantees and 404 responses for missing records.
+6. Deterministic Response Composer: Implemented multilingual natural language generator producing concise display text and spoken text without secondary LLM calls.
+7. Pending Action State Machine: Implemented pending item lifecycle supporting confirm, cancel, choose, and answer across text and voice interfaces.
+8. Frontend Migration and Cleanup: Switched frontend to use /assistant/message, /assistant/pending/{id}/answer, and /assistant/pending. Removed ASSISTANT_V2 flag and retired obsolete v1 intent routing code.
+
+**Tests**
+* Backend: 239 pytest tests passing including assistant message, pending lifecycle, planner validation, executors, and security isolation.
+* Frontend: 94 Jest tests passing across all 16 test suites.
+* Evaluation Suite: 89.3 percent overall accuracy (133/149 test cases passing), zero schema failures, and 7/7 critical regression tests passing.
+
+**Acceptance criteria**: Intent classification is entirely owned by the LLM planner. Resolution, execution, and replies are fully deterministic code. Zero keyword or regex intent classification remains. All unit and integration tests pass.
+
+---
+
+## Phase 13: Pappu UI Stitch Redesign & Final Audit
+
+> **Standing Rule**: UI uses design tokens and ui primitives only. The Stitch design is not changed without approval.
+
+**Tasks**
+1. **Design System & Primitives Foundation**:
+   - Replaced legacy blue/glass theme with Tactile Neo-Playful tokens (`#FFF8E7`, `#FFC83D`, `#D99A00`, `#F0E4C8`, `#1F2937`).
+   - Built core primitives: `Button` (physical press and haptic feedback), `Card`, `Dialog`, `Input`, `MessageBubble`, `Chip`, `Skeleton`, `Toast`, `AmountText`.
+   - Completely eradicated all gradients, blurs, glassmorphism, and ambient shadows.
+2. **Navigation Shell & Visual Header/Tab Bar**:
+   - Migrated from custom local state to React Navigation 7 stack and bottom tab bar.
+   - Built global `AppHeader` (56px height, 32px coin mark with 'P' + Baloo 800 wordmark) identical across Home, History, People, and Me.
+   - Built `CustomTabBar` (84px height, white surface, 2px top border) with centered 72px vector `CoinButton` raised 24px above bar.
+3. **Screen Implementation (Stitch Fidelity)**:
+   - **Auth**: Replaced legacy auth with Stitch Sign In and Create Account screens, input focus rings, chunked SecureStore session persistence, and mascot face.
+   - **Home**: Built week, month, and year segmented views, hero spending balance, daily spend chart, and recent transaction list.
+   - **History**: Built filterable transaction list, swipe-to-delete gesture, transaction edit bottom sheet, and sleepy mascot empty state.
+   - **People**: Built contacts list with balances, Add Person bottom sheet (`POST /contacts`), Contact Detail with WhatsApp reminder generation.
+   - **Me**: Built profile settings with language selector, audio/haptic preferences (`GET/PATCH /profile`), and confirmation dialogs for Clear Chat and Sign Out.
+   - **Assistant**: Full-screen modal overlay with vector Pappu mascot (10 poses: Idle, Listening, Thinking, Speaking, Happy, Excited, Worried, Concerned, Confused, Sleepy), interactive pending action cards, and voice feedback.
+4. **Final System Audit**:
+   - Removed all dead code (`Balance.js`, `GlassCard.js`), obsolete components, and legacy blue tokens.
+   - Tokenized all remaining hardcoded colors and eliminated all banned words and AI slop.
+   - Verified back behavior across all sheets, dialogs, stack screens, and tab transitions.
+
+**Tests**
+* Backend: 312 passed in pytest (zero failures, zero warnings).
+* Frontend: 197 passed across all 24 Jest test suites.
+* Assistant Eval Suite: 93.8% overall accuracy (152/162 cases passed), 0.0% schema failures, 7/7 critical regression tests passing.
+
+**Acceptance criteria**: All screens and states match Stitch design specifications at 390x844, 360x780, and 1.3 font scale; all user-facing backend strings strictly follow the no-hyphen and no-em-dash rule; backend, frontend, and assistant evaluation suites pass without regressions.

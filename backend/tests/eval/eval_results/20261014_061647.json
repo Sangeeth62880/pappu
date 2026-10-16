@@ -1,0 +1,654 @@
+{
+  "planner": "v2",
+  "execute_mode": true,
+  "timestamp": "2026-10-14T06:16:47.726209+00:00",
+  "total_cases": 7,
+  "total_passed": 7,
+  "total_expressible": 7,
+  "total_inexpressible": 0,
+  "overall_accuracy": 100.0,
+  "expressible_accuracy": 100.0,
+  "schema_failure_rate": 0.0,
+  "p50_latency_ms": 604.8,
+  "p95_latency_ms": 841.6,
+  "avg_input_tokens": 48.6,
+  "elapsed_seconds": 5.84,
+  "failures_by_cause": {
+    "planner": 0,
+    "resolver": 0,
+    "executor": 0,
+    "composer": 0
+  },
+  "regression_cases": {
+    "regression_query_who_owes_me": "PASS",
+    "regression_edit_change_to_300": "PASS",
+    "regression_delete_last_pooja": "PASS",
+    "regression_delete_last_food": "PASS",
+    "regression_multi_lunch_pooja": "PASS",
+    "regression_multi_lunch_auto": "PASS",
+    "regression_delete_manglish_yesterday_food": "PASS"
+  },
+  "group_stats": {
+    "delete": {
+      "total": 2,
+      "passed": 2,
+      "expressible": 2,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "edit": {
+      "total": 1,
+      "passed": 1,
+      "expressible": 1,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "manglish": {
+      "total": 1,
+      "passed": 1,
+      "expressible": 1,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "multi_action": {
+      "total": 2,
+      "passed": 2,
+      "expressible": 2,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    },
+    "queries": {
+      "total": 1,
+      "passed": 1,
+      "expressible": 1,
+      "not_expressible": 0,
+      "accuracy": 100.0,
+      "expressible_accuracy": 100.0
+    }
+  },
+  "results": [
+    {
+      "id": "regression_delete_last_food",
+      "group": "delete",
+      "input": "Delete my last food transaction",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 470.1,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "category": "Food",
+              "recency": "latest"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "category": "Food",
+              "recency": "latest"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression_delete_last_pooja",
+      "group": "delete",
+      "input": "Delete the last transaction to Pooja",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 507.5,
+      "token_count": 48,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Pooja",
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Pooja",
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": "latest",
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Pooja",
+              "recency": "latest"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": "Pooja",
+              "recency": "latest"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression_delete_manglish_yesterday_food",
+      "group": "manglish",
+      "input": "innale food inte 600 ozhivakku",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 627.2,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": 600,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": "2026-10-13",
+              "date_to": "2026-10-13",
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "contact": null,
+              "category": "Food",
+              "direction": null,
+              "amount": 600,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": "2026-10-13",
+              "date_to": "2026-10-13",
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "delete",
+            "selector": {
+              "category": "Food",
+              "amount": 600,
+              "date_from": "2026-10-13",
+              "date_to": "2026-10-13"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "delete",
+            "selector": {
+              "category": "Food",
+              "amount": 600,
+              "date_from": "2026-10-13",
+              "date_to": "2026-10-13"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression_edit_change_to_300",
+      "group": "edit",
+      "input": "Change it to 300",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 554.7,
+      "token_count": 88,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "edit",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": "last_touched",
+              "text": null,
+              "limit": null
+            },
+            "patch": {
+              "amount": 300
+            }
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "edit",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": null,
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": "last_touched",
+              "text": null,
+              "limit": null
+            },
+            "patch": {
+              "amount": 300
+            }
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "edit",
+            "selector": {
+              "ref": "last_touched"
+            },
+            "patch": {
+              "amount": 300
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "edit",
+            "selector": {
+              "ref": "last_touched"
+            },
+            "patch": {
+              "amount": 300
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression_multi_lunch_auto",
+      "group": "multi_action",
+      "input": "Spent 250 on lunch and 80 on auto",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 604.8,
+      "token_count": 36,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 80,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "auto"
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 80,
+            "direction": null,
+            "contact": null,
+            "category": "Transport",
+            "date": null,
+            "description": "auto"
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "category": "Food",
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 80,
+            "category": "Transport",
+            "description": "auto"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "category": "Food",
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 80,
+            "category": "Transport",
+            "description": "auto"
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression_multi_lunch_pooja",
+      "group": "multi_action",
+      "input": "Spent 250 on lunch and sent 500 to Pooja",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 841.6,
+      "token_count": 48,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 500,
+            "direction": "sent",
+            "contact": "Pooja",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "direction": null,
+            "contact": null,
+            "category": "Food",
+            "date": null,
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "person",
+            "amount": 500,
+            "direction": "sent",
+            "contact": "Pooja",
+            "category": null,
+            "date": null,
+            "description": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "category": "Food",
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 500,
+            "contact": "Pooja"
+          }
+        ],
+        "actions": [
+          {
+            "op": "add",
+            "kind": "expense",
+            "amount": 250,
+            "category": "Food",
+            "description": "lunch"
+          },
+          {
+            "op": "add",
+            "kind": "person",
+            "direction": "sent",
+            "amount": 500,
+            "contact": "Pooja"
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression_query_who_owes_me",
+      "group": "queries",
+      "input": "Who owes me money",
+      "expressible": true,
+      "passed": true,
+      "schema_valid": true,
+      "latency_ms": 614.2,
+      "token_count": 48,
+      "reason": "Match",
+      "failure_cause": null,
+      "actual_plan": {
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": "received",
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null
+          }
+        ],
+        "reasoning": null,
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "contact": null,
+              "category": null,
+              "direction": "received",
+              "amount": null,
+              "amount_min": null,
+              "amount_max": null,
+              "date_from": null,
+              "date_to": null,
+              "recency": null,
+              "nth": null,
+              "ref": null,
+              "text": null,
+              "limit": null
+            },
+            "compare_to": null
+          }
+        ]
+      },
+      "expected_plan": {
+        "ops": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "direction": "received"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "op": "query",
+            "query_kind": "balances",
+            "selector": {
+              "direction": "received"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
