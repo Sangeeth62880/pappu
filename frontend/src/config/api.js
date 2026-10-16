@@ -85,7 +85,7 @@ export function getApiBaseUrl() {
  * Startup health check helper against GET /health.
  * Returns { ok: true, data } or throws an error.
  */
-export async function checkBackendHealth(timeoutMs = 10000) {
+export async function checkBackendHealth(timeoutMs = 60000) {
   const baseUrl = getApiBaseUrl();
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;

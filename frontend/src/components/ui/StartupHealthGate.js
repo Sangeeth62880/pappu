@@ -40,7 +40,7 @@ export default function StartupHealthGate({
     }, 3000);
 
     try {
-      await checkBackendHealth(12000);
+      await checkBackendHealth(60000);
       if (wakingTimerRef.current) {
         clearTimeout(wakingTimerRef.current);
       }
