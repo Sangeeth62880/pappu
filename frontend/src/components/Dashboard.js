@@ -218,15 +218,25 @@ function DashboardInner({
 
   // ── Error State ──
   if (error && !summary) {
+    const isAuthError =
+      summaryQuery.error?.status === 401 ||
+      (error && (error.includes('401') || error.toLowerCase().includes('token') || error.toLowerCase().includes('unauthorized')));
+
     return (
       <View testID="dashboard-error" style={styles.errorContainer}>
         <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Could not connect to server</Text>
-          <Text style={styles.errorSubtitle}>Check your internet connection.</Text>
+          <Text style={styles.errorTitle}>
+            {isAuthError ? 'Session Expired' : 'Could not connect to server'}
+          </Text>
+          <Text style={styles.errorSubtitle}>
+            {isAuthError
+              ? 'Your login session is invalid or has expired. Please sign out and log back in.'
+              : 'Check your internet connection.'}
+          </Text>
           <Button
             testID="dashboard-retry-button"
             onPress={() => summaryQuery.refetch()}
-            title="Retry"
+            title={isAuthError ? "Retry" : "Retry"}
             variant="secondary"
             size="sm"
             style={{ marginTop: spacing.md }}

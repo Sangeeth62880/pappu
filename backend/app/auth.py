@@ -12,6 +12,11 @@ ssl_context = ssl.create_default_context(cafile=certifi.where())
 
 # Initialize cached JWKS client for asymmetric ES256 public key verification
 jwks_client = PyJWKClient(SUPABASE_JWKS_URL, cache_keys=True, ssl_context=ssl_context)
+fallback_jwks_client = PyJWKClient(
+    "https://mvobtveaewxgiczulyrq.supabase.co/auth/v1/.well-known/jwks.json",
+    cache_keys=True,
+    ssl_context=ssl_context,
+)
 
 def get_current_user_id(authorization: str | None = Header(None)) -> uuid.UUID:
     """
@@ -38,7 +43,11 @@ def get_current_user_id(authorization: str | None = Header(None)) -> uuid.UUID:
     token = parts[1]
 
     try:
-        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        try:
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+        except (PyJWKClientError, PyJWKError):
+            signing_key = fallback_jwks_client.get_signing_key_from_jwt(token)
+
         payload = jwt.decode(
             token,
             signing_key.key,

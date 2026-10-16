@@ -6,11 +6,18 @@ env_path = os.path.join(backend_dir, ".env")
 load_dotenv(dotenv_path=env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://mvobtveaewxgiczulyrq.supabase.co")
-SUPABASE_JWKS_URL = os.getenv(
-    "SUPABASE_JWKS_URL",
-    f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json",
-)
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://mvobtveaewxgiczulyrq.supabase.co").strip().rstrip("/")
+
+raw_jwks = os.getenv("SUPABASE_JWKS_URL", "").strip()
+if not raw_jwks or "[PROJECT-REF]" in raw_jwks:
+    SUPABASE_JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+elif "/.well-known/jwks.json" in raw_jwks and "/auth/v1/" not in raw_jwks:
+    SUPABASE_JWKS_URL = raw_jwks.replace("/.well-known/jwks.json", "/auth/v1/.well-known/jwks.json")
+elif raw_jwks.endswith("/auth/v1/jwks.json"):
+    SUPABASE_JWKS_URL = raw_jwks.replace("/auth/v1/jwks.json", "/auth/v1/.well-known/jwks.json")
+else:
+    SUPABASE_JWKS_URL = raw_jwks
+
 
 # Sarvam AI LLM config (PROJECT_SPEC.md §2)
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
