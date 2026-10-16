@@ -11,6 +11,11 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pappu-78n5.onrender.com",
+        "EXPO_PUBLIC_USE_RN_FETCH": "true",
+        "EXPO_PUBLIC_ASSISTANT_V2": "true"
       }
     },
     "production": {
