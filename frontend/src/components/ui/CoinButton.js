@@ -165,12 +165,9 @@ export default function CoinButton({
             style={styles.coinTouchableFace}
           >
             {isRecording ? (
-              /* Pappu Listening Pose in Place with Wave Animation */
+              /* Waveform in Place while listening - no coin */
               <View style={styles.listeningContainer} testID="coin-listening-state">
-                <Pappu mood="listening" size={44} />
-                <View style={styles.listeningWaveBar}>
-                  <VoiceWaveAnimation color={colors.ink} maxHeight={10} minHeight={3} barWidth={2.5} gap={2} />
-                </View>
+                <VoiceWaveAnimation color={colors.ink} maxHeight={24} minHeight={4} barWidth={3} gap={2} barCount={7} />
               </View>
             ) : (
               <>

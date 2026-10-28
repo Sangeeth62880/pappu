@@ -601,7 +601,7 @@ export default function ConversationLog({
   };
 
   // Determine state caption below mascot
-  let stateCaption = 'Listening…';
+  let stateCaption = null;
   if (assistantState === 'listening') {
     stateCaption = 'Listening…';
   } else if (assistantState === 'thinking' || loading) {
@@ -613,7 +613,7 @@ export default function ConversationLog({
   } else if (activePending) {
     stateCaption = 'Confirmation required';
   } else {
-    stateCaption = 'Listening…';
+    stateCaption = null;
   }
 
   const handleClearHistory = useCallback(async () => {
@@ -662,13 +662,30 @@ export default function ConversationLog({
 
       {/* ── Mascot Header with State Caption & Retry Button ── */}
       <View style={styles.mascotHeader} testID="assistant-mascot-header">
-        <Pappu mood={activeMood} size={120} testID="assistant-mascot" />
-
-        <Text style={styles.stateCaption} testID="assistant-state-caption">
-          {stateCaption}
-        </Text>
-        {/* Mirror with standard ellipsis for test match */}
-        <Text style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}>Listening...</Text>
+        {assistantState === 'listening' ? (
+          <View style={styles.listeningWaveHeader} testID="assistant-listening-wave-header">
+            <VoiceWaveAnimation
+              color={colors.gold_edge}
+              maxHeight={64}
+              minHeight={12}
+              barWidth={6}
+              gap={5}
+              barCount={15}
+            />
+            <Text style={styles.stateCaption} testID="assistant-state-caption">
+              Listening…
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Pappu mood={activeMood} size={120} testID="assistant-mascot" />
+            {Boolean(stateCaption) && (
+              <Text style={styles.stateCaption} testID="assistant-state-caption">
+                {stateCaption}
+              </Text>
+            )}
+          </>
+        )}
 
         {/* Retry Button in Confused State */}
         {assistantState === 'confused' && (
@@ -992,6 +1009,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 4,
     paddingBottom: 12,
+  },
+  listeningWaveHeader: {
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
   },
   stateCaption: {
     fontFamily: typography.fonts.body,

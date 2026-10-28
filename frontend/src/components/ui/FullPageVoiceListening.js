@@ -142,10 +142,12 @@ export default function FullPageVoiceListening({
           </>
         )}
 
-        {/* Mascot Center Circle */}
-        <View style={styles.mascotCircle}>
-          <Pappu mood={isTranscribing ? 'thinking' : 'listening'} size={88} />
-        </View>
+        {/* Mascot Center Circle: Coin hidden while listening, only waveform shown */}
+        {isTranscribing && (
+          <View style={styles.mascotCircle}>
+            <Pappu mood="thinking" size={88} />
+          </View>
+        )}
 
         {/* Giant Voice Wave Animation covering screen width */}
         {!isTranscribing ? (

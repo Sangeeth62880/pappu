@@ -395,7 +395,14 @@ const MicButton = forwardRef(function MicButton({
             <View style={styles.coinTactileWrapper}>
               {isRecording ? (
                 <View style={styles.listeningContainer} testID="mic-listening-face">
-                  <Pappu mood="listening" size={size >= 64 ? 44 : 34} />
+                  <VoiceWaveAnimation
+                    color={colors.ink}
+                    maxHeight={size >= 64 ? 24 : 18}
+                    minHeight={4}
+                    barWidth={3}
+                    gap={2}
+                    barCount={size >= 64 ? 7 : 5}
+                  />
                   <View style={styles.coinMicBadge}>
                     <MaterialIcons name="stop" size={12} color={colors.ink} />
                   </View>
