@@ -174,3 +174,15 @@ class RemindTextResponse(BaseModel):
     contact_id: uuid.UUID
     contact_name: str
     amount: float
+
+class ContactRenameRequest(BaseModel):
+    name: str
+
+class ContactUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    upi_id: Optional[str] = None
+
+class MergeContactsRequest(BaseModel):
+    primary_contact_id: uuid.UUID
+    secondary_contact_id: uuid.UUID

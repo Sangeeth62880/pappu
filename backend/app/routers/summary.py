@@ -498,3 +498,15 @@ def merge_people_contacts_direct(
     """
     return merge_people_contacts(body=body, db=db, current_user_id=current_user_id)
 
+
+@router.patch("/people/{contact_id}/rename")
+@router.put("/people/{contact_id}/rename")
+def rename_people_contact_route(
+    contact_id: uuid.UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    from app.routers.contacts import rename_contact, ContactRenameRequest
+    return rename_contact(contact_id=contact_id, body=ContactRenameRequest(name=body.get("name", "")), db=db, current_user_id=current_user_id)
+

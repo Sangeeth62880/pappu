@@ -90,6 +90,39 @@ export async function createContact(token, { name, phone = null, upi_id = null }
 }
 
 /**
+ * PATCH /contacts/{contact_id}/rename - Renames an existing contact.
+ */
+export async function renameContact(token, contactId, name) {
+  return request(`/contacts/${contactId}/rename`, {
+    method: 'PATCH',
+    token,
+    body: { name },
+  });
+}
+
+/**
+ * POST /summary/people/merge - Merges two contacts (secondary into primary).
+ */
+export async function mergeContacts(token, primaryOrObj, maybeSecondary) {
+  let primary_contact_id, secondary_contact_id;
+  if (typeof primaryOrObj === 'object' && primaryOrObj !== null) {
+    primary_contact_id = primaryOrObj.primaryContactId || primaryOrObj.primary_contact_id;
+    secondary_contact_id = primaryOrObj.secondaryContactId || primaryOrObj.secondary_contact_id;
+  } else {
+    primary_contact_id = primaryOrObj;
+    secondary_contact_id = maybeSecondary;
+  }
+  return request('/summary/people/merge', {
+    method: 'POST',
+    token,
+    body: {
+      primary_contact_id,
+      secondary_contact_id,
+    },
+  });
+}
+
+/**
  * GET /contacts/{contact_id}/remind-text - Fetches personalized reminder text for sharing.
  */
 export async function fetchContactRemindText(token, contactId) {

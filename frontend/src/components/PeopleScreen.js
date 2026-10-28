@@ -22,6 +22,8 @@ import {
   fetchContactDetail,
   createContact,
   fetchContactRemindText,
+  renameContact,
+  mergeContacts,
 } from '../api/client';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import EmptyState from './ui/EmptyState';
@@ -91,6 +93,25 @@ export default function PeopleScreen({
 
   // Remind loading
   const [remindLoading, setRemindLoading] = useState(false);
+
+  // Rename Contact Sheet
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [renameContactTarget, setRenameContactTarget] = useState(null);
+  const [renameName, setRenameName] = useState('');
+  const [renameError, setRenameError] = useState(null);
+  const [renamingContact, setRenamingContact] = useState(false);
+
+  // Merge Contacts Sheet
+  const [mergeModalVisible, setMergeModalVisible] = useState(false);
+  const [mergeSourceContact, setMergeSourceContact] = useState(null);
+  const [mergeTargetContact, setMergeTargetContact] = useState(null);
+  const [mergeKeepContact, setMergeKeepContact] = useState('source');
+  const [mergeSearchQuery, setMergeSearchQuery] = useState('');
+  const [mergeError, setMergeError] = useState(null);
+  const [mergingContacts, setMergingContacts] = useState(false);
+
+  const renameSheetAnim = useRef(new Animated.Value(isTest || reduceMotion ? 0 : SCREEN_HEIGHT)).current;
+  const mergeSheetAnim = useRef(new Animated.Value(isTest || reduceMotion ? 0 : SCREEN_HEIGHT)).current;
 
   // Animation values
   const sheetAnim = useRef(new Animated.Value(isTest || reduceMotion ? 0 : SCREEN_HEIGHT)).current;
@@ -192,6 +213,58 @@ export default function PeopleScreen({
     }
   }, [addSheetVisible, reduceMotion]);
 
+  useEffect(() => {
+    if (isTest) return;
+    if (renameModalVisible) {
+      if (reduceMotion) {
+        renameSheetAnim.setValue(0);
+      } else {
+        Animated.spring(renameSheetAnim, {
+          toValue: 0,
+          damping: 24,
+          stiffness: 260,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else {
+      if (reduceMotion) {
+        renameSheetAnim.setValue(SCREEN_HEIGHT);
+      } else {
+        Animated.timing(renameSheetAnim, {
+          toValue: SCREEN_HEIGHT,
+          duration: 180,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+  }, [renameModalVisible, reduceMotion]);
+
+  useEffect(() => {
+    if (isTest) return;
+    if (mergeModalVisible) {
+      if (reduceMotion) {
+        mergeSheetAnim.setValue(0);
+      } else {
+        Animated.spring(mergeSheetAnim, {
+          toValue: 0,
+          damping: 24,
+          stiffness: 260,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else {
+      if (reduceMotion) {
+        mergeSheetAnim.setValue(SCREEN_HEIGHT);
+      } else {
+        Animated.timing(mergeSheetAnim, {
+          toValue: SCREEN_HEIGHT,
+          duration: 180,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+  }, [mergeModalVisible, reduceMotion]);
+
   // Close Add Sheet helper
   const handleCloseAddSheet = () => {
     setAddSheetVisible(false);
@@ -237,6 +310,151 @@ export default function PeopleScreen({
       setAddError(serverMessage);
     } finally {
       setSavingContact(false);
+    }
+  };
+
+  // Rename Contact handlers
+  const handleOpenRename = (contact = null) => {
+    const target = contact || contactDetail;
+    setRenameContactTarget(target);
+    const initialName = target?.contact_name || target?.name || '';
+    setRenameName(initialName);
+    setRenameError(null);
+    setRenameModalVisible(true);
+  };
+
+  const handleCloseRename = () => {
+    setRenameModalVisible(false);
+    setRenameContactTarget(null);
+    setRenameName('');
+    setRenameError(null);
+  };
+
+  const handleSaveRename = async () => {
+    const cleanName = renameName.trim();
+    if (!cleanName) {
+      setRenameError('Contact name is required');
+      return;
+    }
+    const targetId = renameContactTarget?.contact_id || renameContactTarget?.id || selectedContactId;
+    if (!targetId || !token) return;
+
+    try {
+      setRenamingContact(true);
+      setRenameError(null);
+
+      await renameContact(token, targetId, cleanName);
+
+      if (contactDetail && (contactDetail.contact_id === targetId || selectedContactId === targetId)) {
+        setContactDetail((prev) => (prev ? { ...prev, contact_name: cleanName } : null));
+      }
+
+      handleCloseRename();
+
+      if (onShowToast) {
+        onShowToast(`Renamed to ${cleanName}`);
+      }
+
+      try {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.people() });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.allSummary });
+      } catch (_e) {}
+
+      await loadPeople();
+      if (selectedContactId) {
+        await loadDetail(selectedContactId);
+      }
+    } catch (err) {
+      const serverMessage = err.data?.detail || err.message || 'Failed to rename contact';
+      setRenameError(serverMessage);
+    } finally {
+      setRenamingContact(false);
+    }
+  };
+
+  // Merge Contacts handlers
+  const handleOpenMerge = (source = null) => {
+    const currentList = peopleData?.contacts || [];
+    if (currentList.length < 2) {
+      if (onShowToast) {
+        onShowToast('Need at least 2 contacts to merge');
+      }
+      return;
+    }
+    const resolvedSource = source || (contactDetail ? {
+      contact_id: contactDetail.contact_id,
+      contact_name: contactDetail.contact_name,
+      id: contactDetail.contact_id,
+      name: contactDetail.contact_name,
+    } : null);
+
+    setMergeSourceContact(resolvedSource);
+    setMergeTargetContact(null);
+    setMergeKeepContact('source');
+    setMergeSearchQuery('');
+    setMergeError(null);
+    setMergeModalVisible(true);
+  };
+
+  const handleCloseMerge = () => {
+    setMergeModalVisible(false);
+    setMergeSourceContact(null);
+    setMergeTargetContact(null);
+    setMergeKeepContact('source');
+    setMergeSearchQuery('');
+    setMergeError(null);
+  };
+
+  const handleExecuteMerge = async () => {
+    if (!mergeSourceContact || !mergeTargetContact || !token) return;
+
+    const sourceId = mergeSourceContact.contact_id || mergeSourceContact.id;
+    const targetId = mergeTargetContact.contact_id || mergeTargetContact.id;
+
+    if (sourceId === targetId) {
+      setMergeError('Cannot merge a contact with itself');
+      return;
+    }
+
+    const primaryId = mergeKeepContact === 'source' ? sourceId : targetId;
+    const secondaryId = mergeKeepContact === 'source' ? targetId : sourceId;
+    const primaryName = mergeKeepContact === 'source'
+      ? (mergeSourceContact.contact_name || mergeSourceContact.name)
+      : (mergeTargetContact.contact_name || mergeTargetContact.name);
+
+    try {
+      setMergingContacts(true);
+      setMergeError(null);
+
+      await mergeContacts(token, {
+        primaryContactId: primaryId,
+        secondaryContactId: secondaryId,
+      });
+
+      handleCloseMerge();
+
+      if (onShowToast) {
+        onShowToast(`Merged contacts into ${primaryName}`);
+      }
+
+      try {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.people() });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.allSummary });
+      } catch (_e) {}
+
+      await loadPeople();
+
+      // If user was viewing the secondary contact (which was deleted), switch to primary
+      if (selectedContactId === secondaryId) {
+        setSelectedContactId(primaryId);
+      } else if (selectedContactId === primaryId) {
+        await loadDetail(primaryId);
+      }
+    } catch (err) {
+      const serverMessage = err.data?.detail || err.message || 'Failed to merge contacts';
+      setMergeError(serverMessage);
+    } finally {
+      setMergingContacts(false);
     }
   };
 
@@ -294,7 +512,7 @@ export default function PeopleScreen({
           contentContainerStyle={styles.detailContentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Top Bar with Back Arrow */}
+          {/* Top Bar with Back Arrow & Actions */}
           <View style={styles.detailTopBar}>
             <TouchableOpacity
               testID="back-to-people-button"
@@ -310,6 +528,28 @@ export default function PeopleScreen({
               <Feather name="arrow-left" size={20} color={colors.ink} />
             </TouchableOpacity>
             <View style={styles.detailTopBarSpacer} />
+            <View style={styles.detailTopBarActions}>
+              <TouchableOpacity
+                testID="top-bar-rename-button"
+                onPress={() => handleOpenRename(contactDetail)}
+                style={styles.detailTopActionBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Rename contact"
+              >
+                <Feather name="edit-2" size={17} color={colors.ink} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                testID="top-bar-merge-button"
+                onPress={() => handleOpenMerge(contactDetail)}
+                style={styles.detailTopActionBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Merge contact"
+              >
+                <Feather name="git-merge" size={17} color={colors.ink} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Hero Contact Card */}
@@ -321,8 +561,18 @@ export default function PeopleScreen({
               </Text>
             </View>
 
-            {/* Name */}
-            <Text style={styles.detailName}>{contactDetail?.contact_name}</Text>
+            {/* Name with Rename touch */}
+            <TouchableOpacity
+              testID="person-name-touch"
+              onPress={() => handleOpenRename(contactDetail)}
+              style={styles.detailNameTouch}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Rename contact"
+            >
+              <Text style={styles.detailName}>{contactDetail?.contact_name}</Text>
+              <Feather name="edit-2" size={15} color={colors.ink_muted} style={{ marginLeft: 6, marginBottom: 4 }} />
+            </TouchableOpacity>
 
             {/* Balance Figure */}
             <Text
@@ -343,6 +593,29 @@ export default function PeopleScreen({
             <Text testID="person-detail-caption" style={styles.detailCaption}>
               {balanceCaption}
             </Text>
+
+            {/* Hero Quick Actions: Rename & Merge Contact */}
+            <View style={styles.heroActionsRow}>
+              <TouchableOpacity
+                testID="hero-rename-button"
+                onPress={() => handleOpenRename(contactDetail)}
+                style={styles.heroActionBtn}
+                activeOpacity={0.7}
+              >
+                <Feather name="edit-2" size={14} color={colors.ink} style={{ marginRight: 6 }} />
+                <Text style={styles.heroActionBtnText}>Rename</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                testID="hero-merge-button"
+                onPress={() => handleOpenMerge(contactDetail)}
+                style={styles.heroActionBtn}
+                activeOpacity={0.7}
+              >
+                <Feather name="git-merge" size={14} color={colors.ink} style={{ marginRight: 6 }} />
+                <Text style={styles.heroActionBtnText}>Merge contact</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Remind Action Row: Hidden if balance is zero */}
             {!isSettled && (
@@ -525,19 +798,34 @@ export default function PeopleScreen({
               </View>
               <Text style={styles.headerWordmark}>Pappu</Text>
             </View>
-            <TouchableOpacity
-              testID="header-add-person-button"
-              onPress={() => {
-                setAddError(null);
-                setAddSheetVisible(true);
-              }}
-              style={styles.headerAddBtn}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Add person"
-            >
-              <Feather name="plus" size={20} color={colors.ink} />
-            </TouchableOpacity>
+            <View style={styles.headerRightActions}>
+              {contacts.length > 1 && (
+                <TouchableOpacity
+                  testID="header-merge-contacts-button"
+                  onPress={() => handleOpenMerge(null)}
+                  style={styles.headerMergeBtn}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Merge contacts"
+                >
+                  <Feather name="git-merge" size={16} color={colors.ink} style={{ marginRight: 4 }} />
+                  <Text style={styles.headerMergeBtnText}>Merge</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                testID="header-add-person-button"
+                onPress={() => {
+                  setAddError(null);
+                  setAddSheetVisible(true);
+                }}
+                style={styles.headerAddBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Add person"
+              >
+                <Feather name="plus" size={20} color={colors.ink} />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -877,6 +1165,357 @@ export default function PeopleScreen({
           </Animated.View>
         </KeyboardWrapper>
       </Modal>
+      )}
+
+      {/* ── RENAME CONTACT MODAL ── */}
+      {renameModalVisible && (
+        <Modal
+          visible={renameModalVisible}
+          transparent
+          animationType="none"
+          onRequestClose={handleCloseRename}
+        >
+          <KeyboardWrapper
+            behavior={Platform.OS === 'ios' && !isTest ? 'padding' : undefined}
+            style={styles.sheetOverlay}
+          >
+            <TouchableWithoutFeedback onPress={handleCloseRename}>
+              <View style={styles.dimBackdrop} />
+            </TouchableWithoutFeedback>
+
+            <Animated.View
+              testID="rename-contact-sheet"
+              style={[
+                styles.sheetContainer,
+                !isTest && !reduceMotion && { transform: [{ translateY: renameSheetAnim }] },
+              ]}
+            >
+              <View style={styles.sheetHandle} />
+
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>Rename contact</Text>
+                <TouchableOpacity
+                  testID="rename-contact-close-button"
+                  onPress={handleCloseRename}
+                  style={styles.sheetCloseBtn}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="x" size={18} color={colors.ink} />
+                </TouchableOpacity>
+              </View>
+
+              {renameError && (
+                <View testID="rename-contact-error-banner" style={styles.errorBox}>
+                  <Feather name="alert-circle" size={16} color={colors.expense} style={{ marginRight: 6 }} />
+                  <Text style={styles.errorBoxText}>{renameError}</Text>
+                </View>
+              )}
+
+              <View style={styles.formGroup}>
+                <Text style={styles.fieldLabel}>New name</Text>
+                <View style={styles.inputWrap}>
+                  <Feather name="user" size={18} color={colors.ink_muted} style={{ marginRight: 10 }} />
+                  <TextInput
+                    testID="rename-contact-input"
+                    value={renameName}
+                    onChangeText={(val) => {
+                      setRenameName(val);
+                      if (renameError) setRenameError(null);
+                    }}
+                    placeholder="Enter new name"
+                    placeholderTextColor={colors.ink_muted}
+                    style={styles.fieldInput}
+                    autoFocus={!isTest}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.sheetButtonsRow}>
+                <TouchableOpacity
+                  testID="rename-contact-cancel-button"
+                  onPress={handleCloseRename}
+                  style={styles.cancelBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  testID="rename-contact-save-button"
+                  onPress={handleSaveRename}
+                  disabled={renamingContact}
+                  style={styles.saveBtn}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.saveBtnText}>
+                    {renamingContact ? 'Saving…' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </KeyboardWrapper>
+        </Modal>
+      )}
+
+      {/* ── MERGE CONTACTS MODAL ── */}
+      {mergeModalVisible && (
+        <Modal
+          visible={mergeModalVisible}
+          transparent
+          animationType="none"
+          onRequestClose={handleCloseMerge}
+        >
+          <KeyboardWrapper
+            behavior={Platform.OS === 'ios' && !isTest ? 'padding' : undefined}
+            style={styles.sheetOverlay}
+          >
+            <TouchableWithoutFeedback onPress={handleCloseMerge}>
+              <View style={styles.dimBackdrop} />
+            </TouchableWithoutFeedback>
+
+            <Animated.View
+              testID="merge-contact-sheet"
+              style={[
+                styles.sheetContainer,
+                styles.mergeSheetContainer,
+                !isTest && !reduceMotion && { transform: [{ translateY: mergeSheetAnim }] },
+              ]}
+            >
+              <View style={styles.sheetHandle} />
+
+              <View style={styles.sheetHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sheetTitle}>Merge contacts</Text>
+                  <Text style={styles.mergeSubTitle}>
+                    {mergeSourceContact
+                      ? `Merging with ${mergeSourceContact.contact_name || mergeSourceContact.name}`
+                      : 'Select the first contact to merge'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  testID="merge-contact-close-button"
+                  onPress={handleCloseMerge}
+                  style={styles.sheetCloseBtn}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="x" size={18} color={colors.ink} />
+                </TouchableOpacity>
+              </View>
+
+              {mergeError && (
+                <View testID="merge-contact-error-banner" style={styles.errorBox}>
+                  <Feather name="alert-circle" size={16} color={colors.expense} style={{ marginRight: 6 }} />
+                  <Text style={styles.errorBoxText}>{mergeError}</Text>
+                </View>
+              )}
+
+              {/* STEP 1: Select First Contact (if not yet chosen) */}
+              {!mergeSourceContact && (
+                <View style={{ gap: 12 }}>
+                  <Text style={styles.mergeStepPrompt}>Which contact do you want to merge?</Text>
+                  <View style={styles.inputWrap}>
+                    <Feather name="search" size={18} color={colors.ink_muted} style={{ marginRight: 10 }} />
+                    <TextInput
+                      testID="merge-source-search-input"
+                      value={mergeSearchQuery}
+                      onChangeText={setMergeSearchQuery}
+                      placeholder="Search contacts…"
+                      placeholderTextColor={colors.ink_muted}
+                      style={styles.fieldInput}
+                    />
+                  </View>
+                  <ScrollView style={styles.mergePickerList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                    {contacts
+                      .filter((c) =>
+                        (c.contact_name || c.name || '')
+                          .toLowerCase()
+                          .includes(mergeSearchQuery.trim().toLowerCase())
+                      )
+                      .map((c) => (
+                        <TouchableOpacity
+                          key={c.contact_id || c.id}
+                          testID={`merge-pick-source-${c.contact_id || c.id}`}
+                          onPress={() => {
+                            setMergeSourceContact(c);
+                            setMergeSearchQuery('');
+                          }}
+                          style={styles.mergePickerRow}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.avatarCircleSmall}>
+                            <Text style={styles.avatarInitialSmall}>
+                              {(c.contact_name || c.name || 'P').charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text style={styles.mergePickerRowName}>{c.contact_name || c.name}</Text>
+                          <Feather name="arrow-right" size={16} color={colors.ink_muted} />
+                        </TouchableOpacity>
+                      ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* STEP 2: Select Second Contact to Merge With */}
+              {mergeSourceContact && !mergeTargetContact && (
+                <View style={{ gap: 12 }}>
+                  <View style={styles.mergeSelectedPill}>
+                    <Text style={styles.mergeSelectedPillLabel}>First contact:</Text>
+                    <Text style={styles.mergeSelectedPillName}>
+                      {mergeSourceContact.contact_name || mergeSourceContact.name}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setMergeSourceContact(null);
+                        setMergeSearchQuery('');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Feather name="edit-3" size={14} color={colors.ink_muted} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.mergeStepPrompt}>
+                    Select contact to merge with {mergeSourceContact.contact_name || mergeSourceContact.name}:
+                  </Text>
+
+                  <View style={styles.inputWrap}>
+                    <Feather name="search" size={18} color={colors.ink_muted} style={{ marginRight: 10 }} />
+                    <TextInput
+                      testID="merge-contact-search-input"
+                      value={mergeSearchQuery}
+                      onChangeText={setMergeSearchQuery}
+                      placeholder="Search contact to merge with…"
+                      placeholderTextColor={colors.ink_muted}
+                      style={styles.fieldInput}
+                    />
+                  </View>
+
+                  <ScrollView style={styles.mergePickerList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                    {contacts
+                      .filter((c) => {
+                        const sid = mergeSourceContact.contact_id || mergeSourceContact.id;
+                        const cid = c.contact_id || c.id;
+                        if (cid === sid) return false;
+                        return (c.contact_name || c.name || '')
+                          .toLowerCase()
+                          .includes(mergeSearchQuery.trim().toLowerCase());
+                      })
+                      .map((c) => (
+                        <TouchableOpacity
+                          key={c.contact_id || c.id}
+                          testID={`merge-pick-target-${c.contact_id || c.id}`}
+                          onPress={() => {
+                            setMergeTargetContact(c);
+                            setMergeKeepContact('source');
+                          }}
+                          style={styles.mergePickerRow}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.avatarCircleSmall}>
+                            <Text style={styles.avatarInitialSmall}>
+                              {(c.contact_name || c.name || 'P').charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.mergePickerRowName}>{c.contact_name || c.name}</Text>
+                            <Text style={styles.mergePickerRowSub}>
+                              {formatTransactionCount(c.transaction_count)}
+                            </Text>
+                          </View>
+                          <Feather name="check" size={16} color={colors.gold_edge} />
+                        </TouchableOpacity>
+                      ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* STEP 3: Confirm Direction & Merge */}
+              {mergeSourceContact && mergeTargetContact && (
+                <View style={{ gap: 14 }}>
+                  <Text style={styles.mergeStepPrompt}>Which contact do you want to keep as primary?</Text>
+
+                  {/* Option A: Keep Source */}
+                  <TouchableOpacity
+                    testID="merge-keep-source-option"
+                    onPress={() => setMergeKeepContact('source')}
+                    style={[
+                      styles.mergeOptionCard,
+                      mergeKeepContact === 'source' && styles.mergeOptionCardActive,
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.mergeRadioOuter}>
+                      {mergeKeepContact === 'source' && <View style={styles.mergeRadioInner} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.mergeOptionTitle}>
+                        Keep "{mergeSourceContact.contact_name || mergeSourceContact.name}"
+                      </Text>
+                      <Text style={styles.mergeOptionDesc}>
+                        "{mergeTargetContact.contact_name || mergeTargetContact.name}" will be merged into it and deleted.
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Option B: Keep Target */}
+                  <TouchableOpacity
+                    testID="merge-keep-target-option"
+                    onPress={() => setMergeKeepContact('target')}
+                    style={[
+                      styles.mergeOptionCard,
+                      mergeKeepContact === 'target' && styles.mergeOptionCardActive,
+                    ]}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.mergeRadioOuter}>
+                      {mergeKeepContact === 'target' && <View style={styles.mergeRadioInner} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.mergeOptionTitle}>
+                        Keep "{mergeTargetContact.contact_name || mergeTargetContact.name}"
+                      </Text>
+                      <Text style={styles.mergeOptionDesc}>
+                        "{mergeSourceContact.contact_name || mergeSourceContact.name}" will be merged into it and deleted.
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Information Callout */}
+                  <View style={styles.mergeInfoBox}>
+                    <Feather name="info" size={15} color={colors.ink_muted} style={{ marginRight: 8, marginTop: 2 }} />
+                    <Text style={styles.mergeInfoText}>
+                      All transactions and history from both contacts will be combined. The other name will be preserved as an alias.
+                    </Text>
+                  </View>
+
+                  {/* Buttons */}
+                  <View style={styles.sheetButtonsRow}>
+                    <TouchableOpacity
+                      testID="merge-contact-change-button"
+                      onPress={() => setMergeTargetContact(null)}
+                      style={styles.cancelBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.cancelBtnText}>Change</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      testID="merge-contact-confirm-button"
+                      onPress={handleExecuteMerge}
+                      disabled={mergingContacts}
+                      style={styles.saveBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.saveBtnText}>
+                        {mergingContacts ? 'Merging…' : 'Confirm Merge'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </Animated.View>
+          </KeyboardWrapper>
+        </Modal>
       )}
     </View>
   );
@@ -1507,5 +2146,209 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: colors.ink,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerMergeBtn: {
+    height: 40,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerMergeBtnText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.ink,
+  },
+  detailTopBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailTopActionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailNameTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  heroActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  heroActionBtn: {
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: 19,
+    backgroundColor: colors.bg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroActionBtnText: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.ink,
+  },
+  mergeSheetContainer: {
+    maxHeight: SCREEN_HEIGHT * 0.85,
+  },
+  mergeSubTitle: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 13,
+    color: colors.ink_muted,
+    marginTop: 2,
+  },
+  mergeStepPrompt: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 14,
+    color: colors.ink,
+  },
+  mergePickerList: {
+    maxHeight: 220,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 8,
+  },
+  mergePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 10,
+  },
+  mergePickerRowName: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 14,
+    color: colors.ink,
+  },
+  mergePickerRowSub: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 12,
+    color: colors.ink_muted,
+    marginTop: 2,
+  },
+  avatarCircleSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.bg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitialSmall: {
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  mergeSelectedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: colors.bg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    gap: 8,
+  },
+  mergeSelectedPillLabel: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: colors.ink_muted,
+  },
+  mergeSelectedPillName: {
+    flex: 1,
+    fontFamily: 'BalooChettan2_700Bold',
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.ink,
+  },
+  mergeOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: 12,
+  },
+  mergeOptionCardActive: {
+    borderColor: colors.gold_edge,
+    backgroundColor: colors.surface,
+  },
+  mergeRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  mergeRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.gold_edge,
+  },
+  mergeOptionTitle: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 14,
+    color: colors.ink,
+  },
+  mergeOptionDesc: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 12,
+    color: colors.ink_muted,
+    marginTop: 2,
+  },
+  mergeInfoBox: {
+    flexDirection: 'row',
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: colors.bg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  mergeInfoText: {
+    flex: 1,
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 12,
+    color: colors.ink_muted,
+    lineHeight: 16,
   },
 });

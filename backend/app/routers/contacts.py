@@ -10,13 +10,16 @@ from app.models.contact import Contact
 from app.models.profile import Profile
 from app.models.transaction import Transaction
 from app.services.balances import _compute_contact_balance
-from app.assistant.contacts import create_contact, normalize_name
+from app.assistant.contacts import create_contact, normalize_name, merge_contacts
 from app.schemas.transaction import (
     ContactCreateRequest,
     ContactResponse,
     ContactDetailResponse,
     TransactionResponse,
     RemindTextResponse,
+    ContactRenameRequest,
+    ContactUpdateRequest,
+    MergeContactsRequest,
 )
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
@@ -262,3 +265,160 @@ def get_contact_remind_text(
         contact_name=contact.name,
         amount=float(abs(summary_item.net_balance)),
     )
+
+
+@router.patch("/{contact_id}/rename", response_model=ContactResponse)
+@router.put("/{contact_id}/rename", response_model=ContactResponse)
+def rename_contact(
+    contact_id: uuid.UUID,
+    body: ContactRenameRequest,
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """
+    Renames a contact for the authenticated user.
+    Maintains aliases: adds previous name to aliases so speech/references still resolve.
+    Rejects duplicate names or aliases against other contacts of this user.
+    """
+    contact = (
+        db.query(Contact)
+        .filter(Contact.id == contact_id, Contact.user_id == current_user_id)
+        .first()
+    )
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+
+    raw_name = body.name or ""
+    clean_name = normalize_name(raw_name).strip()
+    if not clean_name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Contact name is required",
+        )
+
+    clean_lower = clean_name.lower()
+    curr_name_lower = normalize_name(contact.name).strip().lower()
+
+    if clean_lower != curr_name_lower:
+        # Check duplicate name/alias against all OTHER contacts of current user
+        other_contacts = (
+            db.query(Contact)
+            .filter(Contact.user_id == current_user_id, Contact.id != contact.id)
+            .all()
+        )
+        for c in other_contacts:
+            c_name = normalize_name(c.name).strip().lower()
+            if c_name == clean_lower:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A contact with this name already exists",
+                )
+            for alias in (c.aliases or []):
+                a_norm = normalize_name(str(alias)).strip().lower()
+                if a_norm == clean_lower:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="A contact with this alias already exists",
+                    )
+
+        # Preserve the previous name as an alias
+        old_name_norm = normalize_name(contact.name).strip()
+        existing_aliases = [normalize_name(str(a)) for a in (contact.aliases or [])]
+        existing_lower = {a.lower() for a in existing_aliases}
+        if old_name_norm and old_name_norm.lower() not in existing_lower and old_name_norm.lower() != clean_lower:
+            existing_aliases.append(old_name_norm)
+
+        # Remove the new name from aliases if it was present
+        existing_aliases = [a for a in existing_aliases if a.lower() != clean_lower]
+        contact.aliases = existing_aliases
+
+    contact.name = clean_name
+    db.commit()
+    db.refresh(contact)
+
+    return ContactResponse(
+        id=contact.id,
+        name=contact.name,
+        phone=contact.phone,
+        upi_id=contact.upi_id,
+        aliases=contact.aliases or [],
+        created_at=contact.created_at,
+    )
+
+
+@router.patch("/{contact_id}", response_model=ContactResponse)
+def update_contact(
+    contact_id: uuid.UUID,
+    body: ContactUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """
+    Updates contact fields (name, phone, upi_id).
+    """
+    contact = (
+        db.query(Contact)
+        .filter(Contact.id == contact_id, Contact.user_id == current_user_id)
+        .first()
+    )
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+
+    if body.name is not None:
+        rename_contact(
+            contact_id=contact_id,
+            body=ContactRenameRequest(name=body.name),
+            db=db,
+            current_user_id=current_user_id,
+        )
+        db.refresh(contact)
+
+    if body.phone is not None:
+        phone_val = body.phone.strip() if body.phone.strip() else None
+        contact.phone = phone_val
+
+    if body.upi_id is not None:
+        upi_val = body.upi_id.strip() if body.upi_id.strip() else None
+        contact.upi_id = upi_val
+
+    db.commit()
+    db.refresh(contact)
+
+    return ContactResponse(
+        id=contact.id,
+        name=contact.name,
+        phone=contact.phone,
+        upi_id=contact.upi_id,
+        aliases=contact.aliases or [],
+        created_at=contact.created_at,
+    )
+
+
+@router.post("/merge")
+def merge_contacts_route(
+    body: MergeContactsRequest,
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """
+    Merges secondary contact into primary contact for the authenticated user.
+    Reassigns transactions, consolidates aliases, and removes secondary contact.
+    """
+    try:
+        return merge_contacts(
+            db=db,
+            user_id=current_user_id,
+            primary_id=body.primary_contact_id,
+            secondary_id=body.secondary_contact_id,
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        raise HTTPException(status_code=400, detail=msg)

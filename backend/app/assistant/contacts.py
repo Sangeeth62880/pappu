@@ -294,6 +294,12 @@ def merge_contacts(
 
     primary.aliases = new_aliases
 
+    # Preserve phone and upi_id if primary doesn't have them
+    if not primary.phone and secondary.phone:
+        primary.phone = secondary.phone
+    if not primary.upi_id and secondary.upi_id:
+        primary.upi_id = secondary.upi_id
+
     # 3. Delete secondary contact
     db.delete(secondary)
     db.commit()
