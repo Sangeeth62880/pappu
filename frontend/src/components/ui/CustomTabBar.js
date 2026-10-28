@@ -97,12 +97,13 @@ export default function CustomTabBar({
   const currentTabName = state.routes[state.index]?.name;
 
   const handleOpenAssistant = (data) => {
+    const params = { autoRecord: true, ...(data || {}) };
     if (onOpenAssistant) {
-      onOpenAssistant(data);
+      onOpenAssistant(params);
     } else if (rootNavigation) {
-      rootNavigation.navigate('Assistant', data);
+      rootNavigation.navigate('Assistant', params);
     } else {
-      navigation.navigate('Assistant', data);
+      navigation.navigate('Assistant', params);
     }
   };
 

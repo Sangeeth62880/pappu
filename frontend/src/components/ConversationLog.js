@@ -19,6 +19,7 @@ import {
   sendAssistantMessage,
   answerPending,
   fetchActivePending,
+  fetchProfile,
 } from '../api/client';
 import { generateUUID } from '../utils/uuid';
 import { playAudioBase64 } from '../utils/audioPlayer';
@@ -33,6 +34,7 @@ import ConfirmationCard from './ui/ConfirmationCard';
 import QueryDataCard from './ui/QueryDataCard';
 import MicButton from './MicButton';
 import CoinShower from './ui/CoinShower';
+import VoiceWaveAnimation from './ui/VoiceWaveAnimation';
 
 const SUGGESTION_CHIPS = [
   'Sent 500 to Pooja',
@@ -62,6 +64,7 @@ export default function ConversationLog({
   assistantV2 = true,
   onBack = null,
   testID = 'assistant-modal',
+  route = null,
 }) {
   const reduceMotion = useReduceMotion();
   const [inputText, setInputText] = useState('');
@@ -222,8 +225,31 @@ export default function ConversationLog({
 
   // TTS audio playback
   const speakResponse = useCallback(
-    async (text, language = 'en', messageId = null) => {
+    async (text, language = 'en', messageId = null, isManualTap = false) => {
       if (!token || !text) return null;
+
+      // Respect user's voice_replies preference for automatic replies
+      if (!isManualTap) {
+        let voiceEnabled = true;
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            const stored = window.localStorage.getItem('pappu_voice_replies');
+            if (stored !== null) {
+              voiceEnabled = stored === 'true' || stored === true;
+            }
+          } catch (_) {}
+        }
+        if (voiceEnabled && queryClient) {
+          const cached = queryClient.getQueryData(queryKeys.profile());
+          if (cached && cached.voice_replies !== undefined && cached.voice_replies !== null) {
+            voiceEnabled = Boolean(cached.voice_replies);
+          }
+        }
+        if (!voiceEnabled) {
+          return null;
+        }
+      }
+
       try {
         setAssistantState('speaking');
         setActiveMood('speaking');
@@ -688,8 +714,40 @@ export default function ConversationLog({
           const heardAmount = addResult?.heard_amount ?? addResult?.amount ?? null;
 
           // Check if query results
-          const queryResult = Array.isArray(msg.results)
-            ? msg.results.find((r) => r && (r.kind === 'balances' || r.kind === 'sum' || r.contacts || r.per_contact))
+          const rawQueryResult = Array.isArray(msg.results)
+            ? msg.results.find((r) => r && (
+                r.kind === 'balances' ||
+                r.kind === 'sum' ||
+                r.kind === 'list' ||
+                r.kind === 'category_breakdown' ||
+                r.kind === 'biggest' ||
+                r.kind === 'compare' ||
+                r.status === 'sum' ||
+                r.status === 'balances' ||
+                r.status === 'category_breakdown' ||
+                r.status === 'list' ||
+                r.action === 'query' ||
+                r.contacts ||
+                r.per_contact ||
+                r.data?.sum !== undefined ||
+                r.data?.categories !== undefined ||
+                r.data?.balances !== undefined ||
+                r.data?.transactions !== undefined
+              ))
+            : null;
+
+          const queryResult = rawQueryResult
+            ? {
+                ...rawQueryResult,
+                ...(rawQueryResult.data || {}),
+                kind: rawQueryResult.data?.kind || rawQueryResult.kind || rawQueryResult.status || 'sum',
+                category: rawQueryResult.data?.category || rawQueryResult.category || rawQueryResult.data?.filters_used?.category || rawQueryResult.filters_used?.category,
+                period: rawQueryResult.data?.period || rawQueryResult.period || rawQueryResult.data?.filters_used?.period || rawQueryResult.filters_used?.period,
+                total_amount: rawQueryResult.data?.total_amount ?? rawQueryResult.data?.sum ?? rawQueryResult.data?.total ?? rawQueryResult.total_amount ?? rawQueryResult.total,
+                transactions: rawQueryResult.data?.transactions || rawQueryResult.transactions || [],
+                categories: rawQueryResult.data?.categories || rawQueryResult.categories || [],
+                balances: rawQueryResult.data?.balances || rawQueryResult.data?.per_contact || rawQueryResult.balances || rawQueryResult.per_contact || [],
+              }
             : null;
 
           if (isUser) {
@@ -726,7 +784,7 @@ export default function ConversationLog({
                 isPlayingAudio={isCurrentlyPlaying}
                 onPlayAudio={() => {
                   if (msg.spoken_text) {
-                    speakResponse(msg.spoken_text, 'en', msg.id);
+                    speakResponse(msg.spoken_text, 'en', msg.id, true);
                   }
                 }}
                 timestamp={msg.timestamp}
@@ -817,6 +875,14 @@ export default function ConversationLog({
         </ScrollView>
       </View>
 
+      {/* ── Active Voice Listening Wave Banner ── */}
+      {assistantState === 'listening' && (
+        <View style={styles.listeningActiveBanner} testID="assistant-listening-banner">
+          <VoiceWaveAnimation color={colors.gold_edge} maxHeight={16} minHeight={4} barWidth={3} gap={2.5} style={{ marginRight: 8 }} />
+          <Text style={styles.listeningActiveBannerText}>Listening to your voice... Speak now</Text>
+        </View>
+      )}
+
       {/* ── Thumb Zone Input Bar with Overlapping Coin Mic ── */}
       <View style={styles.inputBarContainer} testID="assistant-input-bar">
         <View style={styles.inputPill}>
@@ -854,12 +920,13 @@ export default function ConversationLog({
           )}
         </View>
 
-        {/* 70px Coin Mic Button Overlapping right edge */}
+        {/* 72px Coin Mic Button Overlapping right edge */}
         <View style={styles.coinMicWrapper}>
           <MicButton
             token={token}
             isCoinStyle={true}
-            size={70}
+            size={72}
+            autoRecord={route?.params?.autoRecord || false}
             onTranscribed={(transcript) => handleSendMessage(transcript, { input: 'voice' })}
             onRecordingStateChange={(recording) => {
               if (recording) {
@@ -1125,5 +1192,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 18,
     zIndex: 10,
+  },
+  listeningActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginBottom: 8,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.borderDark || colors.border,
+  },
+  listeningActiveBannerText: {
+    fontFamily: typography.fonts.display,
+    fontWeight: '700',
+    fontSize: 12,
+    color: colors.ink,
   },
 });

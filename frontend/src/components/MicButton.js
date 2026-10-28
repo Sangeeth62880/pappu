@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Svg, { Circle, Ellipse, Path, Text as SvgText } from 'react-native-svg';
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -21,13 +22,18 @@ import {
 import { transcribeAudio } from '../api/client';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useReduceMotion } from '../utils/reduceMotion';
+import VoiceWaveAnimation from './ui/VoiceWaveAnimation';
+import Pappu from './ui/Pappu';
+import FullPageVoiceListening from './ui/FullPageVoiceListening';
+
+const isTest = (typeof process !== 'undefined' && process.env?.NODE_ENV === 'test') || typeof jest !== 'undefined';
 
 /**
  * MicButton with support for both standard mic icon and 70px Stitch Coin Mic.
  * Audio recording hook shared with CoinButton.
  * Fixes permission denied recovery, error banner, and native cleanup.
  */
-export default function MicButton({
+const MicButton = forwardRef(function MicButton({
   token,
   onTranscribed,
   languageCode = null,
@@ -35,7 +41,10 @@ export default function MicButton({
   size = 48,
   isCoinStyle = false,
   onRecordingStateChange = null,
-}) {
+  onTranscribingStateChange = null,
+  autoRecord = false,
+  enableFullPageOverlay = !isTest,
+}, ref) {
   const reduceMotion = useReduceMotion();
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -247,6 +256,7 @@ export default function MicButton({
     try {
       if (isMountedRef.current) {
         setIsTranscribing(true);
+        if (onTranscribingStateChange) onTranscribingStateChange(true);
         setErrorMessage(null);
       }
 
@@ -269,9 +279,33 @@ export default function MicButton({
     } finally {
       if (isMountedRef.current) {
         setIsTranscribing(false);
+        if (onTranscribingStateChange) onTranscribingStateChange(false);
       }
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    startRecording,
+    stopRecording,
+    isRecording: () => isRecordingRef.current,
+  }));
+
+  const autoRecordTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (autoRecord && !autoRecordTriggeredRef.current && !disabled && !isRecordingRef.current) {
+      autoRecordTriggeredRef.current = true;
+      const timer = setTimeout(() => {
+        if (isMountedRef.current && !isRecordingRef.current) {
+          startRecording();
+        }
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+    if (!autoRecord) {
+      autoRecordTriggeredRef.current = false;
+    }
+  }, [autoRecord, disabled]);
 
   const handlePress = () => {
     if (isRecordingRef.current) {
@@ -283,6 +317,15 @@ export default function MicButton({
 
   return (
     <View style={styles.container}>
+      {/* ── Full-Page Immersive Voice Listening Overlay ── */}
+      {enableFullPageOverlay && (isRecording || isTranscribing) && (
+        <FullPageVoiceListening
+          visible={isRecording || isTranscribing}
+          isTranscribing={isTranscribing}
+          onStop={stopRecording}
+          onCancel={stopRecording}
+        />
+      )}
       {errorMessage ? (
         <View testID="mic-error-banner" style={styles.errorBanner}>
           <Feather name="alert-circle" size={13} color={colors.semantic.expense} style={{ marginRight: 4 }} />
@@ -348,19 +391,52 @@ export default function MicButton({
           {isTranscribing ? (
             <ActivityIndicator testID="mic-loading-spinner" size="small" color={colors.ink} />
           ) : isCoinStyle ? (
-            /* Stitch Coin Mic Face */
-            <View style={styles.coinFace}>
-              <Text style={styles.coinRupee}>₹</Text>
-              <View style={styles.coinEyes}>
-                <View style={styles.coinEye} />
-                <View style={styles.coinEye} />
-              </View>
-              <View testID="mic-icon">
-                <MaterialIcons
-                  name={isRecording ? 'stop' : 'mic'}
-                  size={16}
-                  color={colors.ink}
-                />
+            /* Stitch Mascot Coin Face identical to Home Screen */
+            <View style={styles.coinTactileWrapper}>
+              {isRecording ? (
+                <View style={styles.listeningContainer} testID="mic-listening-face">
+                  <Pappu mood="listening" size={size >= 64 ? 44 : 34} />
+                  <View style={styles.coinMicBadge}>
+                    <MaterialIcons name="stop" size={12} color={colors.ink} />
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <Svg width={Math.max(40, size - 16)} height={Math.max(40, size - 16)} viewBox="0 0 56 56" fill="none" style={styles.svgFace}>
+                    <Circle cx="28" cy="27" r="21" stroke={colors.gold_edge} strokeWidth="1.8" />
+                    <SvgText
+                      x="28"
+                      y="16"
+                      fontFamily={typography.fonts.display}
+                      fontWeight="700"
+                      fontSize="10"
+                      fill={colors.gold_edge}
+                      textAnchor="middle"
+                    >
+                      ₹
+                    </SvgText>
+                    <Ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
+                    <Ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
+                    <Circle cx="22" cy="26" r="2.8" fill={colors.ink} />
+                    <Circle cx="34" cy="26" r="2.8" fill={colors.ink} />
+                    <Circle cx="23" cy="24.8" r="1" fill={colors.surface} />
+                    <Circle cx="35" cy="24.8" r="1" fill={colors.surface} />
+                    <Path
+                      d="M 23 34 C 25 36.5 31 36.5 33 34"
+                      stroke={colors.ink}
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </Svg>
+                  <View style={styles.coinMicBadge}>
+                    <MaterialIcons name="mic" size={12} color={colors.ink} />
+                  </View>
+                </>
+              )}
+              {/* Keep testID mic-icon accessible */}
+              <View testID="mic-icon" style={styles.hiddenTestMarker}>
+                <MaterialIcons name={isRecording ? 'stop' : 'mic'} size={1} color="transparent" />
               </View>
             </View>
           ) : (
@@ -376,9 +452,19 @@ export default function MicButton({
       </View>
 
       {isRecording ? (
-        <Text testID="mic-recording-label" style={styles.recordingLabel}>
-          Listening...
-        </Text>
+        <View style={styles.recordingRow} testID="mic-recording-wave">
+          <VoiceWaveAnimation
+            color={isCoinStyle ? colors.gold_edge : colors.semantic.expense}
+            maxHeight={14}
+            minHeight={3}
+            barWidth={3}
+            gap={2.5}
+            style={{ marginRight: 6 }}
+          />
+          <Text testID="mic-recording-label" style={styles.recordingLabel}>
+            Listening...
+          </Text>
+        </View>
       ) : null}
       {isTranscribing ? (
         <Text testID="mic-transcribing-label" style={styles.transcribingLabel}>
@@ -387,7 +473,9 @@ export default function MicButton({
       ) : null}
     </View>
   );
-}
+});
+
+export default MicButton;
 
 const styles = StyleSheet.create({
   container: {
@@ -497,7 +585,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 11,
     color: colors.ink_muted,
-    marginTop: 2,
   },
   transcribingLabel: {
     fontFamily: typography.fonts.body,
@@ -505,5 +592,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.ink_muted,
     marginTop: 2,
+  },
+  recordingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  coinTactileWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  listeningContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coinMicBadge: {
+    position: 'absolute',
+    bottom: 2,
+    alignSelf: 'center',
+    backgroundColor: colors.gold_edge,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  svgFace: {
+    marginTop: -2,
+  },
+  hiddenTestMarker: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
   },
 });

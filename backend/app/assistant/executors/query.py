@@ -140,13 +140,28 @@ def execute_query(
             else:
                 rows = [r for r in res.rows if is_spending_txn(r, allow_people=allow_people)]
             total = sum((Decimal(str(r.amount)) for r in rows), Decimal("0.00"))
+            cat_name = (
+                (op.selector.category if op.selector else None)
+                or res.filters_used.get("category")
+            )
+            period_str = (
+                (op.selector.period if op.selector else None)
+                or res.filters_used.get("period")
+                or "this_month"
+            )
             return ActionResult(
                 ok=True,
                 action="query",
                 status="sum",
                 data={
                     "sum": float(total),
+                    "total": float(total),
+                    "total_amount": float(total),
+                    "kind": "sum",
+                    "category": cat_name,
+                    "period": period_str,
                     "count": len(rows),
+                    "transactions": [serialize_transaction(r) for r in rows],
                     "filters_used": res.filters_used,
                 },
                 filters_used=res.filters_used,

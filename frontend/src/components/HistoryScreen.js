@@ -9,7 +9,8 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
-import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Feather from '@expo/vector-icons/Feather';
 import { fetchTransactions, deleteTransaction, updateTransaction } from '../api/client';
 import { colors, radius, spacing, typography } from '../theme/tokens';
@@ -510,11 +511,13 @@ export default function HistoryScreen({
 
                     // Reveal delete action on swipe left
                     const renderRightActions = (progress, dragX) => {
-                      const scale = dragX.interpolate({
-                        inputRange: [-100, -60, 0],
-                        outputRange: [1, 0.9, 0.6],
-                        extrapolate: 'clamp',
-                      });
+                      const scale = dragX && typeof dragX.interpolate === 'function'
+                        ? dragX.interpolate({
+                            inputRange: [-100, -60, 0],
+                            outputRange: [1, 0.9, 0.6],
+                            extrapolate: 'clamp',
+                          })
+                        : 1;
 
                       return (
                         <TouchableOpacity

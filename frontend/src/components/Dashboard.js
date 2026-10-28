@@ -136,31 +136,97 @@ function DashboardInner({
   const isDeltaHigher = rawDeltaAbs > 0;
   const isDeltaLower = rawDeltaAbs < 0;
 
-  // Daily buckets for chart
-  const dailyBuckets = summary?.daily_buckets || [];
-  const avgDailyAmount = summary?.avg_per_day !== undefined && summary?.avg_per_day !== null
-    ? Math.round(Number(summary.avg_per_day))
-    : dailyBuckets.length > 0
-      ? Math.round(dailyBuckets.reduce((acc, b) => acc + Number(b.amount || 0), 0) / dailyBuckets.length)
-      : 0;
-
-  // Categories for Where it went
-  const categories = useMemo(() => {
-    if (summary?.categories && summary.categories.length > 0) {
-      return summary.categories;
+  // Daily buckets for chart with transaction fallback
+  const dailyBuckets = useMemo(() => {
+    if (Array.isArray(summary?.daily_buckets) && summary.daily_buckets.length > 0) {
+      const hasNonZero = summary.daily_buckets.some((b) => Number(b.amount || 0) > 0);
+      if (hasNonZero) return summary.daily_buckets;
     }
-    if (summary?.category_breakdown && summary.category_breakdown.length > 0) {
-      return summary.category_breakdown.map((item) => ({
-        category: item.category_name,
-        amount: Number(item.total_amount),
-        percentage: rawTotalSpent > 0
-          ? Math.round((Number(item.total_amount) / rawTotalSpent) * 100)
-          : 0,
-        category_id: item.category_id,
-      }));
+    // Fallback: If summary.daily_buckets has only zeros or is missing, compute from transactions
+    const txns = summary?.recent_transactions || txnsQuery?.data || initialTransactions;
+    if (Array.isArray(txns) && txns.length > 0) {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const map = {};
+      days.forEach((d) => { map[d] = 0; });
+      let foundTxn = false;
+      txns.forEach((t) => {
+        if (t.type === 'expense' && t.txn_date) {
+          try {
+            const d = new Date(t.txn_date);
+            const dayName = days[(d.getDay() + 6) % 7];
+            if (map[dayName] !== undefined) {
+              map[dayName] += Number(t.amount || 0);
+              foundTxn = true;
+            }
+          } catch (_) {}
+        }
+      });
+      if (foundTxn) {
+        return days.map((d) => ({ label: d, amount: map[d], date: d }));
+      }
+    }
+    return summary?.daily_buckets || [];
+  }, [summary?.daily_buckets, summary?.recent_transactions, txnsQuery?.data, initialTransactions]);
+
+  const avgDailyAmount = useMemo(() => {
+    if (summary?.avg_per_day !== undefined && summary?.avg_per_day !== null && Number(summary.avg_per_day) > 0) {
+      return Math.round(Number(summary.avg_per_day));
+    }
+    if (dailyBuckets.length > 0) {
+      const total = dailyBuckets.reduce((acc, b) => acc + Number(b.amount || 0), 0);
+      return Math.round(total / dailyBuckets.length);
+    }
+    return 0;
+  }, [summary?.avg_per_day, dailyBuckets]);
+
+  // Categories for Where it went with robust fallback
+  const categories = useMemo(() => {
+    let list = summary?.categories || summary?.category_breakdown || summary?.expense_by_category || summary?.by_category;
+    if (!Array.isArray(list) || list.length === 0) {
+      // Fallback: derive from recent transactions or txnsQuery if summary doesn't supply categories
+      const txns = summary?.recent_transactions || txnsQuery?.data || initialTransactions;
+      if (Array.isArray(txns) && txns.length > 0) {
+        const expenseTxns = txns.filter((t) => t.type === 'expense');
+        if (expenseTxns.length > 0) {
+          const catMap = {};
+          let total = 0;
+          expenseTxns.forEach((t) => {
+            const name = t.category_name || t.category || 'Other';
+            const val = Number(t.amount || 0);
+            catMap[name] = (catMap[name] || 0) + val;
+            total += val;
+          });
+          list = Object.entries(catMap)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, amt]) => ({
+              category: name,
+              amount: amt,
+              percentage: total > 0 ? Math.round((amt / total) * 100) : 0,
+            }));
+        }
+      }
+    }
+
+    if (Array.isArray(list) && list.length > 0) {
+      const sumOfAmts = list.reduce((acc, item) => acc + Number(item.amount ?? item.total_amount ?? item.total ?? 0), 0);
+      const denominator = rawTotalSpent > 0 ? rawTotalSpent : sumOfAmts;
+
+      return list.map((item) => {
+        const catName = item.category || item.category_name || item.name || 'Other';
+        const amt = Number(item.amount ?? item.total_amount ?? item.total ?? 0);
+        let pct = item.percentage !== undefined && item.percentage !== null && Number(item.percentage) > 0
+          ? Number(item.percentage)
+          : (denominator > 0 ? Math.round((amt / denominator) * 100) : 0);
+        return {
+          category: catName,
+          amount: amt,
+          percentage: pct,
+          category_id: item.category_id || item.id,
+        };
+      });
     }
     return [];
-  }, [summary, rawTotalSpent]);
+  }, [summary, rawTotalSpent, txnsQuery?.data, initialTransactions]);
 
   // People data
   const peopleData = summary?.people || {
@@ -189,6 +255,7 @@ function DashboardInner({
 
   // Animated progress bars for "Where it went"
   const catAnimRefs = useRef([]);
+  const catTrackWidth = useRef(0); // measured track pixel width
   if (catAnimRefs.current.length !== categories.length) {
     catAnimRefs.current = categories.map(() => new Animated.Value(isTest || reduceMotion ? 1 : 0));
   }
@@ -530,16 +597,9 @@ function DashboardInner({
         ) : (
           <View style={styles.categoriesList}>
             {categories.map((cat, idx) => {
-              const catColor = CATEGORY_COLORS[cat.category] || colors.categories.Other;
+              const catColor = CATEGORY_COLORS[cat.category] || colors.categories?.Other || '#9CA3AF';
               const pct = Math.min(100, Math.max(0, Number(cat.percentage || 0)));
               const amt = Number(cat.amount || 0);
-
-              const animatedWidth = catAnimRefs.current[idx]
-                ? catAnimRefs.current[idx].interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0%', `${pct}%`],
-                  })
-                : `${pct}%`;
 
               return (
                 <TouchableOpacity
@@ -561,12 +621,12 @@ function DashboardInner({
                   </View>
 
                   <View style={styles.categoryTrack}>
-                    <Animated.View
+                    <View
                       style={[
                         styles.categoryFill,
                         {
                           backgroundColor: catColor,
-                          width: animatedWidth,
+                          width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
                         },
                       ]}
                     />
@@ -577,6 +637,7 @@ function DashboardInner({
           </View>
         )}
       </Card>
+
 
       {/* ── 7. Recent Transactions Section ── */}
       <View style={styles.recentSection}>

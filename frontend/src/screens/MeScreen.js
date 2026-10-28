@@ -142,6 +142,11 @@ function MeScreenInner({
       if (profile.language) setSelectedLanguage(profile.language);
       if (profile.voice_replies !== undefined && profile.voice_replies !== null) {
         setVoiceReplies(profile.voice_replies);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.setItem('pappu_voice_replies', JSON.stringify(profile.voice_replies));
+          } catch (e) {}
+        }
       }
     }
   }, [profile]);
@@ -167,8 +172,15 @@ function MeScreenInner({
   // ── Preferences Mutation ──
   const prefsMutation = useMutation({
     mutationFn: (updates) => patchProfile(token, updates),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile() });
+      if (data && data.voice_replies !== undefined) {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.setItem('pappu_voice_replies', JSON.stringify(data.voice_replies));
+          } catch (e) {}
+        }
+      }
     },
   });
 
@@ -179,8 +191,18 @@ function MeScreenInner({
 
   const handleVoiceToggle = useCallback((val) => {
     setVoiceReplies(val);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem('pappu_voice_replies', JSON.stringify(val));
+      } catch (e) {}
+    }
+    if (queryClient) {
+      queryClient.setQueryData(queryKeys.profile(), (old) =>
+        old ? { ...old, voice_replies: val } : { voice_replies: val }
+      );
+    }
     prefsMutation.mutate({ voice_replies: val });
-  }, [prefsMutation]);
+  }, [prefsMutation, queryClient]);
 
   // ── Clear Chat ──
   const confirmClearChat = useCallback(async () => {

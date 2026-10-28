@@ -7,11 +7,13 @@ import {
   StyleSheet,
   Platform,
 } from 'react-native';
-import Svg, { Circle, Ellipse, Path, Text as SvgText, G, Rect, Line } from 'react-native-svg';
+import Svg, { Circle, Ellipse, Path, Text as SvgText } from 'react-native-svg';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as SecureStore from 'expo-secure-store';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useCoinGesture } from '../../utils/useCoinGesture';
 import Pappu from './Pappu';
+import VoiceWaveAnimation from './VoiceWaveAnimation';
 
 export const TOOLTIP_PERSIST_KEY = 'pappu_coin_tooltip_seen_v1';
 
@@ -45,8 +47,8 @@ export async function markTooltipSeen() {
  * Dimensions: 72px circle, gold #FFC83D fill, 4px ink #1F2937 perimeter outline,
  * 4px solid gold_edge #D99A00 bottom edge, raised 24px above bottom tab bar.
  * Gesture:
- * - Tap (<300ms) opens Assistant modal
- * - Press & Hold (>=300ms) enters recording state: shows Pappu listening pose in place
+ * - Tap (<300ms) opens Assistant modal with immediate voice input active
+ * - Press & Hold (>=300ms) enters recording state: shows Pappu listening pose and sound wave animation
  * - Release after hold stubs send step and logs recording length
  * - 10 degree tilt over 200ms with haptic feedback
  * Tooltip:
@@ -87,7 +89,7 @@ export default function CoinButton({
   } = useCoinGesture({
     onTap: () => {
       dismissTooltip();
-      if (onOpenAssistant) onOpenAssistant();
+      if (onOpenAssistant) onOpenAssistant({ autoRecord: true });
     },
     onRecordingComplete: (data) => {
       dismissTooltip();
@@ -95,7 +97,7 @@ export default function CoinButton({
     },
     onOpenAssistant: (data) => {
       dismissTooltip();
-      if (onOpenAssistant) onOpenAssistant(data);
+      if (onOpenAssistant) onOpenAssistant(data || { autoRecord: true });
     },
   });
 
@@ -123,6 +125,14 @@ export default function CoinButton({
         </TouchableOpacity>
       )}
 
+      {/* ── Active Voice Input Wave Pill above Coin when recording ── */}
+      {isRecording && (
+        <View style={styles.listeningWaveCapsule} testID="coin-voice-wave">
+          <VoiceWaveAnimation color={colors.gold_edge} maxHeight={14} minHeight={4} barWidth={3} gap={2.5} style={{ marginRight: 6 }} />
+          <Text style={styles.listeningWaveText}>Listening...</Text>
+        </View>
+      )}
+
       {/* ── 72px Raised Coin Button ── */}
       <View style={styles.coinTactileWrapper}>
         {/* 4px Tactile Bottom Edge Layer */}
@@ -146,7 +156,7 @@ export default function CoinButton({
             activeOpacity={1}
             onPress={() => {
               dismissTooltip();
-              if (onOpenAssistant) onOpenAssistant();
+              if (onOpenAssistant) onOpenAssistant({ autoRecord: true });
             }}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
@@ -155,52 +165,54 @@ export default function CoinButton({
             style={styles.coinTouchableFace}
           >
             {isRecording ? (
-              /* Pappu Listening Pose in Place */
+              /* Pappu Listening Pose in Place with Wave Animation */
               <View style={styles.listeningContainer} testID="coin-listening-state">
-                <Pappu mood="listening" size={48} />
+                <Pappu mood="listening" size={44} />
+                <View style={styles.listeningWaveBar}>
+                  <VoiceWaveAnimation color={colors.ink} maxHeight={10} minHeight={3} barWidth={2.5} gap={2} />
+                </View>
               </View>
             ) : (
-              /* Pappu Mascot Face Mark (Idle face + small mic mark) per Stitch home.html */
-              <Svg width={56} height={56} viewBox="0 0 56 56" fill="none" style={styles.svgFace}>
-                {/* Inner rim ring inset */}
-                <Circle cx="28" cy="27" r="21" stroke={colors.gold_edge} strokeWidth="1.8" />
-                {/* Embossed ₹ on forehead */}
-                <SvgText
-                  x="28"
-                  y="16"
-                  fontFamily={typography.fonts.display}
-                  fontWeight="700"
-                  fontSize="10"
-                  fill={colors.gold_edge}
-                  textAnchor="middle"
-                >
-                  ₹
-                </SvgText>
+              <>
+                {/* Pappu Mascot Face Mark (Idle face + small mic mark) per Stitch home.html */}
+                <Svg width={56} height={56} viewBox="0 0 56 56" fill="none" style={styles.svgFace}>
+                  {/* Inner rim ring inset */}
+                  <Circle cx="28" cy="27" r="21" stroke={colors.gold_edge} strokeWidth="1.8" />
+                  {/* Embossed ₹ on forehead */}
+                  <SvgText
+                    x="28"
+                    y="16"
+                    fontFamily={typography.fonts.display}
+                    fontWeight="700"
+                    fontSize="10"
+                    fill={colors.gold_edge}
+                    textAnchor="middle"
+                  >
+                    ₹
+                  </SvgText>
 
-                {/* Eyes */}
-                <Ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
-                <Ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
-                <Circle cx="22" cy="26" r="2.8" fill={colors.ink} />
-                <Circle cx="34" cy="26" r="2.8" fill={colors.ink} />
-                <Circle cx="23" cy="24.8" r="1" fill={colors.surface} />
-                <Circle cx="35" cy="24.8" r="1" fill={colors.surface} />
+                  {/* Eyes */}
+                  <Ellipse cx="21" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
+                  <Ellipse cx="35" cy="25.5" rx="4.5" ry="5.8" fill={colors.surface} stroke={colors.ink} strokeWidth="1.5" />
+                  <Circle cx="22" cy="26" r="2.8" fill={colors.ink} />
+                  <Circle cx="34" cy="26" r="2.8" fill={colors.ink} />
+                  <Circle cx="23" cy="24.8" r="1" fill={colors.surface} />
+                  <Circle cx="35" cy="24.8" r="1" fill={colors.surface} />
 
-                {/* Smile */}
-                <Path
-                  d="M 23 34 C 25 36.5 31 36.5 33 34"
-                  stroke={colors.ink}
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-
-                {/* Small mic mark under mascot face */}
-                <G transform="translate(24, 40)">
-                  <Rect x="2.5" y="0" width="3" height="5" rx="1.5" fill={colors.ink} />
-                  <Path d="M 1 2.5 C 1 4.5 7 4.5 7 2.5" stroke={colors.ink} strokeWidth="1" strokeLinecap="round" fill="none" />
-                  <Line x1="4" y1="5" x2="4" y2="6.5" stroke={colors.ink} strokeWidth="1" />
-                </G>
-              </Svg>
+                  {/* Smile */}
+                  <Path
+                    d="M 23 34 C 25 36.5 31 36.5 33 34"
+                    stroke={colors.ink}
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                </Svg>
+                {/* Simple mic icon below mascot face */}
+                <View style={styles.micIconBadge}>
+                  <MaterialIcons name="mic" size={13} color={colors.ink} />
+                </View>
+              </>
             )}
           </TouchableOpacity>
         </Animated.View>
@@ -250,11 +262,46 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   svgFace: {
-    marginTop: -2,
+    marginTop: -4,
+  },
+  micIconBadge: {
+    position: 'absolute',
+    bottom: 4,
+    alignSelf: 'center',
+    backgroundColor: colors.gold_edge,
+    borderRadius: 10,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
   },
   listeningContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  listeningWaveBar: {
+    position: 'absolute',
+    bottom: -6,
+    alignSelf: 'center',
+  },
+  listeningWaveCapsule: {
+    position: 'absolute',
+    bottom: 84,
+    alignItems: 'center',
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 3,
+    borderBottomColor: colors.borderDark || colors.border,
+    zIndex: 100,
+  },
+  listeningWaveText: {
+    fontFamily: typography.fonts.display,
+    fontWeight: '700',
+    fontSize: 12,
+    color: colors.ink,
   },
   tooltipBubble: {
     position: 'absolute',

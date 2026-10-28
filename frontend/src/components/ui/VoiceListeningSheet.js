@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import MicButton from '../MicButton';
 import ConfirmationCard from './ConfirmationCard';
 import QueryDataCard from './QueryDataCard';
 import Button from './Button';
+import VoiceWaveAnimation from './VoiceWaveAnimation';
 import { colors, radius, spacing } from '../../theme/tokens';
 import {
   synthesizeSpeech,
@@ -22,6 +23,8 @@ import {
 } from '../../api/client';
 import { generateUUID } from '../../utils/uuid';
 import { playAudioBase64 } from '../../utils/audioPlayer';
+import { queryClient } from '../../data/queryClient';
+import { queryKeys } from '../../data/queryKeys';
 
 function formatTime(date = new Date()) {
   try {
@@ -37,32 +40,61 @@ export default function VoiceListeningSheet({
   token,
   onTransactionMutated,
   setMessages = null,
+  autoRecord = true,
 }) {
   const [transcript, setTranscript] = useState('');
-  const [statusText, setStatusText] = useState('Tap the microphone to speak');
+  const [statusText, setStatusText] = useState('Listening…');
   const [loading, setLoading] = useState(false);
   const [resultMessage, setResultMessage] = useState(null);
   const [queryResult, setQueryResult] = useState(null);
   const [v2Pending, setV2Pending] = useState(null);
   const [error, setError] = useState(null);
   const [textInput, setTextInput] = useState('');
+  const [isAutoRecording, setIsAutoRecording] = useState(false);
+  const micButtonRef = useRef(null);
 
   // Reset state whenever the sheet is opened or closed
   useEffect(() => {
     if (visible) {
       setTranscript('');
-      setStatusText('Tap the microphone to speak');
+      setStatusText('Listening\u2026');
       setLoading(false);
       setResultMessage(null);
       setQueryResult(null);
       setV2Pending(null);
       setError(null);
       setTextInput('');
+      // Auto-trigger recording when sheet opens
+      if (autoRecord) {
+        // Small delay to let the sheet animate in first
+        setTimeout(() => {
+          setIsAutoRecording(true);
+        }, 300);
+      }
+    } else {
+      setIsAutoRecording(false);
     }
   }, [visible]);
 
   const speak = async (text, lang = 'en') => {
     if (!token || !text) return;
+    let voiceEnabled = true;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const stored = window.localStorage.getItem('pappu_voice_replies');
+        if (stored !== null) {
+          voiceEnabled = stored === 'true' || stored === true;
+        }
+      } catch (_) {}
+    }
+    if (voiceEnabled && queryClient) {
+      const cached = queryClient.getQueryData(queryKeys.profile());
+      if (cached && cached.voice_replies !== undefined && cached.voice_replies !== null) {
+        voiceEnabled = Boolean(cached.voice_replies);
+      }
+    }
+    if (!voiceEnabled) return;
+
     try {
       const targetLang = lang === 'ml' ? 'ml-IN' : 'en-IN';
       const res = await synthesizeSpeech(token, text, targetLang);
@@ -119,11 +151,40 @@ export default function VoiceListeningSheet({
         setStatusText('Action pending');
       }
 
-      const qRes = Array.isArray(res.results)
-        ? res.results.find((r) => r && (r.kind === 'balances' || r.kind === 'sum' || r.kind === 'list' || r.kind === 'compare' || r.kind === 'query'))
+      const rawQRes = Array.isArray(res.results)
+        ? res.results.find((r) => r && (
+            r.kind === 'balances' ||
+            r.kind === 'sum' ||
+            r.kind === 'list' ||
+            r.kind === 'category_breakdown' ||
+            r.kind === 'biggest' ||
+            r.kind === 'compare' ||
+            r.status === 'sum' ||
+            r.status === 'balances' ||
+            r.status === 'category_breakdown' ||
+            r.status === 'list' ||
+            r.action === 'query' ||
+            r.contacts ||
+            r.per_contact ||
+            r.data?.sum !== undefined ||
+            r.data?.categories !== undefined ||
+            r.data?.balances !== undefined ||
+            r.data?.transactions !== undefined
+          ))
         : null;
-      if (qRes) {
-        setQueryResult(qRes);
+
+      if (rawQRes) {
+        setQueryResult({
+          ...rawQRes,
+          ...(rawQRes.data || {}),
+          kind: rawQRes.data?.kind || rawQRes.kind || rawQRes.status || 'sum',
+          category: rawQRes.data?.category || rawQRes.category || rawQRes.data?.filters_used?.category || rawQRes.filters_used?.category,
+          period: rawQRes.data?.period || rawQRes.period || rawQRes.data?.filters_used?.period || rawQRes.filters_used?.period,
+          total_amount: rawQRes.data?.total_amount ?? rawQRes.data?.sum ?? rawQRes.data?.total ?? rawQRes.total_amount ?? rawQRes.total,
+          transactions: rawQRes.data?.transactions || rawQRes.transactions || [],
+          categories: rawQRes.data?.categories || rawQRes.categories || [],
+          balances: rawQRes.data?.balances || rawQRes.data?.per_contact || rawQRes.balances || rawQRes.per_contact || [],
+        });
       }
 
       // Append to chat history
@@ -224,6 +285,16 @@ export default function VoiceListeningSheet({
 
         {/* Status Pill */}
         <View style={styles.statusRow}>
+          {statusText.startsWith('Listening') && (
+            <VoiceWaveAnimation
+              color={colors.gold_edge}
+              maxHeight={16}
+              minHeight={4}
+              barWidth={3}
+              gap={2.5}
+              style={{ marginRight: 6 }}
+            />
+          )}
           <Text testID="voice-status-text" style={styles.statusText}>
             {statusText}
           </Text>
@@ -244,10 +315,20 @@ export default function VoiceListeningSheet({
           <View style={styles.micCenterArea}>
             <View style={styles.micOuterCircle}>
               <MicButton
+                ref={micButtonRef}
                 token={token}
-                onTranscribed={(txt) => handleProcessText(txt)}
-                size={64}
+                isCoinStyle={true}
+                size={72}
+                onTranscribed={(txt) => {
+                  setIsAutoRecording(false);
+                  setStatusText('Got it!');
+                  handleProcessText(txt);
+                }}
+                onRecordingStateChange={(recording) => {
+                  setStatusText(recording ? 'Listening\u2026' : loading ? 'Processing\u2026' : 'Tap to speak again');
+                }}
                 disabled={loading}
+                autoRecord={isAutoRecording}
               />
             </View>
             <Text style={styles.micHelperText}>
