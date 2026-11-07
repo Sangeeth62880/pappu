@@ -24,7 +24,6 @@ import { useReduceMotion } from '../utils/reduceMotion';
 
 /**
  * MicButton with support for both standard mic icon and 70px Stitch Coin Mic.
- * Audio recording hook shared with CoinButton.
  * Fixes permission denied recovery, error banner, and native cleanup.
  */
 export default function MicButton({
