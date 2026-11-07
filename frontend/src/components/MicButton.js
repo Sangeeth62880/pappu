@@ -43,6 +43,7 @@ export default function MicButton({
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   const isRecordingRef = useRef(false);
+  const isStartingRef = useRef(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
@@ -109,7 +110,9 @@ export default function MicButton({
   };
 
   const startRecording = async () => {
-    if (disabled || isTranscribing || isRecordingRef.current) return;
+    // A second tap while the recorder is still starting must not start another one.
+    if (disabled || isTranscribing || isRecordingRef.current || isStartingRef.current) return;
+    isStartingRef.current = true;
     setErrorMessage(null);
     setPermissionDenied(false);
 
@@ -176,6 +179,8 @@ export default function MicButton({
 
         if (nativeRecorder?.prepareToRecordAsync) {
           await nativeRecorder.prepareToRecordAsync();
+          // Unmounted (e.g. sheet closed) while starting: don't start a recorder nobody can stop.
+          if (!isMountedRef.current) return;
           nativeRecorder.record();
         }
       }
@@ -195,6 +200,8 @@ export default function MicButton({
         if (isPerm) setPermissionDenied(true);
         setErrorMessage(err.message || 'Microphone access denied or recording failed to start');
       }
+    } finally {
+      isStartingRef.current = false;
     }
   };
 
