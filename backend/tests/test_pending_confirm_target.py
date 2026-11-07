@@ -168,3 +168,20 @@ def test_pick_edit_reports_failure_when_candidate_is_already_gone(db):
     assert data["changed"] is False
     assert not data["reply_text"].startswith("Updated")
     assert data["results"] and data["results"][0]["ok"] is False
+
+
+def test_answer_pending_message_uses_context_pending_id(db):
+    # The router looks up ctx's pending id first; that lookup must not silently fail.
+    user_id, food_id, shown_id, headers = _setup(db)
+
+    plan = Plan(actions=[DeleteAction(selector=Selector(recency="latest"))])
+    with patch.object(AssistantPlanner, "plan", return_value=plan):
+        res = client.post("/assistant/message", json={"text": "delete my last transaction"}, headers=headers)
+    assert res.json()["pending"]["kind"] == "confirm"
+
+    with patch("app.routers.assistant.get_active_pending", return_value=None):
+        res = client.post("/assistant/message", json={"text": "yes"}, headers=headers)
+
+    assert res.json()["reply_text"].startswith("Deleted")
+    db.expire_all()
+    assert db.get(Transaction, shown_id) is None

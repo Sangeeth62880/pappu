@@ -20,6 +20,7 @@ from app.auth import get_current_user_id
 from app.models.profile import Profile
 from app.models.chat_message import ChatMessage
 from app.models.idempotency import AssistantIdempotency
+from app.models.pending_action import PendingAction
 from app.services.tracing import AssistantTracer, save_trace_background
 from app.assistant.schemas import (
     AssistantMessageRequest,
