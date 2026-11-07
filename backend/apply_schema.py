@@ -147,6 +147,49 @@ CREATE TABLE IF NOT EXISTS public.pending_actions (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 8a. Assistant Idempotency Table (retry-safe POST /assistant/message)
+-- Reserved as 'in_progress' before any work; the unique (user_id, client_msg_id)
+-- constraint decides the winner when retries race. Mirrors
+-- supabase/migrations/20261107000000_assistant_idempotency_reservations.sql.
+CREATE TABLE IF NOT EXISTS public.assistant_idempotency (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    client_msg_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'done',
+    response_json JSONB,
+    reserved_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Upgrade a table created earlier by create_all (existing rows backfill as 'done')
+ALTER TABLE public.assistant_idempotency ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'done';
+ALTER TABLE public.assistant_idempotency ADD COLUMN IF NOT EXISTS reserved_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE public.assistant_idempotency ALTER COLUMN response_json DROP NOT NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_user_client_msg_id'
+          AND conrelid = 'public.assistant_idempotency'::regclass
+    ) THEN
+        ALTER TABLE public.assistant_idempotency
+        ADD CONSTRAINT uq_user_client_msg_id UNIQUE (user_id, client_msg_id);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'ck_assistant_idempotency_status'
+          AND conrelid = 'public.assistant_idempotency'::regclass
+    ) THEN
+        ALTER TABLE public.assistant_idempotency
+        ADD CONSTRAINT ck_assistant_idempotency_status CHECK (status IN ('in_progress', 'done'));
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS ix_assistant_idempotency_user_id ON public.assistant_idempotency (user_id);
+CREATE INDEX IF NOT EXISTS ix_assistant_idempotency_client_msg_id ON public.assistant_idempotency (client_msg_id);
+CREATE INDEX IF NOT EXISTS ix_assistant_idempotency_created_at ON public.assistant_idempotency (created_at);
+
 -- 8. Seed Categories (Fixed list per PROJECT_SPEC.md §4 & §7)
 INSERT INTO public.categories (name, type) VALUES
     ('Food', 'expense'),
@@ -209,6 +252,13 @@ CREATE POLICY "Users can manage their own pending actions" ON public.pending_act
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
+ALTER TABLE public.assistant_idempotency ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own idempotency keys" ON public.assistant_idempotency;
+CREATE POLICY "Users can manage their own idempotency keys" ON public.assistant_idempotency
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
 -- 7. Trigger to automatically provision profiles on Supabase Auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -251,12 +301,12 @@ def apply_schema():
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 
-              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions')
+              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions', 'assistant_idempotency')
             ORDER BY table_name;
         """))
         tables = [row[0] for row in result.fetchall()]
         print(f"Found public tables: {tables}")
-        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces, pending_actions. Got {tables}"
+        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions', 'assistant_idempotency'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces, pending_actions, assistant_idempotency. Got {tables}"
 
         # Verify seed categories
         print("\n--- Verifying Seed Categories ---")

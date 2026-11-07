@@ -96,6 +96,64 @@ describe('Frontend API Client', () => {
     expect(result).toEqual(mockResponse);
   });
 
+  describe('sendAssistantMessage on 409 still_processing', () => {
+    const stillProcessing = () => ({
+      ok: false,
+      status: 409,
+      json: jest.fn().mockResolvedValue({
+        detail: 'Still processing this message. Retry shortly.',
+        code: 'still_processing',
+      }),
+    });
+
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    test('polls with the same client_msg_id and returns the stored response', async () => {
+      const stored = { reply_text: 'Added ₹500 for Food.', results: [], pending: null, changed: true };
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(stillProcessing())
+        .mockResolvedValueOnce(stillProcessing())
+        .mockResolvedValueOnce({ ok: true, status: 200, json: jest.fn().mockResolvedValue(stored) });
+
+      const pending = sendAssistantMessage(mockToken, { text: 'Spent 500 on food', client_msg_id: 'c-retry' });
+      await jest.advanceTimersByTimeAsync(2000);
+      await jest.advanceTimersByTimeAsync(2000);
+
+      await expect(pending).resolves.toEqual(stored);
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+      const bodies = global.fetch.mock.calls.map(([, config]) => JSON.parse(config.body));
+      expect(bodies.every((b) => b.client_msg_id === 'c-retry')).toBe(true);
+    });
+
+    test('gives up after the poll budget and surfaces the 409', async () => {
+      global.fetch = jest.fn().mockImplementation(async () => stillProcessing());
+
+      const pending = sendAssistantMessage(mockToken, { text: 'Spent 500 on food', client_msg_id: 'c-slow' });
+      const outcome = pending.catch((err) => err);
+      await jest.advanceTimersByTimeAsync(2000 * 30);
+
+      const err = await outcome;
+      expect(err.status).toBe(409);
+      expect(err.data.code).toBe('still_processing');
+      expect(global.fetch).toHaveBeenCalledTimes(30);
+    });
+
+    test('other errors are not retried', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: jest.fn().mockResolvedValue({ detail: 'Some other conflict' }),
+      });
+
+      await expect(sendAssistantMessage(mockToken, { text: 'x', client_msg_id: 'c2' })).rejects.toThrow(
+        'Some other conflict'
+      );
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   test('answerPending sends answer and optional index', async () => {
     const mockResponse = {
       display_text: 'Deleted transaction',

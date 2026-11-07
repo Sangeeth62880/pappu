@@ -175,6 +175,7 @@ Action operations include:
 
 ### Endpoints
 * `POST /assistant/message`: Primary conversational endpoint. Accepts `{ text: str, input: "text" | "voice", client_msg_id: str }`. Runs one LLM planner call, resolves entities, executes actions, and returns `{ reply, display_text, spoken_text, results, pending, changed }`.
+  * **Retry idempotency (`client_msg_id`):** the `(user_id, client_msg_id)` row in `assistant_idempotency` is reserved as `in_progress` *before* any work, and the unique constraint `uq_user_client_msg_id` decides the winner (no check-then-insert). A retry of a finished request returns the stored response. A retry while the first request is still running gets `409 {"detail": ..., "code": "still_processing"}` with `Retry-After: 2`. The frontend API client re-polls with the same `client_msg_id` (every 2s, up to 30 attempts) and shows no error for it. A request that raises an error releases its reservation. An `in_progress` row older than 300s (`STALE_AFTER`, longer than the planner's worst case of 2 Sarvam calls × 3 attempts × 45s) is treated as abandoned and taken over. Keys are scoped by the verified `user_id`.
 * `POST /assistant/pending/{id}/answer`: Answers an active pending confirmation or disambiguation. Accepts `{ answer: "confirm" | "cancel" | "choose" | str, index: int | null }`. Deterministically executes or cancels the pending plan.
 * `GET /assistant/pending`: Returns the single active pending action for the verified user.
 

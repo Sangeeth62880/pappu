@@ -294,8 +294,21 @@ export async function clearChatHistory(token) {
  * @property {AssistantMood} mood - Pappu mascot mood derived from result kinds
  */
 
+// 409 still_processing: an earlier request with the same client_msg_id is still
+// running on the server (slow cold start / Sarvam call). Poll for up to ~60s.
+export const STILL_PROCESSING_RETRY_DELAY_MS = 2000;
+export const STILL_PROCESSING_MAX_ATTEMPTS = 30;
+
+export function isStillProcessingError(err) {
+  return err?.status === 409 && err?.data?.code === 'still_processing';
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * POST /assistant/message - Unified message endpoint for Assistant v2.
+ * On 409 still_processing it re-sends with the SAME client_msg_id until the
+ * server returns the first request's stored response (no second execution).
  * @returns {Promise<AssistantResponse>}
  */
 export async function sendAssistantMessage(token, { text, input = 'typed', client_msg_id = null }) {
@@ -304,11 +317,20 @@ export async function sendAssistantMessage(token, { text, input = 'typed', clien
   if (client_msg_id) {
     body.client_msg_id = client_msg_id;
   }
-  return request('/assistant/message', {
-    method: 'POST',
-    token,
-    body,
-  });
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await request('/assistant/message', {
+        method: 'POST',
+        token,
+        body,
+      });
+    } catch (err) {
+      if (!isStillProcessingError(err) || attempt >= STILL_PROCESSING_MAX_ATTEMPTS) {
+        throw err;
+      }
+      await wait(STILL_PROCESSING_RETRY_DELAY_MS);
+    }
+  }
 }
 
 /**

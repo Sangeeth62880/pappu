@@ -281,7 +281,13 @@ export default function ConversationLog({
         timestamp: nowTime,
       };
 
-      setMessages((prev) => [...prev, userMsg]);
+      // A retry (same client_msg_id) keeps the original user bubble and drops its
+      // failed error bubble instead of appending a duplicate.
+      setMessages((prev) => {
+        const withoutFailed = prev.filter((m) => !(m.isError && m.client_msg_id === clientMsgId));
+        const alreadyShown = withoutFailed.some((m) => m.sender === 'user' && m.client_msg_id === clientMsgId);
+        return alreadyShown ? withoutFailed : [...withoutFailed, userMsg];
+      });
       setLastFailedMessage(null);
 
       if (!token) {

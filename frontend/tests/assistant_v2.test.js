@@ -471,6 +471,59 @@ describe('Assistant V2 UI and Endpoints', () => {
     });
   });
 
+  test('retry that hits 409 still_processing shows no error and no duplicate bubble', async () => {
+    const actualClient = jest.requireActual('../src/api/client');
+    client.sendAssistantMessage.mockImplementation(actualClient.sendAssistantMessage);
+
+    const originalFetch = global.fetch;
+    global.fetch = jest
+      .fn()
+      // First send: the client gives up (cold start), but the server keeps working.
+      .mockRejectedValueOnce(new Error('Network request failed'))
+      // Retry: the first request is still running server side.
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({ detail: 'Still processing this message. Retry shortly.', code: 'still_processing' }),
+      })
+      // Poll: the first request's stored response.
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          reply_text: 'Added ₹100 for snacks.',
+          spoken_text: '',
+          results: [],
+          pending: null,
+          changed: false,
+        }),
+      });
+
+    try {
+      const { findByTestId, findByText, queryByText, getAllByText } = await render(
+        <ConversationLog token={mockToken} assistantV2={true} />
+      );
+
+      fireEvent.changeText(await findByTestId('conversation-input'), 'Spent 100 on snacks');
+      fireEvent.press(await findByTestId('conversation-send-button'));
+      expect(await findByText('Error: Network request failed')).toBeTruthy();
+
+      fireEvent.press(await findByTestId('retry-button'));
+
+      // The 409 is polled through (2s delay) to the stored reply.
+      expect(await findByText('Added ₹100 for snacks.', {}, { timeout: 5000 })).toBeTruthy();
+      expect(queryByText(/Error:/)).toBeNull();
+      expect(queryByText(/Still processing/)).toBeNull();
+      expect(getAllByText('Spent 100 on snacks')).toHaveLength(1);
+
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+      const ids = global.fetch.mock.calls.map(([, config]) => JSON.parse(config.body).client_msg_id);
+      expect(new Set(ids).size).toBe(1);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  }, 10000);
+
   test('TTS speaks spoken_text only', async () => {
     client.sendAssistantMessage.mockResolvedValueOnce({
       spoken_text: 'Sent five hundred rupees to Pooja.',

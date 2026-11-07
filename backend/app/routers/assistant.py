@@ -13,14 +13,15 @@ from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth import get_current_user_id
 from app.models.profile import Profile
 from app.models.chat_message import ChatMessage
-from app.models.idempotency import AssistantIdempotency
 from app.models.pending_action import PendingAction
+from app.assistant import idempotency
 from app.services.tracing import AssistantTracer, save_trace_background
 from app.assistant.schemas import (
     AssistantMessageRequest,
@@ -173,6 +174,9 @@ def get_active_pending_endpoint(
     return format_pending_summary(item)
 
 
+STILL_PROCESSING_RETRY_AFTER_SECONDS = 2
+
+
 @router.post("/message", response_model=AssistantResponse)
 def handle_assistant_message(
     body: AssistantMessageRequest,
@@ -180,28 +184,50 @@ def handle_assistant_message(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
     plan_override: Optional[Plan] = Depends(lambda: None),
-) -> AssistantResponse:
+):
     """
     Core conversational endpoint for Pappu Assistant v2.
-    Orchestrates context loading, fast path, single LLM planner call,
-    deterministic execution, pending state management, reply composition,
-    idempotency, and tracing.
+
+    With a client_msg_id, the (user_id, client_msg_id) key is reserved before any
+    work runs: a retry of a finished request gets the stored response back, and a
+    retry that arrives while the first is still running gets 409 still_processing.
     """
     _ensure_profile_exists(db, user_id)
 
-    # 1. Idempotency Check
-    if body.client_msg_id:
-        existing_record = (
-            db.query(AssistantIdempotency)
-            .filter(
-                AssistantIdempotency.user_id == user_id,
-                AssistantIdempotency.client_msg_id == body.client_msg_id,
-            )
-            .first()
-        )
-        if existing_record:
-            return AssistantResponse.model_validate(existing_record.response_json)
+    if not body.client_msg_id:
+        return _process_message(body, background_tasks, db, user_id, plan_override)
 
+    reservation = idempotency.reserve(db, user_id, body.client_msg_id)
+    if reservation.outcome == "done":
+        return AssistantResponse.model_validate(reservation.response_json)
+    if reservation.outcome == "in_progress":
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={"detail": "Still processing this message. Retry shortly.", "code": "still_processing"},
+            headers={"Retry-After": str(STILL_PROCESSING_RETRY_AFTER_SECONDS)},
+        )
+
+    try:
+        response = _process_message(body, background_tasks, db, user_id, plan_override)
+    except Exception:
+        idempotency.release(db, user_id, reservation)
+        raise
+    idempotency.finish(db, user_id, reservation, json.loads(json.dumps(response.model_dump(), default=str)))
+    return response
+
+
+def _process_message(
+    body: AssistantMessageRequest,
+    background_tasks: Optional[BackgroundTasks],
+    db: Session,
+    user_id: uuid.UUID,
+    plan_override: Optional[Plan],
+) -> AssistantResponse:
+    """
+    Orchestrates context loading, fast path, single LLM planner call,
+    deterministic execution, pending state management, reply composition,
+    and tracing. Idempotency is handled by the caller.
+    """
     # 2. Start Tracer (auto_save=False: trace saving is off the request path)
     with AssistantTracer(
         db=db,
@@ -487,15 +513,6 @@ def handle_assistant_message(
                             db.add_all([user_msg, asst_msg])
                             db.commit()
 
-                            if body.client_msg_id:
-                                idemp = AssistantIdempotency(
-                                    user_id=user_id,
-                                    client_msg_id=body.client_msg_id,
-                                    response_json=ans_res.model_dump(),
-                                )
-                                db.add(idemp)
-                                db.commit()
-
                             tracer.set_reply(reply_text=ans_res.reply_text, spoken_text=ans_res.spoken_text)
                             if background_tasks is not None:
                                 background_tasks.add_task(save_trace_background, tracer.to_dict())
@@ -585,15 +602,7 @@ def handle_assistant_message(
             mood=mood,
         )
 
-        # 11. Record Idempotency and Commit
-        if body.client_msg_id:
-            idemp = AssistantIdempotency(
-                user_id=user_id,
-                client_msg_id=body.client_msg_id,
-                response_json=json.loads(json.dumps(response_obj.model_dump(), default=str)),
-            )
-            db.add(idemp)
-
+        # 11. Commit
         with tracer.time_stage("commit"):
             db.commit()
 
