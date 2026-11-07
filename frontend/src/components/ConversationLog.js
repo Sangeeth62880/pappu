@@ -22,6 +22,7 @@ import {
 } from '../api/client';
 import { generateUUID } from '../utils/uuid';
 import { playAudioBase64 } from '../utils/audioPlayer';
+import { ttsLanguageCode } from '../utils/ttsLanguage';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useReduceMotion } from '../utils/reduceMotion';
 import { queryClient } from '../data/queryClient';
@@ -229,7 +230,7 @@ export default function ConversationLog({
         setActiveMood('speaking');
         if (messageId) setCurrentlySpeakingId(messageId);
 
-        const targetLang = language === 'ml' || language === 'malayalam' ? 'ml-IN' : 'en-IN';
+        const targetLang = ttsLanguageCode(language);
         const ttsRes = await synthesizeSpeech(token, text, targetLang);
         if (ttsRes?.audio_base64) {
           await playAudioBase64(ttsRes.audio_base64);
@@ -340,6 +341,7 @@ export default function ConversationLog({
           sender: 'pappu',
           text: replyText,
           spoken_text: spokenText,
+          language_code: ttsLanguageCode(res),
           results: res.results || [],
           pending: res.pending || null,
           mood: resMood,
@@ -374,7 +376,7 @@ export default function ConversationLog({
 
         // Play audio if spokenText exists
         if (spokenText) {
-          speakResponse(spokenText, res.language || 'en', msgId);
+          speakResponse(spokenText, ttsLanguageCode(res), msgId);
         }
 
         if (res.changed) {
@@ -433,6 +435,7 @@ export default function ConversationLog({
           sender: 'pappu',
           text: replyText,
           spoken_text: spokenText,
+          language_code: ttsLanguageCode(res),
           results: res.results || [],
           pending: res.pending || null,
           mood: resMood,
@@ -455,7 +458,7 @@ export default function ConversationLog({
         }
 
         if (spokenText) {
-          speakResponse(spokenText, res.language || 'en', msgId);
+          speakResponse(spokenText, ttsLanguageCode(res), msgId);
         }
 
         if (res.changed) {
@@ -726,7 +729,7 @@ export default function ConversationLog({
                 isPlayingAudio={isCurrentlyPlaying}
                 onPlayAudio={() => {
                   if (msg.spoken_text) {
-                    speakResponse(msg.spoken_text, 'en', msg.id);
+                    speakResponse(msg.spoken_text, ttsLanguageCode(msg), msg.id);
                   }
                 }}
                 timestamp={msg.timestamp}

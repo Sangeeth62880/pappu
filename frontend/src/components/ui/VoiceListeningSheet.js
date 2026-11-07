@@ -22,6 +22,7 @@ import {
 } from '../../api/client';
 import { generateUUID } from '../../utils/uuid';
 import { playAudioBase64 } from '../../utils/audioPlayer';
+import { ttsLanguageCode } from '../../utils/ttsLanguage';
 
 function formatTime(date = new Date()) {
   try {
@@ -64,7 +65,7 @@ export default function VoiceListeningSheet({
   const speak = async (text, lang = 'en') => {
     if (!token || !text) return;
     try {
-      const targetLang = lang === 'ml' ? 'ml-IN' : 'en-IN';
+      const targetLang = ttsLanguageCode(lang);
       const res = await synthesizeSpeech(token, text, targetLang);
       if (res?.audio_base64) {
         await playAudioBase64(res.audio_base64);
@@ -135,6 +136,7 @@ export default function VoiceListeningSheet({
             sender: 'pappu',
             text: reply,
             spoken_text: res.spoken_text,
+            language_code: ttsLanguageCode(res),
             results: res.results || [],
             pending: res.pending || null,
             client_msg_id: clientMsgId,
@@ -145,7 +147,7 @@ export default function VoiceListeningSheet({
 
       // TTS speaks spoken_text only
       if (res.spoken_text) {
-        speak(res.spoken_text, 'en');
+        speak(res.spoken_text, ttsLanguageCode(res));
       }
 
       if (res.changed && onTransactionMutated) {
@@ -178,6 +180,7 @@ export default function VoiceListeningSheet({
             sender: 'pappu',
             text: reply,
             spoken_text: res.spoken_text,
+            language_code: ttsLanguageCode(res),
             results: res.results || [],
             pending: res.pending || null,
             timestamp: formatTime(),
@@ -187,7 +190,7 @@ export default function VoiceListeningSheet({
 
       // TTS speaks spoken_text only
       if (res.spoken_text) {
-        speak(res.spoken_text, 'en');
+        speak(res.spoken_text, ttsLanguageCode(res));
       }
 
       if (res.changed && onTransactionMutated) {
