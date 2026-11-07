@@ -189,6 +189,31 @@ describe('HomeScreen Component & Navigation Shell', () => {
     expect(await findByTestId('auth-screen')).toBeTruthy();
   });
 
+  test('failed sign out (offline) shows an error and keeps the user signed in', async () => {
+    client.fetchSummary.mockResolvedValue(initialSummary);
+    client.fetchTransactions.mockResolvedValue([]);
+    supabaseApi.signOut.mockRejectedValueOnce(new Error('Network request failed'));
+
+    const { findByTestId, findByText, queryByTestId } = await render(
+      <HomeScreen initialSession={mockSession} />
+    );
+
+    fireEvent.press(await findByTestId('tab-me'));
+    fireEvent.press(await findByTestId('auth-signout-button'));
+    fireEvent.press(await findByTestId('dialog-signout-confirm'));
+
+    await waitFor(() => {
+      expect(supabaseApi.signOut).toHaveBeenCalled();
+    });
+
+    expect(await findByText("Couldn't sign out. Check your connection and try again.")).toBeTruthy();
+    // No Undo action on this toast: it must not undo a transaction.
+    expect(queryByTestId('toast-action')).toBeNull();
+    // Still signed in: the Me screen stays, no AuthScreen.
+    expect(queryByTestId('auth-screen')).toBeNull();
+    expect(await findByTestId('me-screen')).toBeTruthy();
+  });
+
   test('tab switching between Home, History, People, and Me operates cleanly', async () => {
     client.fetchSummary.mockResolvedValueOnce(initialSummary);
     client.fetchTransactions.mockResolvedValueOnce([]);

@@ -183,9 +183,12 @@ function InnerHomeScreen({
   const [selectedPersonId, setSelectedPersonId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
   const [toastVisible, setToastVisible] = useState(false);
+  const [toastHasUndo, setToastHasUndo] = useState(true);
 
-  const showToast = (message) => {
+  // undo: false hides the toast's Undo action (e.g. for error messages unrelated to a transaction).
+  const showToast = (message, { undo = true } = {}) => {
     setToastMessage(message);
+    setToastHasUndo(undo);
     setToastVisible(true);
   };
 
@@ -275,6 +278,12 @@ function InnerHomeScreen({
   const handleSignOut = async () => {
     try {
       await signOut();
+    } catch (err) {
+      // Still signed in (e.g. offline): say so and leave session/UI state untouched.
+      showToast("Couldn't sign out. Check your connection and try again.", { undo: false });
+      return;
+    }
+    try {
       queryClient.clear();
       await handleClearMessages();
       // Clear session chunks from secure store
@@ -399,7 +408,7 @@ function InnerHomeScreen({
         visible={toastVisible}
         message={toastMessage}
         actionText="Undo"
-        onAction={handleUndo}
+        onAction={toastHasUndo ? handleUndo : undefined}
         onDismiss={() => setToastVisible(false)}
       />
 
