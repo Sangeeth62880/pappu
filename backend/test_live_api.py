@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Frontend .env contains anon key & supabase URL
-SUPABASE_URL = "https://mvobtveaewxgiczulyrq.supabase.co"
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_ANON_KEY = ""
 
 with open(os.path.join(os.path.dirname(__file__), "..", "frontend", ".env"), "r") as f:
@@ -14,6 +14,10 @@ with open(os.path.join(os.path.dirname(__file__), "..", "frontend", ".env"), "r"
             SUPABASE_ANON_KEY = line.strip().split("=", 1)[1]
         elif line.startswith("EXPO_PUBLIC_SUPABASE_URL="):
             SUPABASE_URL = line.strip().split("=", 1)[1]
+
+if not SUPABASE_URL:
+    print("Error: set EXPO_PUBLIC_SUPABASE_URL in frontend/.env or SUPABASE_URL in backend/.env.")
+    exit(1)
 
 API_BASE_URL = "http://127.0.0.1:8000"
 

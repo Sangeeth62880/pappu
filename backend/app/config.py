@@ -6,10 +6,17 @@ env_path = os.path.join(backend_dir, ".env")
 load_dotenv(dotenv_path=env_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://mvobtveaewxgiczulyrq.supabase.co").strip().rstrip("/")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+if "[PROJECT-REF]" in SUPABASE_URL:
+    SUPABASE_URL = ""
 
 raw_jwks = os.getenv("SUPABASE_JWKS_URL", "").strip()
 if not raw_jwks or "[PROJECT-REF]" in raw_jwks:
+    if not SUPABASE_URL:
+        raise RuntimeError(
+            "Missing Supabase config: set SUPABASE_JWKS_URL or SUPABASE_URL "
+            "(see backend/.env.example). Refusing to start without a JWKS endpoint."
+        )
     SUPABASE_JWKS_URL = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
 elif "/.well-known/jwks.json" in raw_jwks and "/auth/v1/" not in raw_jwks:
     SUPABASE_JWKS_URL = raw_jwks.replace("/.well-known/jwks.json", "/auth/v1/.well-known/jwks.json")
