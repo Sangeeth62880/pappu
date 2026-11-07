@@ -10,7 +10,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from datetime import date
+from app.services.date_utils import get_current_ist_datetime
 
 import httpx
 
@@ -38,7 +38,7 @@ def _inject_today_date(prompt: str) -> str:
     The prompt uses hardcoded example dates — we inject today's date
     so the LLM knows the current date for "today"/"yesterday" resolution.
     """
-    today = date.today().isoformat()
+    today = get_current_ist_datetime().date().isoformat()
     # Prepend a date context line to the prompt
     date_context = f"\n\nCurrent date (IST): {today}\n"
     return prompt + date_context
@@ -92,8 +92,6 @@ class SarvamLLMClient:
             raise ValueError(
                 "SARVAM_API_KEY is required. Set it in backend/.env or pass it directly."
             )
-
-        self._system_prompt = _inject_today_date(_load_prompt_template())
 
     def _make_request(self, messages: list[dict], max_network_retries: int = 2) -> str:
         """
@@ -193,7 +191,8 @@ class SarvamLLMClient:
             httpx.HTTPStatusError: If the API request fails.
         """
         messages = [
-            {"role": "system", "content": self._system_prompt},
+            # Built per call so "today" is current IST, not the date the client was created.
+            {"role": "system", "content": _inject_today_date(_load_prompt_template())},
             {"role": "user", "content": user_text},
         ]
 
