@@ -56,7 +56,16 @@ from app.assistant.executors.edit import execute_edit
 from app.assistant.executors.query import execute_query
 from app.assistant.executors.undo import execute_undo
 from app.assistant.executors.base import serialize_transaction
-from app.assistant.composer import compose_reply, format_inr, format_date_short, derive_mood
+from app.assistant.composer import (
+    compose_reply,
+    format_inr,
+    format_date_short,
+    derive_mood,
+    render,
+    resolve_reply_language,
+    to_spoken,
+    tts_language_code,
+)
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -86,6 +95,11 @@ def _ensure_profile_exists(db: Session, user_id: uuid.UUID) -> Profile:
     return profile
 
 
+def _load_preferred_language(db: Session, user_id: uuid.UUID) -> str:
+    """profiles.preferred_language for the verified user (the cached stub above is always 'en')."""
+    lang = db.query(Profile.preferred_language).filter(Profile.id == user_id).scalar()
+    return lang or "en"
+
 
 @router.post("/pending/{pending_id}/answer", response_model=AssistantResponse)
 def answer_pending_endpoint(
@@ -114,6 +128,7 @@ def answer_pending_endpoint(
         pending_id=pending_id,
         answer=body.answer,
         index=body.index,
+        preferred_language=_load_preferred_language(db, user_id),
     )
 
     if response is None:
@@ -231,12 +246,15 @@ def handle_assistant_message(
         # 6. Sanitize descriptions, supersession check, and deterministic execution
         plan = sanitize_plan(plan, body.text)
 
+        # Reply language: detected for this message, else the profile preference.
+        reply_lang = resolve_reply_language(plan.language, getattr(ctx, "preferred_language", None))
+
         superseded_notice: Optional[str] = None
         is_answer_pending = any(a.op == "answer_pending" for a in plan.actions)
         if not is_answer_pending:
             active_p = get_active_pending(db, user_id)
             if active_p:
-                superseded_notice = format_superseded_message(active_p)
+                superseded_notice = format_superseded_message(active_p, reply_lang)
                 supersede_pending(db, user_id)
 
         with tracer.time_stage("execution"):
@@ -269,11 +287,11 @@ def handle_assistant_message(
                                 cand = res.candidates[0]
                                 is_new = bool(cand.get("is_new"))
                                 if is_new:
-                                    spoken = cand.get("spoken_name") or "contact"
-                                    q = f"New contact: {spoken}. Add them?"
+                                    spoken = cand.get("spoken_name") or render("word.contact", reply_lang)
+                                    q = render("pending.new_contact_question", reply_lang, name=spoken)
                                 else:
-                                    cand_name = cand.get("candidate_name", "contact")
-                                    q = f"Is this {cand_name}?"
+                                    cand_name = cand.get("candidate_name") or render("word.contact", reply_lang)
+                                    q = render("pending.contact_match_question", reply_lang, name=cand_name)
                                 created_pending, _ = create_pending(
                                     db=db,
                                     user_id=user_id,
@@ -284,14 +302,15 @@ def handle_assistant_message(
                                         "is_new": is_new,
                                         "action": action.model_dump(),
                                         "question": q,
+                                        "language": reply_lang,
                                     },
                                     question=q,
                                 )
                             else:
                                 # Future date add
                                 amt_str = format_inr(action.amount)
-                                dt_str = format_date_short(action.date)
-                                q = f"Record {amt_str} for {dt_str}?"
+                                dt_str = format_date_short(action.date, reply_lang)
+                                q = render("pending.future_add_question", reply_lang, amt=amt_str, date=dt_str)
                                 created_pending, _ = create_pending(
                                     db=db,
                                     user_id=user_id,
@@ -299,6 +318,7 @@ def handle_assistant_message(
                                     plan_json={
                                         "action": action.model_dump(),
                                         "question": q,
+                                        "language": reply_lang,
                                     },
                                     question=q,
                                 )
@@ -327,7 +347,7 @@ def handle_assistant_message(
                                 db=db,
                                 user_id=user_id,
                                 kind="disambiguate",
-                                plan_json={"action": action.model_dump()},
+                                plan_json={"action": action.model_dump(), "language": reply_lang},
                                 candidates=cands,
                             )
                         else:
@@ -337,7 +357,7 @@ def handle_assistant_message(
                         # If target was not created or touched in last 10 minutes, ask for confirmation first
                         if not is_recent_or_touched(db, target_row, user_id):
                             if not created_pending:
-                                q = format_edit_confirmation_question(target_row, action.patch)
+                                q = format_edit_confirmation_question(target_row, action.patch, reply_lang)
                                 created_pending, _ = create_pending(
                                     db=db,
                                     user_id=user_id,
@@ -346,6 +366,7 @@ def handle_assistant_message(
                                         "action": action.model_dump(),
                                         "target_id": str(target_row.id),
                                         "question": q,
+                                        "language": reply_lang,
                                     },
                                     candidates=[serialize_transaction(target_row)],
                                     question=q,
@@ -384,7 +405,7 @@ def handle_assistant_message(
                                 db=db,
                                 user_id=user_id,
                                 kind="disambiguate",
-                                plan_json={"action": action.model_dump()},
+                                plan_json={"action": action.model_dump(), "language": reply_lang},
                                 candidates=cands,
                             )
                         else:
@@ -393,7 +414,7 @@ def handle_assistant_message(
                         # Exactly one row matched: always create a pending confirm
                         if not created_pending:
                             target_row = resolve_res.rows[0]
-                            q = format_delete_confirmation_question(target_row)
+                            q = format_delete_confirmation_question(target_row, reply_lang)
                             created_pending, _ = create_pending(
                                 db=db,
                                 user_id=user_id,
@@ -402,6 +423,7 @@ def handle_assistant_message(
                                     "action": action.model_dump(),
                                     "target_id": str(target_row.id),
                                     "question": q,
+                                    "language": reply_lang,
                                 },
                                 candidates=[serialize_transaction(target_row)],
                                 question=q,
@@ -445,6 +467,8 @@ def handle_assistant_message(
                             user_id,
                             active_item.id,
                             answer=ans_val,
+                            detected_language=plan.language,
+                            preferred_language=getattr(ctx, "preferred_language", None),
                         )
                         if ans_res:
                             # Save chat messages and return answer result
@@ -496,17 +520,16 @@ def handle_assistant_message(
 
         # 8. Compose deterministic response
         with tracer.time_stage("composer"):
-            lang = getattr(plan, "language", None) or "en"
             reply_text, spoken_text = compose_reply(
                 plan=plan,
                 results=results,
                 pending=pending_summary,
-                language=lang,
+                language=reply_lang,
                 filters_used=last_filters_used,
             )
 
             if superseded_notice:
-                if reply_text and reply_text != "Done.":
+                if reply_text and reply_text != render("done", reply_lang):
                     reply_text = f"{superseded_notice} {reply_text}"
                     spoken_text = f"{superseded_notice} {spoken_text}"
                 else:
@@ -514,9 +537,12 @@ def handle_assistant_message(
                     spoken_text = superseded_notice
 
             if multi_action_pending_dropped:
-                drop_msg = " I have asked about the first transaction. Please repeat the second request after confirming."
+                drop_msg = " " + render("pending.multi_action_dropped", reply_lang)
                 reply_text += drop_msg
                 spoken_text += drop_msg
+
+            spoken_text = to_spoken(spoken_text, reply_lang)
+            reply_language_code = tts_language_code(reply_lang)
 
         # 9. Save Chat Messages
         user_msg = ChatMessage(
@@ -531,6 +557,8 @@ def handle_assistant_message(
             text=reply_text,
             payload=json.dumps({
                 "spoken_text": spoken_text,
+                "language": reply_lang,
+                "language_code": reply_language_code,
                 "plan": plan.model_dump() if plan else None,
                 "results": results,
                 "pending": pending_summary.model_dump() if pending_summary else None,
@@ -549,7 +577,8 @@ def handle_assistant_message(
         response_obj = AssistantResponse(
             reply_text=reply_text,
             spoken_text=spoken_text,
-            language=getattr(plan, "language", "en"),
+            language=reply_lang,
+            language_code=reply_language_code,
             results=results,
             pending=pending_summary,
             changed=changed,

@@ -6,7 +6,7 @@ All planner decisions are represented as a Plan with up to 5 actions.
 """
 
 from typing import List, Optional, Literal, Union, Dict, Any, Annotated
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def direction_to_type(direction: str) -> str:
@@ -154,9 +154,22 @@ Action = Annotated[
 ]
 
 
+PLAN_LANGUAGES = ("en", "ml", "mixed")
+
+
 class Plan(BaseModel):
     actions: List[Action] = Field(default_factory=list, min_length=1, max_length=5)
     reasoning: Optional[str] = None
+    # Language the planner detected for this message. None when missing or invalid,
+    # so the reply falls back to the profile preference instead of failing validation.
+    language: Optional[Literal["en", "ml", "mixed"]] = None
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def coerce_language(cls, value: Any) -> Optional[str]:
+        if isinstance(value, str) and value.strip().lower() in PLAN_LANGUAGES:
+            return value.strip().lower()
+        return None
 
     @model_validator(mode="before")
     @classmethod
@@ -218,10 +231,18 @@ class AssistantResponse(BaseModel):
     reply_text: str
     spoken_text: str
     language: str = "en"
+    # TTS target for spoken_text ('ml-IN' or 'en-IN'). Derived from language when not given.
+    language_code: Optional[str] = None
     results: List[Dict[str, Any]] = Field(default_factory=list)
     pending: Optional[PendingSummary] = None
     changed: bool = False
     mood: Literal["neutral", "happy", "excited", "concerned", "confused"] = "neutral"
+
+    @model_validator(mode="after")
+    def derive_language_code(self) -> "AssistantResponse":
+        if not self.language_code:
+            self.language_code = "ml-IN" if self.language == "ml" else "en-IN"
+        return self
 
 
 class AssistantMessageRequest(BaseModel):

@@ -30,6 +30,7 @@ from app.models.chat_message import ChatMessage
 from app.models.transaction import Transaction
 from app.models.undo_action import UndoAction
 from app.models.pending_action import PendingAction
+from app.models.profile import Profile
 from app.services.date_utils import get_current_ist_datetime
 from app.assistant.last_touched import get_last_touched_id
 
@@ -89,6 +90,8 @@ class AssistantContext(BaseModel):
     last_3_chat_turns: List[ChatTurnContextItem] = Field(default_factory=list)
     last_touched_transaction: Optional[LastTouchedContextItem] = None
     pending_item: Optional[PendingItemContextItem] = None
+    # profiles.preferred_language; reply language fallback only, not sent to the planner.
+    preferred_language: str = "en"
     token_estimate: int = 0
     id_map: Dict[str, Any] = Field(default_factory=dict)
 
@@ -237,6 +240,7 @@ class AssistantContext(BaseModel):
             last_3_chat_turns=chat_turns,
             last_touched_transaction=last_touched,
             pending_item=pending,
+            preferred_language=data.get("preferred_language") or "en",
             id_map=id_map,
         )
         ctx.token_estimate = _estimate_tokens(str(ctx.to_dict_for_prompt()))
@@ -314,7 +318,12 @@ def load_assistant_context(
                         ORDER BY created_at DESC
                         LIMIT 1
                     ) p
-                ) AS pending_action
+                ) AS pending_action,
+                (
+                    SELECT preferred_language
+                    FROM profiles
+                    WHERE id = :uid
+                ) AS preferred_language
         """)
         row = db.execute(sql, {"uid": str(user_id)}).mappings().first()
 
@@ -380,6 +389,7 @@ def load_assistant_context(
             last_3_chat_turns=chat_turns,
             last_touched_transaction=last_touched,
             pending_item=pending_item,
+            preferred_language=row["preferred_language"] or "en",
             id_map=id_map,
         )
         context.token_estimate = _estimate_tokens(str(context.to_dict_for_prompt()))
@@ -472,17 +482,24 @@ def load_assistant_context(
                 created_at=row.created_at.isoformat() if row.created_at else None,
             )
 
+    def fetch_preferred_language() -> str:
+        with session_factory() as s:
+            lang = s.query(Profile.preferred_language).filter(Profile.id == user_id).scalar()
+            return lang or "en"
+
     # Parallel execution
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         f_contacts = executor.submit(fetch_contacts)
         f_turns = executor.submit(fetch_chat_turns)
         f_last_touched = executor.submit(fetch_last_touched)
         f_pending = executor.submit(fetch_pending)
+        f_language = executor.submit(fetch_preferred_language)
 
         contacts = f_contacts.result()
         chat_turns = f_turns.result()
         last_touched = f_last_touched.result()
         pending_item = f_pending.result()
+        preferred_language = f_language.result()
 
     id_map = _build_id_map(contacts, last_touched, pending_item)
     context = AssistantContext(
@@ -492,6 +509,7 @@ def load_assistant_context(
         last_3_chat_turns=chat_turns,
         last_touched_transaction=last_touched,
         pending_item=pending_item,
+        preferred_language=preferred_language,
         id_map=id_map,
     )
 

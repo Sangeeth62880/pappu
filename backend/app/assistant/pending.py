@@ -33,14 +33,52 @@ from app.assistant.composer import (
     compose_reply,
     format_inr,
     format_date_short,
+    TEMPLATES,
+    date_part,
+    localize_category,
+    render,
+    resolve_reply_language,
+    to_spoken,
     _compose_single_delete,
     _compose_single_edit,
 )
 
 DEFAULT_EXPIRY_SECONDS = 300  # 5 minutes
 
+# Answers that confirm or cancel a pending item (English, Manglish, Malayalam script).
+# Keep in sync with FAST_PATH_EXACT_MATCHES in planner.py.
+CONFIRM_ANSWERS = (
+    "confirm", "ok", "aam", "ഉവ്വ്", "sure", "yes",
+    "athe", "sheri", "seri", "aanu", "അതെ", "ശരി", "ആണ്",
+)
+CANCEL_ANSWERS = ("venda", "vendaa", "illa", "വേണ്ട", "വേണ്ടാ", "ഇല്ല")
 
-def format_delete_confirmation_question(row_or_candidate: Any) -> str:
+
+def pending_language(item: Optional[PendingAction]) -> Optional[str]:
+    """Reply language the pending question was asked in, stored at creation."""
+    if item is None:
+        return None
+    return (item.plan_json or {}).get("language")
+
+
+def _response(
+    lang: str,
+    text: str,
+    results: Optional[List[Dict[str, Any]]] = None,
+    pending: Optional[PendingSummary] = None,
+    changed: bool = False,
+) -> AssistantResponse:
+    return AssistantResponse(
+        reply_text=text,
+        spoken_text=to_spoken(text, lang),
+        language=lang,
+        results=results or [],
+        pending=pending,
+        changed=changed,
+    )
+
+
+def format_delete_confirmation_question(row_or_candidate: Any, lang: str = "en") -> str:
     """
     Unified single formatter for every pending delete question and confirmation:
     contact name or category, amount in Indian format without .0,
@@ -54,7 +92,7 @@ def format_delete_confirmation_question(row_or_candidate: Any) -> str:
     dt_val = getattr(row_or_candidate, "txn_date", None)
     if dt_val is None and isinstance(row_or_candidate, dict):
         dt_val = row_or_candidate.get("date") or row_or_candidate.get("txn_date")
-    dt_str = format_date_short(dt_val)
+    dt_str = format_date_short(dt_val, lang)
 
     txn_type = getattr(row_or_candidate, "type", None)
     if txn_type is None and isinstance(row_or_candidate, dict):
@@ -76,14 +114,14 @@ def format_delete_confirmation_question(row_or_candidate: Any) -> str:
     if contact_name and str(contact_name).strip():
         label = str(contact_name).strip()
     elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
-        label = str(category_name).strip()
+        label = localize_category(str(category_name).strip(), lang)
     else:
-        label = "income" if is_income else "expense"
+        label = render("word.income" if is_income else "word.expense", lang)
 
-    return f"Delete {label} {amt_str} on {dt_str}?"
+    return render("pending.delete_question", lang, label=label, amt=amt_str, date=dt_str)
 
 
-def format_edit_confirmation_question(row_or_candidate: Any, patch: Dict[str, Any]) -> str:
+def format_edit_confirmation_question(row_or_candidate: Any, patch: Dict[str, Any], lang: str = "en") -> str:
     """
     Formatter for pending edit question:
     contact name or category, previous amount, date, and target change.
@@ -97,8 +135,7 @@ def format_edit_confirmation_question(row_or_candidate: Any, patch: Dict[str, An
     dt_val = getattr(row_or_candidate, "txn_date", None)
     if dt_val is None and isinstance(row_or_candidate, dict):
         dt_val = row_or_candidate.get("date") or row_or_candidate.get("txn_date")
-    dt_str = format_date_short(dt_val)
-    date_part = f" on {dt_str}" if dt_str else ""
+    dt_part = date_part(format_date_short(dt_val, lang), lang)
 
     contact_name = None
     if hasattr(row_or_candidate, "contact") and row_or_candidate.contact:
@@ -115,17 +152,19 @@ def format_edit_confirmation_question(row_or_candidate: Any, patch: Dict[str, An
     if contact_name and str(contact_name).strip():
         label = str(contact_name).strip()
     elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
-        label = str(category_name).strip()
+        label = localize_category(str(category_name).strip(), lang)
     else:
-        label = "transaction"
+        label = render("word.transaction", lang)
 
     if patch and "amount" in patch and patch["amount"] is not None:
         amt_new = format_inr(patch["amount"])
-        return f"Change {label} {amt_str}{date_part} to {amt_new}?"
-    return f"Change {label} {amt_str}{date_part}?"
+        return render(
+            "pending.edit_question_amount", lang, label=label, amt=amt_str, date_part=dt_part, amt_new=amt_new
+        )
+    return render("pending.edit_question", lang, label=label, amt=amt_str, date_part=dt_part)
 
 
-def format_superseded_message(item: PendingAction) -> str:
+def format_superseded_message(item: PendingAction, lang: str = "en") -> str:
     """
     Formats a user-facing cancellation sentence when an active pending item
     is superseded by an unrelated new message.
@@ -162,11 +201,11 @@ def format_superseded_message(item: PendingAction) -> str:
     if contact_name and str(contact_name).strip():
         label = str(contact_name).strip()
     elif category_name and str(category_name).strip() and str(category_name).strip().lower() not in ("people", "other", "expense", "income"):
-        label = str(category_name).strip()
+        label = localize_category(str(category_name).strip(), lang)
     elif first_cand.get("type") == "income" or action.get("kind") == "income":
-        label = "income"
+        label = render("word.income", lang)
     elif first_cand.get("type") == "expense" or action.get("kind") == "expense":
-        label = "expense"
+        label = render("word.expense", lang)
 
     if label and amt_str:
         subject = f"{label} {amt_str}"
@@ -174,24 +213,29 @@ def format_superseded_message(item: PendingAction) -> str:
         subject = label
     elif amt_str:
         subject = amt_str
-    elif q and q.startswith("Delete ") and " on " in q:
+    elif lang == "en" and q and q.startswith("Delete ") and " on " in q:
         subject = q.removeprefix("Delete ").removesuffix("?").rsplit(" on ", 1)[0].strip()
     else:
-        subject = "transaction"
+        subject = render("word.transaction", lang)
 
-    return f"I cancelled the pending {op} of {subject}."
+    if f"op.{op}" in TEMPLATES:
+        op_word = render(f"op.{op}", lang)
+    else:
+        op_word = op if lang == "en" else render("op.action", lang)
+
+    return render("pending.superseded", lang, op=op_word, subject=subject)
 
 
-def _failed_execution_response(results: List[ActionResult]) -> Optional[AssistantResponse]:
+def _failed_execution_response(results: List[ActionResult], lang: str = "en") -> Optional[AssistantResponse]:
     """Returns a failure reply if a confirmed op did not succeed, else None."""
     if results and all(r.ok for r in results):
         return None
     dumped = [r.model_dump() for r in results]
-    reply, spoken = compose_reply(plan=None, results=dumped)
+    reply, spoken = compose_reply(plan=None, results=dumped, language=lang)
     return AssistantResponse(
         reply_text=reply,
         spoken_text=spoken,
-        language="en",
+        language=lang,
         results=dumped,
         pending=None,
         changed=False,
@@ -312,7 +356,9 @@ def format_pending_summary(item: PendingAction) -> PendingSummary:
     """
     Converts a PendingAction DB record into a client-facing PendingSummary.
     """
-    q = (item.plan_json or {}).get("question") or "Confirmation required."
+    q = (item.plan_json or {}).get("question") or render(
+        "pending.default_question", pending_language(item) or "en"
+    )
     expires_str = None
     if item.expires_at:
         expires_str = _to_utc(item.expires_at).isoformat()
@@ -332,15 +378,21 @@ def handle_answer_pending(
     pending_id: uuid.UUID,
     answer: str,
     index: Optional[int] = None,
+    detected_language: Optional[str] = None,
+    preferred_language: Optional[str] = None,
 ) -> AssistantResponse:
     """
     Deterministically processes an answer (yes, no, pick, cancel) for pending_id.
     No LLM call is made. Returns unified AssistantResponse shape.
+    Reply language: the language detected for this answer, else the language the
+    pending question was asked in, else the profile preference.
     """
     item = get_pending_by_id(db, pending_id, user_id)
     if not item:
         # Cross user or nonexistent pending id returns 404
         return None
+
+    lang = resolve_reply_language(detected_language or pending_language(item), preferred_language)
 
     now = datetime.now(timezone.utc)
     expires_at = _to_utc(item.expires_at)
@@ -349,31 +401,19 @@ def handle_answer_pending(
     if item.status == "expired" or (expires_at and expires_at < now and item.status == "pending"):
         item.status = "expired"
         db.commit()
-        return AssistantResponse(
-            reply_text="That request expired, please say it again.",
-            spoken_text="That request expired, please say it again.",
-            language="en",
-            results=[],
-            pending=None,
-            changed=False,
-        )
+        return _response(lang, render("pending.expired", lang))
 
     # 2. Check if already resolved or superseded
     if item.status in ("resolved", "superseded", "cancelled"):
-        return AssistantResponse(
-            reply_text="Nothing is waiting for confirmation.",
-            spoken_text="Nothing is waiting for confirmation.",
-            language="en",
-            results=[],
-            pending=None,
-            changed=False,
-        )
+        return _response(lang, render("error.nothing_pending", lang))
 
     clean_answer = (answer or "").strip().lower()
 
     # Normalize answer synonyms
-    if clean_answer in ("confirm", "ok", "aam", "ഉവ്വ്", "sure", "yes"):
+    if clean_answer in CONFIRM_ANSWERS:
         clean_answer = "yes"
+    elif clean_answer in CANCEL_ANSWERS:
+        clean_answer = "no"
     elif clean_answer in ("new", "+ add new", "add new", "add_new"):
         clean_answer = "no"  # For contact_confirm, creates new contact
     elif clean_answer in ("choose", "select"):
@@ -399,14 +439,7 @@ def handle_answer_pending(
             if is_new:
                 item.status = "cancelled"
                 db.commit()
-                return AssistantResponse(
-                    reply_text="Cancelled.",
-                    spoken_text="Cancelled.",
-                    language="en",
-                    results=[],
-                    pending=None,
-                    changed=False,
-                )
+                return _response(lang, render("pending.cancelled", lang))
 
             # On 'no' for fuzzy contact_confirm: create a new contact with the spoken name
             action_data = plan_payload.get("action") or {}
@@ -420,27 +453,13 @@ def handle_answer_pending(
             item.status = "resolved"
             db.commit()
 
-            reply = f"Created contact {new_contact.name} and recorded transaction."
-            return AssistantResponse(
-                reply_text=reply,
-                spoken_text=reply,
-                language="en",
-                results=[r.model_dump() for r in results],
-                pending=None,
-                changed=True,
-            )
+            reply = render("pending.created_contact", lang, name=new_contact.name)
+            return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
 
         # Standard cancellation for confirm and disambiguate
         item.status = "cancelled"
         db.commit()
-        return AssistantResponse(
-            reply_text="Cancelled.",
-            spoken_text="Cancelled.",
-            language="en",
-            results=[],
-            pending=None,
-            changed=False,
-        )
+        return _response(lang, render("pending.cancelled", lang))
 
     # 4. Answer: YES
     if clean_answer == "yes":
@@ -466,7 +485,7 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
-                failed = _failed_execution_response(results)
+                failed = _failed_execution_response(results, lang)
                 if failed:
                     return failed
 
@@ -476,15 +495,8 @@ def handle_answer_pending(
                 res_data = results[0].data if (results and results[0].data) else {}
                 merged_info = {**del_cand, **res_data}
 
-                reply = _compose_single_delete({"data": merged_info}, "en")
-                return AssistantResponse(
-                    reply_text=reply,
-                    spoken_text=reply,
-                    language="en",
-                    results=[r.model_dump() for r in results],
-                    pending=None,
-                    changed=True,
-                )
+                reply = _compose_single_delete({"data": merged_info}, lang)
+                return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
 
             elif op_type == "edit":
                 target_id_str = plan_payload.get("target_id")
@@ -502,24 +514,17 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
-                failed = _failed_execution_response(results)
+                failed = _failed_execution_response(results, lang)
                 if failed:
                     return failed
 
                 edit_res = results[0] if results else None
                 if edit_res and edit_res.ok:
-                    reply = _compose_single_edit(edit_res.model_dump(), "en")
+                    reply = _compose_single_edit(edit_res.model_dump(), lang)
                 else:
-                    reply = "Updated transaction. Say undo to revert."
+                    reply = render("pending.updated_undo", lang)
 
-                return AssistantResponse(
-                    reply_text=reply,
-                    spoken_text=reply,
-                    language="en",
-                    results=[r.model_dump() for r in results],
-                    pending=None,
-                    changed=True,
-                )
+                return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
 
             elif op_type == "add":
                 add_op = AddAction.model_validate(op_data)
@@ -527,15 +532,8 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
-                reply = "Recorded transaction."
-                return AssistantResponse(
-                    reply_text=reply,
-                    spoken_text=reply,
-                    language="en",
-                    results=[r.model_dump() for r in results],
-                    pending=None,
-                    changed=True,
-                )
+                reply = render("pending.recorded", lang)
+                return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
 
         elif item.kind == "contact_confirm":
             plan_payload = item.plan_json or {}
@@ -552,15 +550,8 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
-                reply = f"Created contact {new_contact.name} and recorded transaction."
-                return AssistantResponse(
-                    reply_text=reply,
-                    spoken_text=reply,
-                    language="en",
-                    results=[r.model_dump() for r in results],
-                    pending=None,
-                    changed=True,
-                )
+                reply = render("pending.created_contact", lang, name=new_contact.name)
+                return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
             else:
                 target_contact = None
                 if target_contact_id_str:
@@ -579,29 +570,15 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
-                contact_label = target_contact.name if target_contact else "contact"
-                reply = f"Saved alias for {contact_label} and recorded transaction."
-                return AssistantResponse(
-                    reply_text=reply,
-                    spoken_text=reply,
-                    language="en",
-                    results=[r.model_dump() for r in results],
-                    pending=None,
-                    changed=True,
-                )
+                contact_label = target_contact.name if target_contact else render("word.contact", lang)
+                reply = render("pending.saved_alias", lang, name=contact_label)
+                return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
 
         elif item.kind == "disambiguate":
             candidates = item.candidates_json or []
             summary = format_pending_summary(item)
-            reply = f"Please select an option by number (1 to {len(candidates)})."
-            return AssistantResponse(
-                reply_text=reply,
-                spoken_text=reply,
-                language="en",
-                results=[],
-                pending=summary,
-                changed=False,
-            )
+            reply = render("pending.select_number", lang, count=len(candidates))
+            return _response(lang, reply, pending=summary)
 
     # 5. Answer: PICK (with candidate index)
     if clean_answer == "pick":
@@ -610,15 +587,8 @@ def handle_answer_pending(
             index = 1
         if index is None or index < 1 or index > len(candidates):
             summary = format_pending_summary(item)
-            reply = f"Please choose a valid number between 1 and {len(candidates)}."
-            return AssistantResponse(
-                reply_text=reply,
-                spoken_text=reply,
-                language="en",
-                results=[],
-                pending=summary,
-                changed=False,
-            )
+            reply = render("pending.invalid_number", lang, count=len(candidates))
+            return _response(lang, reply, pending=summary)
 
         chosen = candidates[index - 1]
         chosen_id = chosen.get("id")
@@ -628,7 +598,7 @@ def handle_answer_pending(
 
         if op_type == "delete":
             # Select candidate then move to confirm for delete
-            question = format_delete_confirmation_question(chosen)
+            question = format_delete_confirmation_question(chosen, lang)
 
             del_action = {
                 "op": "delete",
@@ -639,7 +609,7 @@ def handle_answer_pending(
                 db=db,
                 user_id=user_id,
                 kind="confirm",
-                plan_json={"action": del_action, "target_id": str(chosen_id)},
+                plan_json={"action": del_action, "target_id": str(chosen_id), "language": lang},
                 candidates=[chosen],
                 question=question,
             )
@@ -647,14 +617,7 @@ def handle_answer_pending(
             db.commit()
 
             summary = format_pending_summary(new_pending)
-            return AssistantResponse(
-                reply_text=question,
-                spoken_text=question,
-                language="en",
-                results=[],
-                pending=summary,
-                changed=False,
-            )
+            return _response(lang, question, pending=summary)
 
         elif op_type == "edit":
             # Apply edit patch directly to chosen candidate
@@ -675,27 +638,13 @@ def handle_answer_pending(
             item.status = "resolved"
             db.commit()
 
-            failed = _failed_execution_response(results)
+            failed = _failed_execution_response(results, lang)
             if failed:
                 return failed
 
-            reply = "Updated transaction."
-            return AssistantResponse(
-                reply_text=reply,
-                spoken_text=reply,
-                language="en",
-                results=[r.model_dump() for r in results],
-                pending=None,
-                changed=True,
-            )
+            reply = render("pending.updated", lang)
+            return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
 
     # Fallback for unrecognized answer
     summary = format_pending_summary(item)
-    return AssistantResponse(
-        reply_text="Please reply with yes, no, or pick a number.",
-        spoken_text="Please reply with yes, no, or pick a number.",
-        language="en",
-        results=[],
-        pending=summary,
-        changed=False,
-    )
+    return _response(lang, render("pending.reply_hint", lang), pending=summary)

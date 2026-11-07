@@ -33,9 +33,21 @@ FAST_PATH_EXACT_MATCHES = {
     "ok": "yes",
     "aam": "yes",
     "ഉവ്വ്": "yes",
+    "athe": "yes",
+    "sheri": "yes",
+    "seri": "yes",
+    "aanu": "yes",
+    "അതെ": "yes",
+    "ശരി": "yes",
+    "ആണ്": "yes",
     "no": "no",
     "cancel": "no",
     "വേണ്ട": "no",
+    "venda": "no",
+    "vendaa": "no",
+    "illa": "no",
+    "വേണ്ടാ": "no",
+    "ഇല്ല": "no",
 }
 
 FAST_PATH_CONTACT_CONFIRM = {
@@ -54,8 +66,8 @@ def _load_prompt_template() -> str:
 def check_fast_path(text: str, context: Any) -> Optional[Plan]:
     """
     Fast path before LLM:
-    If a pending item exists and text matches exactly yes, no, ok, cancel, aam, ഉവ്വ് or വേണ്ട,
-    returns an answer_pending plan directly.
+    If a pending item exists and text exactly matches a FAST_PATH_EXACT_MATCHES word
+    (English, Manglish or Malayalam script), returns an answer_pending plan directly.
     For contact_confirm items, also fast paths "new", "yeah", "yep", "haan" to "yes"
     and "nope" to "no".
     """
@@ -113,7 +125,7 @@ class AssistantPlanner:
             rendered += reasoning_instruction
         else:
             no_reasoning_instruction = (
-                "\n\nAdditional Instruction: Do not include a 'reasoning' field in your JSON output. Return only 'ops'.\n"
+                "\n\nAdditional Instruction: Do not include a 'reasoning' field in your JSON output. Return only 'ops' and 'language'.\n"
             )
             rendered += no_reasoning_instruction
 

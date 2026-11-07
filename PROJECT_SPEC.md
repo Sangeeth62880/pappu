@@ -199,6 +199,10 @@ Contacts support alternate names and nicknames stored in `contacts.aliases` as a
 The response composer uses deterministic template generation for English and Malayalam.
 * Zero secondary LLM calls. The composer formats results directly.
 * Produces two distinct strings: `display_text` with currency formatting and styling, and `spoken_text` optimized for text to speech pronunciation without emojis.
+* Reply language: the planner returns `language` (`en` | `ml` | `mixed`) per message; `ml` requires Malayalam script in the input (a sanitizer downgrades Latin only `ml` to `mixed`). `en` and `ml` are used as is; `mixed`, missing or invalid fall back to `profiles.preferred_language`. Replies are entirely English or entirely Malayalam script, never blended in one sentence.
+* Pending items store the language their question was asked in; tapped answers (no detection) reply in that language, then the profile preference.
+* Malayalam clarify replies come from deterministic templates keyed by `missing_fields`, not from the planner's free text question.
+* The response carries `language_code` (`ml-IN` | `en-IN`), which the frontend passes to TTS. Malayalam `spoken_text` reads amounts as `250 രൂപ` instead of `₹250`.
 
 ### Latency Budget
 * Roundtrip target: p50 under 1500ms, p95 under 2500ms.

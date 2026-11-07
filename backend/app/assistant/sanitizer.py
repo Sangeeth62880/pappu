@@ -23,6 +23,22 @@ GENERIC_VERBS = {"spent", "spend", "paid", "pay", "expense", "added", "sent"}
 
 DIGITS_RE = re.compile(r"\d+")
 
+MALAYALAM_SCRIPT_RE = re.compile(r"[ഀ-ൿ]")
+
+
+def sanitize_language(language: Optional[str], input_text: str) -> Optional[str]:
+    """
+    Data sanity check on the planner's detected language against the input's script.
+    'ml' means Malayalam script, so a Latin only message tagged 'ml' is Manglish ('mixed'),
+    and a message containing Malayalam script cannot be pure English ('en' becomes 'mixed').
+    """
+    has_malayalam = bool(MALAYALAM_SCRIPT_RE.search(input_text or ""))
+    if language == "ml" and not has_malayalam:
+        return "mixed"
+    if language == "en" and has_malayalam:
+        return "mixed"
+    return language
+
 
 def sanitize_description(
     description: Optional[str],
@@ -83,8 +99,9 @@ def sanitize_description(
 
 def sanitize_plan(plan: Plan, input_text: str) -> Plan:
     """
-    Sanitizes descriptions across all actions in a planned Plan.
+    Sanitizes descriptions across all actions in a planned Plan, and the detected language.
     """
+    plan.language = sanitize_language(plan.language, input_text)
     for action in plan.actions:
         if action.op == "add":
             amt = getattr(action, "amount", None)
