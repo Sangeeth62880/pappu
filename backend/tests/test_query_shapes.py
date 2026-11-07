@@ -1,6 +1,6 @@
 import uuid
 from decimal import Decimal
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
@@ -17,9 +17,19 @@ from app.models.transaction import Transaction
 from app.assistant.schemas import Plan, QueryAction, Selector
 from app.assistant.planner import AssistantPlanner
 from app.auth import jwks_client
+from app.services.date_utils import IST
 from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
 
 client = TestClient(app)
+
+# Fixtures below are dated Oct 2026; pin "today" so relative periods resolve against them.
+FROZEN_IST_NOW = datetime(2026, 10, 14, 12, 0, tzinfo=IST)  # Wednesday
+
+
+@pytest.fixture(autouse=True)
+def frozen_ist_clock(monkeypatch):
+    monkeypatch.setattr("app.services.date_utils.get_current_ist_datetime", lambda: FROZEN_IST_NOW)
+    monkeypatch.setattr("app.assistant.context.get_current_ist_datetime", lambda: FROZEN_IST_NOW)
 
 
 @pytest.fixture
