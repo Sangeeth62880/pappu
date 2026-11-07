@@ -879,6 +879,11 @@ export default function ConversationLog({
                 setActiveMood('thinking');
               }
             }}
+            onError={() => {
+              // No transcript is coming; MicButton shows the message. Leave "thinking".
+              setAssistantState('idle');
+              setActiveMood('idle');
+            }}
             disabled={loading}
           />
         </View>

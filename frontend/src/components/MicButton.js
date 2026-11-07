@@ -35,6 +35,8 @@ export default function MicButton({
   size = 48,
   isCoinStyle = false,
   onRecordingStateChange = null,
+  // Called when an attempt ends without a transcript (permission, STT, empty, stop failure).
+  onError = null,
 }) {
   const reduceMotion = useReduceMotion();
   const [isRecording, setIsRecording] = useState(false);
@@ -199,6 +201,7 @@ export default function MicButton({
         const isPerm = err.name === 'NotAllowedError' || err.name === 'SecurityError' || String(err.message).toLowerCase().includes('permission');
         if (isPerm) setPermissionDenied(true);
         setErrorMessage(err.message || 'Microphone access denied or recording failed to start');
+        if (onError) onError(err);
       }
     } finally {
       isStartingRef.current = false;
@@ -239,6 +242,7 @@ export default function MicButton({
       console.warn('[MicButton] stopRecording failed:', err);
       if (isMountedRef.current) {
         setErrorMessage(err.message || 'Failed to complete audio recording.');
+        if (onError) onError(err);
       }
     }
   };
@@ -247,6 +251,7 @@ export default function MicButton({
     if (!token) {
       if (isMountedRef.current) {
         setErrorMessage('Authentication required for voice input.');
+        if (onError) onError(new Error('Authentication required for voice input.'));
       }
       return;
     }
@@ -269,11 +274,13 @@ export default function MicButton({
       } else {
         if (isMountedRef.current) {
           setErrorMessage('No speech detected. Please try again.');
+          if (onError) onError(new Error('No speech detected. Please try again.'));
         }
       }
     } catch (err) {
       if (isMountedRef.current) {
         setErrorMessage(err.message || 'Transcription failed');
+        if (onError) onError(err);
       }
     } finally {
       if (isMountedRef.current) {
