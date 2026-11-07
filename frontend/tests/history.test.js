@@ -348,6 +348,21 @@ describe('HistoryScreen and Stitch History Specification', () => {
 
   // ── 8. Filter Handoff from Home ──
   describe('Filter Handoff from Home', () => {
+    // Fixtures are dated Oct 2026; pin "now" (Date only, real timers) so the 'month' filter matches them.
+    beforeEach(() => {
+      jest.useFakeTimers({
+        now: new Date('2026-10-14T12:00:00Z'),
+        doNotFake: [
+          'hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame',
+          'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'setImmediate',
+          'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+        ],
+      });
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     test('accepts initial category and period filter from Home and renders clearable filter pill', async () => {
       await render(
         <HistoryScreen
