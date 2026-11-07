@@ -258,6 +258,8 @@ export default function MicButton({
       }
 
       const res = await transcribeAudio(token, audioData, languageCode);
+      // Closed while transcribing: discard the audio, send nothing.
+      if (!isMountedRef.current) return;
       const transcript = res?.transcript?.trim();
 
       if (transcript && transcript.length > 0) {

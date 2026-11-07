@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -47,6 +47,9 @@ export default function VoiceListeningSheet({
   const [v2Pending, setV2Pending] = useState(null);
   const [error, setError] = useState(null);
   const [textInput, setTextInput] = useState('');
+  // The mic stays mounted while the sheet animates closed; a transcript landing then is discarded.
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
 
   // Reset state whenever the sheet is opened or closed
   useEffect(() => {
@@ -248,7 +251,9 @@ export default function VoiceListeningSheet({
             <View style={styles.micOuterCircle}>
               <MicButton
                 token={token}
-                onTranscribed={(txt) => handleProcessText(txt)}
+                onTranscribed={(txt) => {
+                  if (visibleRef.current) handleProcessText(txt);
+                }}
                 size={64}
                 disabled={loading}
               />
