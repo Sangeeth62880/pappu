@@ -7,6 +7,23 @@ import { Platform } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 let currentSoundInstance = null;
+// Bumped on every play; an older play still awaiting setup must not start.
+let latestPlayRequest = 0;
+
+// Free a native player once it finishes instead of holding it until the next reply.
+function releaseWhenFinished(player) {
+  if (!player || typeof player.addListener !== 'function') return;
+  const subscription = player.addListener('playbackStatusUpdate', (status) => {
+    if (!status?.didJustFinish) return;
+    subscription?.remove?.();
+    if (currentSoundInstance === player) currentSoundInstance = null;
+    try {
+      player.remove();
+    } catch (e) {
+      console.warn('[audioPlayer] Error releasing finished audio:', e);
+    }
+  });
+}
 
 /**
  * Play a base64 encoded audio string.
@@ -20,6 +37,7 @@ export async function playAudioBase64(base64Data) {
   const dataUri = base64Data.startsWith('data:')
     ? base64Data
     : `data:audio/wav;base64,${base64Data}`;
+  const requestId = ++latestPlayRequest;
 
   try {
     await stopAudio();
@@ -37,7 +55,11 @@ export async function playAudioBase64(base64Data) {
         playsInSilentMode: true,
       });
 
+      // A newer reply started while we awaited the audio mode: don't play over it.
+      if (requestId !== latestPlayRequest) return null;
+
       const player = createAudioPlayer(dataUri);
+      releaseWhenFinished(player);
       if (player && typeof player.play === 'function') {
         player.play();
       }
