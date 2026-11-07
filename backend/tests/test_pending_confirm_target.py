@@ -115,3 +115,56 @@ def test_confirmed_edit_changes_the_row_that_was_shown(db):
     db.expire_all()
     assert db.get(Transaction, shown_id).amount == Decimal("700")
     assert db.get(Transaction, newer_id).amount == Decimal("50")
+
+
+def _delete_row(db, txn_id):
+    db.query(Transaction).filter(Transaction.id == txn_id).delete()
+    db.commit()
+
+
+@pytest.mark.parametrize("plan_action, text", [
+    (DeleteAction(selector=Selector(recency="latest")), "delete my last transaction"),
+    (EditAction(selector=Selector(recency="latest"), patch={"amount": 700}), "change my last transaction to 700"),
+])
+def test_confirm_reports_failure_when_target_is_already_gone(db, plan_action, text):
+    user_id, food_id, shown_id, headers = _setup(db)
+
+    with patch.object(AssistantPlanner, "plan", return_value=Plan(actions=[plan_action])):
+        res = client.post("/assistant/message", json={"text": text}, headers=headers)
+    pending = res.json()["pending"]
+    assert pending["kind"] == "confirm"
+
+    _delete_row(db, shown_id)  # removed from History while the question was open
+
+    res = client.post(f"/assistant/pending/{pending['id']}/answer", json={"answer": "yes"}, headers=headers)
+    data = res.json()
+    assert data["changed"] is False
+    assert not data["reply_text"].startswith(("Deleted", "Updated", "Changed"))
+    assert data["results"] and data["results"][0]["ok"] is False
+
+
+def test_pick_edit_reports_failure_when_candidate_is_already_gone(db):
+    user_id, food_id, shown_id, headers = _setup(db)
+    second = Transaction(
+        user_id=user_id, amount=Decimal("600"), type="expense", category_id=food_id,
+        txn_date=date(2026, 10, 12), description="lunch",
+        created_at=datetime.now(timezone.utc) - timedelta(hours=3),
+    )
+    db.add(second)
+    db.commit()
+
+    plan = Plan(actions=[EditAction(selector=Selector(amount=600), patch={"amount": 700})])
+    with patch.object(AssistantPlanner, "plan", return_value=plan):
+        res = client.post("/assistant/message", json={"text": "change the 600 one to 700"}, headers=headers)
+    pending = res.json()["pending"]
+    assert pending["kind"] == "disambiguate"
+
+    _delete_row(db, uuid.UUID(pending["candidates"][0]["id"]))
+
+    res = client.post(
+        f"/assistant/pending/{pending['id']}/answer", json={"answer": "pick", "index": 1}, headers=headers
+    )
+    data = res.json()
+    assert data["changed"] is False
+    assert not data["reply_text"].startswith("Updated")
+    assert data["results"] and data["results"][0]["ok"] is False

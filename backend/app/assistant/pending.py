@@ -29,7 +29,13 @@ from app.assistant.schemas import (
 from app.assistant.executors.coordinator import execute_ops
 from app.assistant.executors.base import ActionResult
 from app.assistant.contacts import add_alias_to_contact, create_contact, normalize_name
-from app.assistant.composer import format_inr, format_date_short, _compose_single_delete, _compose_single_edit
+from app.assistant.composer import (
+    compose_reply,
+    format_inr,
+    format_date_short,
+    _compose_single_delete,
+    _compose_single_edit,
+)
 
 DEFAULT_EXPIRY_SECONDS = 300  # 5 minutes
 
@@ -174,6 +180,22 @@ def format_superseded_message(item: PendingAction) -> str:
         subject = "transaction"
 
     return f"I cancelled the pending {op} of {subject}."
+
+
+def _failed_execution_response(results: List[ActionResult]) -> Optional[AssistantResponse]:
+    """Returns a failure reply if a confirmed op did not succeed, else None."""
+    if results and all(r.ok for r in results):
+        return None
+    dumped = [r.model_dump() for r in results]
+    reply, spoken = compose_reply(plan=None, results=dumped)
+    return AssistantResponse(
+        reply_text=reply,
+        spoken_text=spoken,
+        language="en",
+        results=dumped,
+        pending=None,
+        changed=False,
+    )
 
 
 def _to_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -444,6 +466,10 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
+                failed = _failed_execution_response(results)
+                if failed:
+                    return failed
+
                 # Compose reply from deleted data or candidate
                 cands = item.candidates_json or []
                 del_cand = cands[0] if (cands and isinstance(cands, list) and isinstance(cands[0], dict)) else {}
@@ -475,6 +501,10 @@ def handle_answer_pending(
                 )
                 item.status = "resolved"
                 db.commit()
+
+                failed = _failed_execution_response(results)
+                if failed:
+                    return failed
 
                 edit_res = results[0] if results else None
                 if edit_res and edit_res.ok:
@@ -644,6 +674,10 @@ def handle_answer_pending(
             )
             item.status = "resolved"
             db.commit()
+
+            failed = _failed_execution_response(results)
+            if failed:
+                return failed
 
             reply = "Updated transaction."
             return AssistantResponse(
