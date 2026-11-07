@@ -44,7 +44,8 @@ def get_current_user_id(authorization: str | None = Header(None)) -> uuid.UUID:
             token,
             signing_key.key,
             algorithms=["ES256"],
-            options={"verify_aud": False},
+            # Supabase user sessions carry aud="authenticated" (anonymous sessions use "anon").
+            audience="authenticated",
         )
         user_id_str = payload.get("sub")
         if not user_id_str:

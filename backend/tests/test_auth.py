@@ -97,3 +97,25 @@ def test_auth_invalid_uuid_sub():
         response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 401
         assert "Invalid token" in response.json()["detail"]
+
+def _es256_jwt_with_claims(claims: dict) -> str:
+    payload = {"sub": str(uuid.uuid4()), "role": "authenticated", "exp": int(time.time()) + 3600}
+    payload.update(claims)
+    payload = {k: v for k, v in payload.items() if v is not None}
+    return jwt.encode(payload, test_private_key, algorithm="ES256", headers={"kid": "test-key-id"})
+
+@pytest.mark.parametrize("aud", ["anon", "some-other-service", None])
+def test_auth_rejects_wrong_or_missing_audience(aud):
+    token = _es256_jwt_with_claims({"aud": aud})
+
+    with patch.object(jwks_client, "get_signing_key_from_jwt", return_value=MockSigningKey(test_public_key)):
+        response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 401
+        assert "Invalid token" in response.json()["detail"]
+
+def test_auth_accepts_audience_list_containing_authenticated():
+    token = _es256_jwt_with_claims({"aud": ["authenticated", "extra"]})
+
+    with patch.object(jwks_client, "get_signing_key_from_jwt", return_value=MockSigningKey(test_public_key)):
+        response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
