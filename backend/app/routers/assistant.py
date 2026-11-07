@@ -8,6 +8,8 @@ Endpoints:
 
 import uuid
 import json
+import threading
+from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
@@ -58,19 +60,28 @@ from app.assistant.composer import compose_reply, format_inr, format_date_short,
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
 
-_VERIFIED_USER_PROFILES = set()
+# Bounded LRU of user_ids whose profile row is known to exist (skips a DB lookup).
+_VERIFIED_USER_PROFILES_MAX = 1024
+_VERIFIED_USER_PROFILES: "OrderedDict[uuid.UUID, None]" = OrderedDict()
+_VERIFIED_USER_PROFILES_LOCK = threading.Lock()
 
 
 def _ensure_profile_exists(db: Session, user_id: uuid.UUID) -> Profile:
-    if user_id in _VERIFIED_USER_PROFILES:
-        return Profile(id=user_id, name="User", preferred_language="en")
+    with _VERIFIED_USER_PROFILES_LOCK:
+        if user_id in _VERIFIED_USER_PROFILES:
+            _VERIFIED_USER_PROFILES.move_to_end(user_id)
+            return Profile(id=user_id, name="User", preferred_language="en")
     profile = db.query(Profile).filter(Profile.id == user_id).first()
     if not profile:
         profile = Profile(id=user_id, name="User", preferred_language="en")
         db.add(profile)
         db.commit()
         db.refresh(profile)
-    _VERIFIED_USER_PROFILES.add(user_id)
+    with _VERIFIED_USER_PROFILES_LOCK:
+        _VERIFIED_USER_PROFILES[user_id] = None
+        _VERIFIED_USER_PROFILES.move_to_end(user_id)
+        while len(_VERIFIED_USER_PROFILES) > _VERIFIED_USER_PROFILES_MAX:
+            _VERIFIED_USER_PROFILES.popitem(last=False)
     return profile
 
 
