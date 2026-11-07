@@ -430,6 +430,9 @@ def handle_answer_pending(
             if op_type == "delete":
                 target_id_str = plan_payload.get("target_id")
                 target_uuid = uuid.UUID(target_id_str) if target_id_str else None
+                if target_uuid:
+                    # Act on the exact row shown in the question, not a re-resolved selector.
+                    op_data = {**op_data, "selector": {"ref": "last_touched"}}
                 del_op = DeleteAction.model_validate(op_data)
                 results = execute_ops(
                     db,
@@ -460,6 +463,9 @@ def handle_answer_pending(
             elif op_type == "edit":
                 target_id_str = plan_payload.get("target_id")
                 target_uuid = uuid.UUID(target_id_str) if target_id_str else None
+                if target_uuid:
+                    # Act on the exact row shown in the question, not a re-resolved selector.
+                    op_data = {**op_data, "selector": {"ref": "last_touched"}}
                 edit_op = EditAction.model_validate(op_data)
                 results = execute_ops(
                     db,
