@@ -3,6 +3,7 @@ import { Linking } from 'react-native';
 import { render, act, waitFor, fireEvent, cleanup } from '@testing-library/react-native';
 import App from '../App';
 import MicButton from '../src/components/MicButton';
+import { isMicBusy } from '../src/utils/micActivity';
 import * as client from '../src/api/client';
 import * as supabaseApi from '../src/api/supabase';
 import * as SecureStore from 'expo-secure-store';
@@ -265,6 +266,7 @@ describe('pappu://listen deep link', () => {
     expect(mockAudioRecorder.record).not.toHaveBeenCalled();
     expect(client.transcribeAudio).not.toHaveBeenCalled();
     expectMicIdle(utils);
+    expect(isMicBusy()).toBe(false);
     expect(utils.getByTestId('mic-open-settings')).toBeTruthy();
   });
 

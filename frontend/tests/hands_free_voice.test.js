@@ -215,6 +215,33 @@ describe('Hands-free voice session (pappu://listen)', () => {
     expect(recordCount()).toBe(1);
   });
 
+  test('an assistant request failure returns to idle with the mic released and no re-listen', async () => {
+    client.sendAssistantMessage.mockRejectedValueOnce(new Error('Network request failed'));
+    const utils = await renderHandsFree();
+
+    await advance(3000);
+
+    expect(await utils.findByText('Error: Network request failed')).toBeTruthy();
+    expectMicReleasedAndIdle(utils);
+    expect(client.synthesizeSpeech).not.toHaveBeenCalled();
+    await advance(HANDS_FREE.maxMs);
+    expect(recordCount()).toBe(1);
+  });
+
+  test('closing the assistant mid-recording stops the recorder and frees the mic', async () => {
+    levelAt = () => SPEECH;
+    const utils = await renderHandsFree();
+    expect(utils.getByTestId('mic-recording-label')).toBeTruthy();
+    expect(isMicBusy()).toBe(true);
+
+    await act(async () => utils.unmount());
+
+    expect(mockAudioRecorder.stop).toHaveBeenCalledTimes(1);
+    expect(isMicBusy()).toBe(false);
+    await advance(HANDS_FREE.maxMs + 500);
+    expect(client.transcribeAudio).not.toHaveBeenCalled();
+  });
+
   test('speaks the reply in its language even with voice replies off', async () => {
     client.transcribeAudio.mockResolvedValueOnce({ transcript: 'ചായ 20 രൂപ' });
     client.sendAssistantMessage.mockResolvedValueOnce({
