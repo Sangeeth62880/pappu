@@ -1,5 +1,5 @@
 import { createAudioPlayer, mockAudioPlayer } from 'expo-audio';
-import { playAudioBase64, stopAudio } from '../src/utils/audioPlayer';
+import { playAudioBase64, stopAudio, playListenCue } from '../src/utils/audioPlayer';
 
 // One fake player per source, so overlapping playback is observable.
 let players;
@@ -63,5 +63,41 @@ describe('audioPlayer', () => {
     // Nothing left for the next stop to release twice.
     await stopAudio();
     expect(player.remove).toHaveBeenCalledTimes(1);
+  });
+
+  test('waitUntilFinished resolves only once the reply has played', async () => {
+    let done = false;
+    const playback = playAudioBase64('AAAA', { waitUntilFinished: true }).then(() => {
+      done = true;
+    });
+    await new Promise((r) => setImmediate(r));
+    expect(players[uri('AAAA')].play).toHaveBeenCalled();
+    expect(done).toBe(false);
+
+    players[uri('AAAA')].emit('playbackStatusUpdate', { didJustFinish: true });
+    await playback;
+    expect(done).toBe(true);
+  });
+
+  test('stopping a reply also ends a waitUntilFinished wait', async () => {
+    const playback = playAudioBase64('AAAA', { waitUntilFinished: true });
+    await new Promise((r) => setImmediate(r));
+
+    await stopAudio();
+    await expect(playback).resolves.toBe(players[uri('AAAA')]);
+    expect(players[uri('AAAA')].remove).toHaveBeenCalled();
+  });
+
+  test('the listen cue stops a reply, plays, and is released when it ends', async () => {
+    await playAudioBase64('AAAA');
+    const cue = playListenCue();
+    await new Promise((r) => setImmediate(r));
+
+    expect(players[uri('AAAA')].remove).toHaveBeenCalled();
+    const cuePlayer = players[1];
+    expect(cuePlayer.play).toHaveBeenCalled();
+    cuePlayer.emit('playbackStatusUpdate', { didJustFinish: true });
+    await cue;
+    expect(cuePlayer.remove).toHaveBeenCalled();
   });
 });

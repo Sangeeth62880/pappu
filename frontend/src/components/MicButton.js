@@ -22,8 +22,28 @@ import { transcribeAudio } from '../api/client';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useReduceMotion } from '../utils/reduceMotion';
 import { setMicBusy } from '../utils/micActivity';
+import { playListenCue } from '../utils/audioPlayer';
 
 let nextMicId = 1;
+
+// Metering feeds the silence detection of hands-free recordings; taps ignore it.
+const RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
+
+/**
+ * Hands-free recordings (autoStartKey, pappu://listen) stop on their own: after
+ * silenceMs of quiet that follows speech, or at maxMs. Levels are dBFS; the first
+ * ignoreMs is skipped so the start cue's tail never counts as speech. A recording with
+ * meter readings that never crossed speechDb is discarded without calling STT.
+ */
+export const HANDS_FREE = {
+  silenceMs: 1200,
+  maxMs: 8000,
+  speechDb: -35,
+  ignoreMs: 300,
+  pollMs: 100,
+};
+
+const NO_SPEECH_MSG = 'No speech detected. Please try again.';
 
 /**
  * MicButton with support for both standard mic icon and 70px Stitch Coin Mic.
@@ -56,6 +76,8 @@ export default function MicButton({
   const streamRef = useRef(null);
   const isMountedRef = useRef(true);
   const autoModeRef = useRef(false);
+  const autoStopTimerRef = useRef(null);
+  const stopRecordingRef = useRef(null);
   const micIdRef = useRef(null);
   if (micIdRef.current === null) micIdRef.current = nextMicId++;
   // Busy from the start of an attempt until it ends: starting, recording, transcribing.
@@ -91,17 +113,59 @@ export default function MicButton({
 
   // Native recorder hook for SDK 57
   const nativeRecorder = Platform.OS !== 'web' && typeof useAudioRecorder === 'function'
-    ? useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+    ? useAudioRecorder(RECORDING_OPTIONS)
     : null;
 
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      clearAutoStop();
       cleanupAudio();
       markBusy(false);
     };
   }, []);
+
+  const clearAutoStop = () => {
+    if (autoStopTimerRef.current) {
+      clearInterval(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
+    }
+  };
+
+  // Hands-free: watch the input level and stop on silence after speech or at the cap.
+  const startAutoStop = () => {
+    clearAutoStop();
+    const { silenceMs, maxMs, speechDb, ignoreMs, pollMs } = HANDS_FREE;
+    const startedAt = Date.now();
+    let heardSpeech = false;
+    let meterSeen = false;
+    let lastSpeechAt = startedAt;
+    autoStopTimerRef.current = setInterval(() => {
+      if (!isRecordingRef.current) {
+        clearAutoStop();
+        return;
+      }
+      const now = Date.now();
+      let level;
+      try {
+        level = nativeRecorder?.getStatus?.()?.metering;
+      } catch (_e) {}
+      if (typeof level === 'number') {
+        meterSeen = true;
+        if (now - startedAt >= ignoreMs && level > speechDb) {
+          heardSpeech = true;
+          lastSpeechAt = now;
+        }
+      }
+      const silentAfterSpeech = heardSpeech && now - lastSpeechAt >= silenceMs;
+      if (silentAfterSpeech || now - startedAt >= maxMs) {
+        clearAutoStop();
+        // Without meter readings we can't tell silence from speech: let STT decide.
+        stopRecordingRef.current?.({ discard: meterSeen && !heardSpeech });
+      }
+    }, pollMs);
+  };
 
   const cleanupAudio = async () => {
     if (nativeRecorder && isRecordingRef.current) {
@@ -188,6 +252,15 @@ export default function MicButton({
           throw new Error('Microphone permission is required to record voice commands.');
         }
 
+        // Hands-free: a short cue says "speak now", played before recording so it isn't recorded.
+        if (auto) {
+          await playListenCue();
+          if (!isMountedRef.current) {
+            markBusy(false);
+            return;
+          }
+        }
+
         await setAudioModeAsync({
           allowsRecording: true,
           playsInSilentMode: true,
@@ -209,6 +282,7 @@ export default function MicButton({
         setIsRecording(true);
         if (onRecordingStateChange) onRecordingStateChange(true);
       }
+      if (auto) startAutoStop();
     } catch (err) {
       console.warn('[MicButton] startRecording failed:', err);
       isRecordingRef.current = false;
@@ -226,8 +300,9 @@ export default function MicButton({
     }
   };
 
-  const stopRecording = async () => {
+  const stopRecording = async ({ discard = false } = {}) => {
     if (!isRecordingRef.current) return;
+    clearAutoStop();
     isRecordingRef.current = false;
     if (isMountedRef.current) {
       setIsRecording(false);
@@ -241,6 +316,15 @@ export default function MicButton({
         }
       } else if (nativeRecorder) {
         await nativeRecorder.stop();
+        if (discard) {
+          // Nothing was said: the mic is released and nothing is sent.
+          markBusy(false);
+          if (isMountedRef.current) {
+            setErrorMessage(NO_SPEECH_MSG);
+            if (onError) onError(new Error(NO_SPEECH_MSG));
+          }
+          return;
+        }
         const uri = nativeRecorder.uri;
         if (!uri) {
           throw new Error('Recording stopped but no audio file URI was returned.');
@@ -293,8 +377,8 @@ export default function MicButton({
         }
       } else {
         if (isMountedRef.current) {
-          setErrorMessage('No speech detected. Please try again.');
-          if (onError) onError(new Error('No speech detected. Please try again.'));
+          setErrorMessage(NO_SPEECH_MSG);
+          if (onError) onError(new Error(NO_SPEECH_MSG));
         }
       }
     } catch (err) {
@@ -314,6 +398,9 @@ export default function MicButton({
   useEffect(() => {
     if (autoStartKey) startRecording({ auto: true });
   }, [autoStartKey]);
+
+  // The hands-free timer outlives renders; it stops through the latest closure.
+  stopRecordingRef.current = stopRecording;
 
   const handlePress = () => {
     if (isRecordingRef.current) {

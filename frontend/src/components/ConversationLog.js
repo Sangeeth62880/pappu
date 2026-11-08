@@ -89,10 +89,13 @@ export default function ConversationLog({
   const [lastFailedMessage, setLastFailedMessage] = useState(null);
 
   // pappu://listen opens this screen with a new autoListen id: start recording on our own.
+  // That session may listen once more if Pappu's reply asks for a confirmation.
   const autoListenId = route?.params?.autoListen ?? null;
   const [micAutoStartKey, setMicAutoStartKey] = useState(0);
+  const relistensLeftRef = useRef(0);
   useEffect(() => {
     if (autoListenId == null) return;
+    relistensLeftRef.current = 1;
     setMicAutoStartKey((key) => key + 1);
   }, [autoListenId]);
 
@@ -233,7 +236,7 @@ export default function ConversationLog({
 
   // TTS audio playback
   const speakResponse = useCallback(
-    async (text, language = 'en', messageId = null) => {
+    async (text, language = 'en', messageId = null, { waitUntilFinished = false } = {}) => {
       if (!token || !text) return null;
       try {
         setAssistantState('speaking');
@@ -243,7 +246,11 @@ export default function ConversationLog({
         const targetLang = ttsLanguageCode(language);
         const ttsRes = await synthesizeSpeech(token, text, targetLang);
         if (ttsRes?.audio_base64) {
-          await playAudioBase64(ttsRes.audio_base64);
+          if (waitUntilFinished) {
+            await playAudioBase64(ttsRes.audio_base64, { waitUntilFinished: true });
+          } else {
+            await playAudioBase64(ttsRes.audio_base64);
+          }
           return ttsRes.audio_base64;
         }
       } catch (err) {
@@ -401,14 +408,19 @@ export default function ConversationLog({
           setAssistantState('idle');
         }
 
-        // Play audio if spokenText exists
+        // Play audio if spokenText exists. Hands-free always speaks (the user chose voice
+        // by triggering it) and reports when the reply has finished playing.
+        let speech = null;
         if (spokenText) {
-          autoSpeak(spokenText, ttsLanguageCode(res), msgId);
+          speech = options.speakAlways
+            ? speakResponse(spokenText, ttsLanguageCode(res), msgId, { waitUntilFinished: true })
+            : autoSpeak(spokenText, ttsLanguageCode(res), msgId);
         }
 
         if (res.changed) {
           handleDataChanged();
         }
+        return { res, speech };
       } catch (err) {
         setAssistantState('confused');
         setActiveMood('confused');
@@ -431,7 +443,23 @@ export default function ConversationLog({
         setLoading(false);
       }
     },
-    [loading, token, reduceMotion, autoSpeak, handleDataChanged, setMessages, inputText]
+    [loading, token, reduceMotion, autoSpeak, speakResponse, handleDataChanged, setMessages, inputText]
+  );
+
+  // A transcript from a hands-free recording: send it (fresh client_msg_id), speak the
+  // reply in its language, and if it asks for a confirmation listen once more for the
+  // answer. The server reads yes/no words (en, ml, Manglish) on its fast path.
+  const handleHandsFreeTranscript = useCallback(
+    async (transcript) => {
+      const outcome = await handleSendMessage(transcript, { input: 'voice', speakAlways: true });
+      if (!outcome) return;
+      await outcome.speech;
+      if (outcome.res?.pending?.id && relistensLeftRef.current > 0) {
+        relistensLeftRef.current -= 1;
+        setMicAutoStartKey((key) => key + 1);
+      }
+    },
+    [handleSendMessage]
   );
 
   // Answering pending confirmations / disambiguations directly
@@ -891,7 +919,11 @@ export default function ConversationLog({
             isCoinStyle={true}
             size={70}
             autoStartKey={micAutoStartKey}
-            onTranscribed={(transcript) => handleSendMessage(transcript, { input: 'voice' })}
+            onTranscribed={(transcript, meta) =>
+              meta?.auto
+                ? handleHandsFreeTranscript(transcript)
+                : handleSendMessage(transcript, { input: 'voice' })
+            }
             onRecordingStateChange={(recording) => {
               if (recording) {
                 setAssistantState('listening');
