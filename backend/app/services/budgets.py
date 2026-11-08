@@ -163,6 +163,20 @@ def get_budget_status(
     return status_item(canonical, Decimal(str(row.amount)), spent, start)
 
 
+def current_budget_amount(db: Session, user_id: uuid.UUID, category: Optional[str]) -> Optional[Decimal]:
+    """The user's current monthly amount for category, or None when there is no budget."""
+    canonical = budget_category_name(category)
+    if not canonical:
+        return None
+    row = (
+        db.query(CategoryBudget.amount)
+        .join(Category, Category.id == CategoryBudget.category_id)
+        .filter(CategoryBudget.user_id == user_id, Category.name == canonical)
+        .first()
+    )
+    return Decimal(str(row[0])) if row else None
+
+
 _STATE_ORDER = {"ok": 0, "near": 1, "over": 2}
 
 

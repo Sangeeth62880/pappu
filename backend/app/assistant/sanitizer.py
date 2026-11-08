@@ -9,7 +9,7 @@ import re
 from typing import Optional, Union
 from decimal import Decimal
 
-from app.assistant.schemas import Plan
+from app.assistant.schemas import ClarifyAction, Plan
 
 
 CURRENCY_RE = re.compile(r"(₹|rs\.?|inr|rupees?|bucks|roopa)", re.IGNORECASE)
@@ -97,11 +97,30 @@ def sanitize_description(
     return desc_raw
 
 
+def clarify_incomplete_budget(action):
+    """
+    A set_budget with no category or no amount becomes a clarify action (never a guessed budget).
+    The English question is kept on the action; Malayalam replies use the clarify templates.
+    """
+    if action.op != "set_budget":
+        return action
+    if not action.category or not str(action.category).strip():
+        return ClarifyAction(question="Which category is the budget for?", missing_fields=["category"])
+    if action.amount is None:
+        return ClarifyAction(
+            question=f"How much should the monthly {action.category} budget be?",
+            missing_fields=["amount"],
+        )
+    return action
+
+
 def sanitize_plan(plan: Plan, input_text: str) -> Plan:
     """
     Sanitizes descriptions across all actions in a planned Plan, and the detected language.
+    An incomplete set_budget is replaced by a clarify action.
     """
     plan.language = sanitize_language(plan.language, input_text)
+    plan.actions = [clarify_incomplete_budget(action) for action in plan.actions]
     for action in plan.actions:
         if action.op == "add":
             amt = getattr(action, "amount", None)

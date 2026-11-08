@@ -2,7 +2,7 @@
 Server-side Pending State Management for Pappu Assistant v2.
 
 Handles:
-- confirm: single resolved delete, or future dated add
+- confirm: single resolved delete, future dated add, or a set_budget that changes an existing amount
 - disambiguate: resolver returned multiple matches (capped at 5, newest first, stable ids)
 - contact_confirm: fuzzy contact match (saves alias on yes, creates new contact on no)
 - 5 minute expiration window
@@ -24,6 +24,7 @@ from app.assistant.schemas import (
     AddAction,
     DeleteAction,
     EditAction,
+    SetBudgetAction,
     Selector,
 )
 from app.assistant.executors.coordinator import execute_ops
@@ -163,6 +164,17 @@ def format_edit_confirmation_question(row_or_candidate: Any, patch: Dict[str, An
             "pending.edit_question_amount", lang, label=label, amt=amt_str, date_part=dt_part, amt_new=amt_new
         )
     return render("pending.edit_question", lang, label=label, amt=amt_str, date_part=dt_part)
+
+
+def format_budget_change_question(data: Dict[str, Any], lang: str = "en") -> str:
+    """'Change your Food budget from ₹5,000 to ₹6,000 a month?' from a set_budget needs_confirmation result."""
+    return render(
+        "budget.change_question",
+        lang,
+        cat=localize_category(data.get("category"), lang),
+        amt_prev=format_inr(data.get("previous_budget")),
+        amt=format_inr(data.get("budget")),
+    )
 
 
 def format_superseded_message(item: PendingAction, lang: str = "en") -> str:
@@ -535,6 +547,20 @@ def handle_answer_pending(
 
                 dumped = [r.model_dump() for r in results]
                 reply = " ".join([render("pending.recorded", lang), *budget_alert_lines(dumped, lang)])
+                return _response(lang, reply, results=dumped, changed=True)
+
+            elif op_type == "set_budget":
+                budget_op = SetBudgetAction.model_validate(op_data)
+                results = execute_ops(db, user_id, [budget_op], confirmed=True)
+                item.status = "resolved"
+                db.commit()
+
+                failed = _failed_execution_response(results, lang)
+                if failed:
+                    return failed
+
+                dumped = [r.model_dump() for r in results]
+                reply, _ = compose_reply(plan=None, results=dumped, language=lang)
                 return _response(lang, reply, results=dumped, changed=True)
 
         elif item.kind == "contact_confirm":

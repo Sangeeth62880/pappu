@@ -249,6 +249,7 @@ TEMPLATES: Dict[str, Dict[str, str]] = {
     "op.edit": {"en": "edit", "ml": "മാറ്റം"},
     "op.delete": {"en": "delete", "ml": "ഒഴിവാക്കൽ"},
     "op.action": {"en": "action", "ml": "പ്രവർത്തനം"},
+    "op.set_budget": {"en": "budget change", "ml": "ബജറ്റ് മാറ്റം"},
     # Date fragments. English attaches after the noun, Malayalam before it.
     "date.of": {"en": " on {date}", "ml": "{date}ലെ "},
     "range.on": {"en": " on {date}", "ml": "{date}ന് "},
@@ -265,6 +266,10 @@ TEMPLATES: Dict[str, Dict[str, str]] = {
     "budget.changed": {
         "en": "Changed your {cat} budget from {amt_prev} to {amt} a month.",
         "ml": "{cat} ബജറ്റ് {amt_prev} എന്നത് മാസം {amt} ആക്കി മാറ്റി.",
+    },
+    "budget.change_question": {
+        "en": "Change your {cat} budget from {amt_prev} to {amt} a month?",
+        "ml": "{cat} ബജറ്റ് {amt_prev} എന്നത് മാസം {amt} ആക്കി മാറ്റട്ടെ?",
     },
     "budget.left": {
         "en": "{cat}: {spent} of {budget} spent this month, {left} left.",

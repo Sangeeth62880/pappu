@@ -1,13 +1,15 @@
 """
 Budget executors for Pappu Assistant v2.
 
-set_budget: creates or replaces a monthly category budget (upsert, no confirmation:
-it never touches a transaction, and saying it again replaces the amount).
+set_budget: creates a monthly category budget, or replaces one. Replacing an existing
+budget with a different amount returns needs_confirmation unless confirmed is True; the
+router turns that into a pending confirm. The same amount again executes directly.
 query budget: this month's spent vs budget for one category or all of them.
 """
 
 import uuid
 from datetime import date
+from decimal import Decimal
 from typing import Optional, Union
 
 from sqlalchemy.orm import Session
@@ -38,10 +40,22 @@ def execute_set_budget(
     user_id: uuid.UUID,
     op: SetBudgetOp,
     ref_date: Optional[Union[date, str]] = None,
+    confirmed: bool = False,
 ) -> ActionResult:
-    if not budget_service.budget_category_name(op.category):
+    canonical = budget_service.budget_category_name(op.category)
+    if not canonical:
         return _category_error("set_budget", op.category)
     try:
+        if not confirmed:
+            current = budget_service.current_budget_amount(db, user_id, canonical)
+            if current is not None and op.amount is not None and current != Decimal(str(op.amount)):
+                return ActionResult(
+                    ok=False,
+                    action="set_budget",
+                    status="needs_confirmation",
+                    needs_confirmation=True,
+                    data={"category": canonical, "budget": float(op.amount), "previous_budget": float(current)},
+                )
         item = budget_service.set_budget(db, user_id, op.category, op.amount, ref_date=ref_date)
     except Exception as e:
         db.rollback()

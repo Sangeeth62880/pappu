@@ -58,7 +58,7 @@ def execute_ops(
             elif isinstance(op, UndoOp) or getattr(op, "op", None) == "undo":
                 res = execute_undo(db, user_id, op)
             elif isinstance(op, SetBudgetOp) or getattr(op, "op", None) == "set_budget":
-                res = execute_set_budget(db, user_id, op)
+                res = execute_set_budget(db, user_id, op, confirmed=confirmed)
             else:
                 res = ActionResult(
                     ok=False,

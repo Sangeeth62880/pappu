@@ -31,6 +31,7 @@ from app.models.profile import Profile
 from app.models.transaction import Transaction
 from app.assistant.context import AssistantContext
 from app.assistant.planner import AssistantPlanner
+from app.assistant.sanitizer import sanitize_plan
 from app.assistant.schemas import AddAction, Plan, QueryAction, Selector, SetBudgetAction
 from app.services import budgets as budget_service
 from app.services.date_utils import IST
@@ -131,11 +132,11 @@ def _status_plan(category=None, language="en"):
 # 1. Planner output
 # ==============================================================================
 
-def _planner_returning(raw: str) -> Plan:
+def _planner_returning(raw: str, text: str = "text") -> Plan:
     mock_client = MagicMock()
     mock_client._make_request.return_value = raw
     planner = AssistantPlanner(llm_client=mock_client)
-    return planner.plan("text", AssistantContext(today="2026-11-08", weekday="Sunday"))
+    return planner.plan(text, AssistantContext(today="2026-11-08", weekday="Sunday"))
 
 
 def test_planner_parses_set_budget_clean_english():
@@ -166,14 +167,54 @@ def test_planner_budget_with_missing_amount_is_a_clarify():
     assert plan.actions[0].missing_fields == ["amount"]
 
 
+@pytest.mark.parametrize("text,raw,category,amount,language", [
+    ("food budgetinu 5000 aakku",
+     '{"ops": [{"op": "set_budget", "category": "Food", "amount": 5000}], "language": "mixed"}',
+     "Food", 5000, "mixed"),
+    ("എന്റെ budget എത്ര ബാക്കി",
+     '{"ops": [{"op": "query", "query_kind": "budget"}], "language": "ml"}',
+     None, None, "ml"),
+])
+def test_planner_parses_manglish_and_malayalam_budget_plans(text, raw, category, amount, language):
+    plan = _planner_returning(raw, text)
+    action = plan.actions[0]
+    assert plan.language == language
+    if amount is None:
+        assert action.op == "query" and action.query_kind == "budget"
+        assert action.selector.category is None
+    else:
+        assert action.op == "set_budget"
+        assert (action.category, action.amount) == (category, amount)
+
+
+def test_prompt_has_the_budget_examples():
+    prompt = AssistantPlanner(llm_client=MagicMock()).prompt_template
+    for phrase in ("set food budget 5000", "food budgetinu 5000 aakku",
+                   "how much budget left for food", "എന്റെ budget എത്ര ബാക്കി"):
+        assert phrase in prompt
+
+
 @pytest.mark.parametrize("payload", [
-    {"op": "set_budget", "category": "Food"},
     {"op": "set_budget", "category": "Food", "amount": 0},
     {"op": "set_budget", "category": "Food", "amount": -50},
 ])
 def test_set_budget_without_a_positive_amount_fails_validation(payload):
     with pytest.raises(ValidationError):
         Plan.model_validate({"ops": [payload]})
+
+
+@pytest.mark.parametrize("payload,missing,question", [
+    ({"op": "set_budget", "category": "Food"}, ["amount"], "How much should the monthly Food budget be?"),
+    ({"op": "set_budget", "amount": 5000}, ["category"], "Which category is the budget for?"),
+    ({"op": "set_budget"}, ["category"], "Which category is the budget for?"),
+])
+def test_incomplete_set_budget_becomes_a_clarify_action(payload, missing, question):
+    plan = sanitize_plan(Plan.model_validate({"ops": [payload], "language": "en"}), "set budget")
+    assert len(plan.actions) == 1
+    action = plan.actions[0]
+    assert action.op == "clarify"
+    assert action.missing_fields == missing
+    assert action.question == question
 
 
 # ==============================================================================
@@ -430,11 +471,72 @@ def test_assistant_sets_a_budget_in_english(db):
     assert row.amount == Decimal("5000.00")
 
 
-def test_assistant_changes_an_existing_budget(db):
+def _answer(user_id, pending_id, answer):
+    return client.post(
+        f"/assistant/pending/{pending_id}/answer", json={"answer": answer}, headers=_auth(user_id),
+    ).json()
+
+
+def _food_amount(db, user_id):
+    db.expire_all()
+    return db.query(CategoryBudget).filter(CategoryBudget.user_id == user_id).one().amount
+
+
+def test_assistant_changing_an_existing_budget_asks_first(db):
+    user_id = _user(db)
+    _send(user_id, "set food budget 5000", _set_plan("Food", 5000))
+    data = _send(user_id, "make food budget 6000", _set_plan("food", 6000)).json()
+    assert data["reply_text"] == "Change your Food budget from ₹5,000 to ₹6,000 a month?"
+    assert data["pending"]["kind"] == "confirm"
+    assert data["changed"] is False
+    assert data["mood"] == "concerned"
+    assert _food_amount(db, user_id) == Decimal("5000.00")
+
+    done = _answer(user_id, data["pending"]["id"], "yes")
+    assert done["reply_text"] == "Changed your Food budget from ₹5,000 to ₹6,000 a month."
+    assert done["changed"] is True
+    assert _food_amount(db, user_id) == Decimal("6000.00")
+
+
+def test_assistant_budget_change_cancelled_keeps_the_old_amount(db):
     user_id = _user(db)
     _send(user_id, "set food budget 5000", _set_plan("Food", 5000))
     data = _send(user_id, "make food budget 6000", _set_plan("Food", 6000)).json()
-    assert data["reply_text"] == "Changed your Food budget from ₹5,000 to ₹6,000 a month."
+    done = _answer(user_id, data["pending"]["id"], "no")
+    assert done["reply_text"] == "Cancelled."
+    assert done["changed"] is False
+    assert _food_amount(db, user_id) == Decimal("5000.00")
+
+
+def test_assistant_budget_change_in_malayalam(db):
+    user_id = _user(db, "ml")
+    _send(user_id, "ഭക്ഷണത്തിന് 5000 ബജറ്റ്", _set_plan("Food", 5000, "ml"))
+    data = _send(user_id, "ഭക്ഷണ ബജറ്റ് 6000 ആക്കൂ", _set_plan("Food", 6000, "ml")).json()
+    assert data["reply_text"] == "ഭക്ഷണം ബജറ്റ് ₹5,000 എന്നത് മാസം ₹6,000 ആക്കി മാറ്റട്ടെ?"
+    assert data["spoken_text"] == "ഭക്ഷണം ബജറ്റ് 5000 രൂപ എന്നത് മാസം 6000 രൂപ ആക്കി മാറ്റട്ടെ?"
+    done = _answer(user_id, data["pending"]["id"], "ശരി")
+    assert done["reply_text"] == "ഭക്ഷണം ബജറ്റ് ₹5,000 എന്നത് മാസം ₹6,000 ആക്കി മാറ്റി."
+    assert done["language_code"] == "ml-IN"
+    assert _food_amount(db, user_id) == Decimal("6000.00")
+
+
+def test_assistant_setting_the_same_amount_again_needs_no_confirmation(db):
+    user_id = _user(db)
+    _send(user_id, "set food budget 5000", _set_plan("Food", 5000))
+    data = _send(user_id, "set food budget 5000", _set_plan("Food", 5000)).json()
+    assert data["reply_text"] == "Set your Food budget to ₹5,000 a month."
+    assert data["pending"] is None
+
+
+def test_assistant_pending_budget_change_is_cancelled_by_a_new_message(db):
+    user_id = _user(db)
+    _send(user_id, "set food budget 5000", _set_plan("Food", 5000))
+    _send(user_id, "make food budget 6000", _set_plan("Food", 6000))
+    data = _send(user_id, "show my budgets", _status_plan()).json()
+    assert data["reply_text"] == (
+        "I cancelled the pending budget change of Food ₹6,000. "
+        "Food: ₹0 of ₹5,000 spent this month, ₹5,000 left."
+    )
 
 
 def test_assistant_budget_left_for_food_in_english(db):
@@ -486,17 +588,53 @@ def test_assistant_lists_every_budget(db):
     )
 
 
+def test_assistant_lists_every_budget_in_malayalam(db):
+    user_id = _user(db, "ml")
+    _txn(db, user_id, "Bills", 2500)
+    _send(user_id, "bills budget 2000", _set_plan("Bills", 2000, "ml"))
+    _send(user_id, "food budget 5000", _set_plan("Food", 5000, "ml"))
+    data = _send(user_id, "എന്റെ budget എത്ര ബാക്കി", _status_plan(language="ml")).json()
+    assert data["reply_text"] == (
+        "ഭക്ഷണം: ഈ മാസം ₹5,000 ബജറ്റിൽ ₹0 ചെലവായി, ₹5,000 ബാക്കിയുണ്ട്. "
+        "ബില്ലുകൾ: ഈ മാസം ₹2,000 ബജറ്റിൽ ₹2,500 ചെലവായി, ₹500 കൂടുതലായി."
+    )
+
+
 def test_assistant_no_budgets_yet(db):
     user_id = _user(db)
     assert _send(user_id, "show my budgets", _status_plan()).json()["reply_text"] == "You have not set any budgets yet."
     assert _send(user_id, "food budget left", _status_plan("Food")).json()["reply_text"] == "You have no Food budget yet."
 
 
-def test_assistant_set_budget_without_category_asks_for_it(db):
+def test_assistant_no_budgets_yet_in_malayalam(db):
+    user_id = _user(db, "ml")
+    data = _send(user_id, "എന്റെ budget എത്ര ബാക്കി", _status_plan(language="ml")).json()
+    assert data["reply_text"] == "ഇതുവരെ ഒരു ബജറ്റും സെറ്റ് ചെയ്തിട്ടില്ല."
+    data = _send(user_id, "ഭക്ഷണ ബജറ്റ് എത്ര ബാക്കി", _status_plan("Food", "ml")).json()
+    assert data["reply_text"] == "ഭക്ഷണം വിഭാഗത്തിന് ഇതുവരെ ബജറ്റ് ഇല്ല."
+
+
+def test_assistant_sets_a_budget_in_malayalam(db):
+    user_id = _user(db, "ml")
+    data = _send(user_id, "ഭക്ഷണത്തിന് 5000 ബജറ്റ് വെക്കൂ", _set_plan("Food", 5000, "ml")).json()
+    assert data["reply_text"] == "ഭക്ഷണം ബജറ്റ് മാസം ₹5,000 ആയി സെറ്റ് ചെയ്തു."
+    assert data["spoken_text"] == "ഭക്ഷണം ബജറ്റ് മാസം 5000 രൂപ ആയി സെറ്റ് ചെയ്തു."
+
+
+@pytest.mark.parametrize("plan,text,expected", [
+    (_set_plan(None, 5000), "set budget 5000", "Which category is the budget for?"),
+    (Plan(actions=[SetBudgetAction(category="Food")], language="en"), "set food budget",
+     "How much should the monthly Food budget be?"),
+    (_set_plan(None, 5000, "ml"), "ബജറ്റ് 5000 ആക്കൂ", "ഏത് വിഭാഗത്തിലാണ് എന്ന് പറയാമോ?"),
+    (Plan(actions=[SetBudgetAction(category="Food")], language="ml"), "ഭക്ഷണ ബജറ്റ് സെറ്റ് ചെയ്യൂ",
+     "എത്ര രൂപയാണ് എന്ന് പറയാമോ?"),
+])
+def test_assistant_incomplete_set_budget_asks_a_clarify_question(db, plan, text, expected):
     user_id = _user(db)
-    data = _send(user_id, "set budget 5000", _set_plan(None, 5000)).json()
-    assert data["reply_text"] == "Which category is the budget for?"
+    data = _send(user_id, text, plan).json()
+    assert data["reply_text"] == expected
     assert data["changed"] is False
+    assert data["mood"] == "confused"
     assert db.query(CategoryBudget).count() == 0
 
 

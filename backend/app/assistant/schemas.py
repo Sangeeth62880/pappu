@@ -106,15 +106,16 @@ class QueryAction(BaseModel):
 class SetBudgetAction(BaseModel):
     """
     Creates or replaces the monthly budget for one category.
-    category is optional here so a missing one reaches the executor, which asks for it.
+    category and amount are optional here so an incomplete action reaches the sanitizer,
+    which turns it into a clarify action instead of failing plan validation.
     """
     op: Literal["set_budget"] = "set_budget"
     category: Optional[str] = None
-    amount: Union[float, int]
+    amount: Optional[Union[float, int]] = None
 
     @model_validator(mode="after")
     def validate_set_budget(self) -> "SetBudgetAction":
-        if self.amount <= 0:
+        if self.amount is not None and self.amount <= 0:
             raise ValueError("Budget amount must be greater than 0.")
         return self
 

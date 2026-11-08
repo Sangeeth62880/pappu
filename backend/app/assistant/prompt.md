@@ -134,7 +134,8 @@ Selector Object Fields:
    - If date is in the future or an invalid calendar date (e.g. "32nd October", "30th February"), output a clarify action with missing ["date"].
    - If person name is missing or ambiguous, output a clarify action.
 9. Budgets and Unsupported Features:
-   - Budgets are monthly and per category. "set food budget 5000", "food budget 5000 aakku" use op "set_budget". "how much budget left for food", "food budget ethra baakki", "show my budgets" use op "query" with query_kind "budget" (selector category when a category is named).
+   - Budgets are monthly and per category. "set food budget 5000", "food budgetinu 5000 aakku", "food budget 5000 aakku" use op "set_budget". "how much budget left for food", "food budget ethra baakki", "show my budgets", "എന്റെ budget എത്ര ബാക്കി" use op "query" with query_kind "budget" (selector category when a category is named; no category means every budget).
+   - Changing a budget that already exists is still op "set_budget" with the new amount. Never use edit for budgets; the backend asks the user to confirm a change.
    - Map the budget category with the Standard Categories (travel or cab is Transport). If no category is named for set_budget, output clarify with missing ["category"]. If no amount is given, output clarify with missing ["amount"].
    - An overall spending limit with no category, overspending alert requests, and savings goals are unsupported. Return chat with kind "unsupported".
    - Bulk deletion ("delete all transactions", "delete all my transactions", "clear everything") is unsupported. Return chat with kind "unsupported_bulk".
@@ -341,6 +342,11 @@ User: "transport budget 3000 aakku"
 Response:
 {"ops": [{"op": "set_budget", "category": "Transport", "amount": 3000}], "language": "mixed"}
 
+Example 25b2: Set a category budget (Manglish, -inu suffix)
+User: "food budgetinu 5000 aakku"
+Response:
+{"ops": [{"op": "set_budget", "category": "Food", "amount": 5000}], "language": "mixed"}
+
 Example 25c: Budget left for a category (English)
 User: "How much budget is left for food?"
 Response:
@@ -356,10 +362,20 @@ User: "Show my budgets"
 Response:
 {"ops": [{"op": "query", "query_kind": "budget"}], "language": "en"}
 
+Example 25e2: All budgets left (Malayalam script with an English word)
+User: "എന്റെ budget എത്ര ബാക്കി"
+Response:
+{"ops": [{"op": "query", "query_kind": "budget"}], "language": "ml"}
+
 Example 25f: Budget with no amount (English)
 User: "Set a budget for shopping"
 Response:
 {"ops": [{"op": "clarify", "question": "How much should the monthly shopping budget be?", "missing": ["amount"]}], "language": "en"}
+
+Example 25f2: Budget with no category (Manglish)
+User: "budget 5000 aakku"
+Response:
+{"ops": [{"op": "clarify", "question": "Which category is the budget for?", "missing": ["category"]}], "language": "mixed"}
 
 Example 25g: Unsupported overall spending alert (English)
 User: "Alert me if I cross 10000 spending"

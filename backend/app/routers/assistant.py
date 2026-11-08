@@ -47,6 +47,7 @@ from app.assistant.pending import (
     supersede_pending,
     handle_answer_pending,
     format_pending_summary,
+    format_budget_change_question,
     format_delete_confirmation_question,
     format_edit_confirmation_question,
     format_superseded_message,
@@ -470,9 +471,27 @@ def _process_message(
 
                 elif op_name == "set_budget":
                     res = execute_set_budget(db, user_id, action, ref_date=ref_date)
-                    if res.ok:
-                        changed = True
-                    results.append(res.model_dump())
+                    if res.needs_confirmation:
+                        # Replacing an existing budget with a different amount: confirm first.
+                        if not created_pending:
+                            q = format_budget_change_question(res.data, reply_lang)
+                            created_pending, _ = create_pending(
+                                db=db,
+                                user_id=user_id,
+                                kind="confirm",
+                                plan_json={
+                                    "action": {**action.model_dump(), "category": res.data["category"]},
+                                    "question": q,
+                                    "language": reply_lang,
+                                },
+                                question=q,
+                            )
+                        else:
+                            multi_action_pending_dropped = True
+                    else:
+                        if res.ok:
+                            changed = True
+                        results.append(res.model_dump())
 
                 elif op_name == "answer_pending":
                     active_item = None
