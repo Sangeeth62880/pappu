@@ -9,13 +9,14 @@ import uuid
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.assistant.schemas import PlanV2, OpType, AddOp, EditOp, DeleteOp, QueryOp, UndoOp
+from app.assistant.schemas import PlanV2, OpType, AddOp, EditOp, DeleteOp, QueryOp, UndoOp, SetBudgetOp
 from app.assistant.executors.base import ActionResult
 from app.assistant.executors.add import execute_add
 from app.assistant.executors.edit import execute_edit
 from app.assistant.executors.delete import execute_delete
 from app.assistant.executors.query import execute_query
 from app.assistant.executors.undo import execute_undo
+from app.assistant.executors.budget import execute_set_budget
 
 
 def execute_ops(
@@ -56,6 +57,8 @@ def execute_ops(
                 res = execute_query(db, user_id, op, last_touched_id)
             elif isinstance(op, UndoOp) or getattr(op, "op", None) == "undo":
                 res = execute_undo(db, user_id, op)
+            elif isinstance(op, SetBudgetOp) or getattr(op, "op", None) == "set_budget":
+                res = execute_set_budget(db, user_id, op)
             else:
                 res = ActionResult(
                     ok=False,

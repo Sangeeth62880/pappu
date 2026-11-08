@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import check_db_connection, init_db
-from app.routers import transactions, summary, intent, stt, tts, chat, assistant, profile, contacts
+from app.routers import transactions, summary, intent, stt, tts, chat, assistant, profile, contacts, budgets
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,6 +34,7 @@ app.include_router(tts.router)
 app.include_router(chat.router)
 app.include_router(assistant.router)
 app.include_router(profile.router)
+app.include_router(budgets.router)
 
 @app.get("/health")
 def health_check():

@@ -8,6 +8,7 @@ from app.assistant.executors.edit import execute_edit
 from app.assistant.executors.delete import execute_delete
 from app.assistant.executors.query import execute_query
 from app.assistant.executors.undo import execute_undo
+from app.assistant.executors.budget import execute_set_budget, execute_budget_query
 from app.assistant.executors.coordinator import execute_ops
 
 __all__ = [
@@ -18,5 +19,7 @@ __all__ = [
     "execute_delete",
     "execute_query",
     "execute_undo",
+    "execute_set_budget",
+    "execute_budget_query",
     "execute_ops",
 ]

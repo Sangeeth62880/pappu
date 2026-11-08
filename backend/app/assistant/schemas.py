@@ -97,10 +97,26 @@ class DeleteAction(BaseModel):
 
 class QueryAction(BaseModel):
     op: Literal["query"] = "query"
-    query_kind: Literal["balances", "sum", "list", "count", "biggest", "compare", "category_breakdown"]
+    query_kind: Literal["balances", "sum", "list", "count", "biggest", "compare", "category_breakdown", "budget"]
     selector: Selector = Field(default_factory=Selector)
     compare_to: Optional[Selector] = None
     balance_side: Optional[Literal["owed_to_me", "i_owe", "all"]] = None
+
+
+class SetBudgetAction(BaseModel):
+    """
+    Creates or replaces the monthly budget for one category.
+    category is optional here so a missing one reaches the executor, which asks for it.
+    """
+    op: Literal["set_budget"] = "set_budget"
+    category: Optional[str] = None
+    amount: Union[float, int]
+
+    @model_validator(mode="after")
+    def validate_set_budget(self) -> "SetBudgetAction":
+        if self.amount <= 0:
+            raise ValueError("Budget amount must be greater than 0.")
+        return self
 
 
 class UndoActionOp(BaseModel):
@@ -145,6 +161,7 @@ Action = Annotated[
         EditAction,
         DeleteAction,
         QueryAction,
+        SetBudgetAction,
         UndoActionOp,
         AnswerPendingAction,
         ClarifyAction,
@@ -198,6 +215,7 @@ AddOp = AddAction
 EditOp = EditAction
 DeleteOp = DeleteAction
 QueryOp = QueryAction
+SetBudgetOp = SetBudgetAction
 UndoOp = UndoActionOp
 AnswerPendingOp = AnswerPendingAction
 ClarifyOp = ClarifyAction

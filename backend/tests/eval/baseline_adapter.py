@@ -38,7 +38,7 @@ def is_case_expressible(case: Dict[str, Any]) -> bool:
     if op in ("undo", "answer_pending", "chat"):
         return False
 
-    if group in ("multi_action", "undo", "disambiguation_replies", "off_topic_chat", "unsupported_budgets"):
+    if group in ("multi_action", "undo", "disambiguation_replies", "off_topic_chat", "budgets"):
         return False
 
     # The old schema has no last_touched context resolution

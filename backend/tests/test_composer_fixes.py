@@ -55,8 +55,8 @@ def test_bulk_delete_vs_budget_reply():
 
     budget_plan = PlanV2(ops=[ChatAction(op="chat", kind="unsupported")])
     b_reply, b_spoken = compose_reply(plan=budget_plan, results=[], language="en")
-    assert b_reply == "Budgets are not available yet."
-    assert b_spoken == "Budgets are not available yet."
+    assert b_reply == "That is not available yet."
+    assert b_spoken == "That is not available yet."
 
 
 def test_i_owe_anu_direction_and_wording(db_session):

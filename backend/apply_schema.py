@@ -190,6 +190,39 @@ CREATE INDEX IF NOT EXISTS ix_assistant_idempotency_user_id ON public.assistant_
 CREATE INDEX IF NOT EXISTS ix_assistant_idempotency_client_msg_id ON public.assistant_idempotency (client_msg_id);
 CREATE INDEX IF NOT EXISTS ix_assistant_idempotency_created_at ON public.assistant_idempotency (created_at);
 
+-- 8b. Category Budgets Table (monthly budget per fixed category)
+-- Mirrors supabase/migrations/20261108000000_create_category_budgets.sql.
+CREATE TABLE IF NOT EXISTS public.category_budgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    category_id INTEGER NOT NULL REFERENCES public.categories(id),
+    amount NUMERIC(12,2) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_category_budget_user_category'
+          AND conrelid = 'public.category_budgets'::regclass
+    ) THEN
+        ALTER TABLE public.category_budgets
+        ADD CONSTRAINT uq_category_budget_user_category UNIQUE (user_id, category_id);
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'ck_category_budget_amount_positive'
+          AND conrelid = 'public.category_budgets'::regclass
+    ) THEN
+        ALTER TABLE public.category_budgets
+        ADD CONSTRAINT ck_category_budget_amount_positive CHECK (amount > 0);
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS ix_category_budgets_user_id ON public.category_budgets (user_id);
+
 -- 8. Seed Categories (Fixed list per PROJECT_SPEC.md §4 & §7)
 INSERT INTO public.categories (name, type) VALUES
     ('Food', 'expense'),
@@ -259,6 +292,13 @@ CREATE POLICY "Users can manage their own idempotency keys" ON public.assistant_
     USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
+ALTER TABLE public.category_budgets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can manage their own budgets" ON public.category_budgets;
+CREATE POLICY "Users can manage their own budgets" ON public.category_budgets
+    FOR ALL
+    USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
+
 -- 7. Trigger to automatically provision profiles on Supabase Auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -301,12 +341,12 @@ def apply_schema():
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 
-              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions', 'assistant_idempotency')
+              AND table_name IN ('profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions', 'assistant_idempotency', 'category_budgets')
             ORDER BY table_name;
         """))
         tables = [row[0] for row in result.fetchall()]
         print(f"Found public tables: {tables}")
-        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions', 'assistant_idempotency'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces, pending_actions, assistant_idempotency. Got {tables}"
+        assert set(tables) == {'profiles', 'contacts', 'categories', 'transactions', 'undo_actions', 'chat_messages', 'assistant_traces', 'pending_actions', 'assistant_idempotency', 'category_budgets'}, f"Missing tables! Expected profiles, contacts, categories, transactions, undo_actions, chat_messages, assistant_traces, pending_actions, assistant_idempotency, category_budgets. Got {tables}"
 
         # Verify seed categories
         print("\n--- Verifying Seed Categories ---")

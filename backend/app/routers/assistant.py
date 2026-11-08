@@ -56,6 +56,7 @@ from app.assistant.executors.add import execute_add
 from app.assistant.executors.edit import execute_edit
 from app.assistant.executors.query import execute_query
 from app.assistant.executors.undo import execute_undo
+from app.assistant.executors.budget import execute_set_budget
 from app.assistant.executors.base import serialize_transaction
 from app.assistant.composer import (
     compose_reply,
@@ -463,6 +464,12 @@ def _process_message(
 
                 elif op_name == "undo":
                     res = execute_undo(db, user_id, action)
+                    if res.ok:
+                        changed = True
+                    results.append(res.model_dump())
+
+                elif op_name == "set_budget":
+                    res = execute_set_budget(db, user_id, action, ref_date=ref_date)
                     if res.ok:
                         changed = True
                     results.append(res.model_dump())

@@ -53,8 +53,8 @@ Each Action object in "ops" must have "op" set to one of the following:
    Inspects transactions or aggregates.
    Fields:
    - "op": "query"
-   - "query_kind": "balances" | "sum" | "list" | "count" | "biggest" | "compare" | "category_breakdown"
-   - "selector": Selector object
+   - "query_kind": "balances" | "sum" | "list" | "count" | "biggest" | "compare" | "category_breakdown" | "budget"
+   - "selector": Selector object ("budget" uses only selector "category"; omit it to report every budget)
    - "compare_to": Selector object (optional, for "compare")
    - "balance_side": "owed_to_me" | "i_owe" | "all" (for "balances")
 
@@ -82,6 +82,13 @@ Each Action object in "ops" must have "op" set to one of the following:
    Fields:
    - "op": "chat"
    - "kind": "greeting" | "help" | "off_topic" | "unsupported" | "unsupported_bulk"
+
+9. Set Budget ("op": "set_budget")
+   Sets or replaces the monthly spending budget for one category.
+   Fields:
+   - "op": "set_budget"
+   - "category": "Food" | "Transport" | "Shopping" | "Bills" | "Entertainment" | "Other"
+   - "amount": monthly budget, number strictly greater than 0
 
 Selector Object Fields:
 - "contact": string contact name
@@ -126,8 +133,10 @@ Selector Object Fields:
    - If amount is missing (e.g. "Paid the bill", "Took auto to office", "Booked movie tickets"), NEVER guess or invent an amount. You MUST output a clarify action with missing ["amount"].
    - If date is in the future or an invalid calendar date (e.g. "32nd October", "30th February"), output a clarify action with missing ["date"].
    - If person name is missing or ambiguous, output a clarify action.
-9. Unsupported Features:
-   - Budgets, budget limits, remaining budget, overspending alerts, and savings goals are unsupported. Return chat with kind "unsupported".
+9. Budgets and Unsupported Features:
+   - Budgets are monthly and per category. "set food budget 5000", "food budget 5000 aakku" use op "set_budget". "how much budget left for food", "food budget ethra baakki", "show my budgets" use op "query" with query_kind "budget" (selector category when a category is named).
+   - Map the budget category with the Standard Categories (travel or cab is Transport). If no category is named for set_budget, output clarify with missing ["category"]. If no amount is given, output clarify with missing ["amount"].
+   - An overall spending limit with no category, overspending alert requests, and savings goals are unsupported. Return chat with kind "unsupported".
    - Bulk deletion ("delete all transactions", "delete all my transactions", "clear everything") is unsupported. Return chat with kind "unsupported_bulk".
 10. Off Topic and Undo:
     - General greetings ("hi", "hello") use chat kind "greeting".
@@ -322,8 +331,38 @@ User: "Hello, good morning"
 Response:
 {"ops": [{"op": "chat", "kind": "greeting"}], "language": "en"}
 
-Example 25: Unsupported budget request (English)
+Example 25: Set a category budget (English)
 User: "Set my monthly food budget to 5000"
+Response:
+{"ops": [{"op": "set_budget", "category": "Food", "amount": 5000}], "language": "en"}
+
+Example 25b: Set a category budget (Manglish)
+User: "transport budget 3000 aakku"
+Response:
+{"ops": [{"op": "set_budget", "category": "Transport", "amount": 3000}], "language": "mixed"}
+
+Example 25c: Budget left for a category (English)
+User: "How much budget is left for food?"
+Response:
+{"ops": [{"op": "query", "query_kind": "budget", "selector": {"category": "Food"}}], "language": "en"}
+
+Example 25d: Budget left for a category (Malayalam script)
+User: "ഭക്ഷണത്തിന്റെ ബജറ്റിൽ എത്ര ബാക്കിയുണ്ട്?"
+Response:
+{"ops": [{"op": "query", "query_kind": "budget", "selector": {"category": "Food"}}], "language": "ml"}
+
+Example 25e: All budgets (English)
+User: "Show my budgets"
+Response:
+{"ops": [{"op": "query", "query_kind": "budget"}], "language": "en"}
+
+Example 25f: Budget with no amount (English)
+User: "Set a budget for shopping"
+Response:
+{"ops": [{"op": "clarify", "question": "How much should the monthly shopping budget be?", "missing": ["amount"]}], "language": "en"}
+
+Example 25g: Unsupported overall spending alert (English)
+User: "Alert me if I cross 10000 spending"
 Response:
 {"ops": [{"op": "chat", "kind": "unsupported"}], "language": "en"}
 

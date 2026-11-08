@@ -2204,11 +2204,11 @@ CASES = [
     },
 
     # ----------------------------------------------------
-    # 13. unsupported_budgets (4 cases)
+    # 13. budgets (4 cases)
     # ----------------------------------------------------
     {
         "id": "budget_01",
-        "group": "unsupported_budgets",
+        "group": "budgets",
         "input": "Set my monthly food budget to 5000",
         "language": "en",
         "context": {
@@ -2221,13 +2221,13 @@ CASES = [
             "seeded_transactions": []
         },
         "expected_plan": {
-            "ops": [{"op": "clarify", "question": "Budget limits are not currently supported in Pappu."}]
+            "ops": [{"op": "set_budget", "category": "Food", "amount": 5000}]
         },
-        "expected_end_state": {"action": "unsupported"}
+        "expected_end_state": {"action": "budget_set"}
     },
     {
         "id": "budget_02",
-        "group": "unsupported_budgets",
+        "group": "budgets",
         "input": "What is my remaining budget for this month",
         "language": "en",
         "context": {
@@ -2240,13 +2240,13 @@ CASES = [
             "seeded_transactions": []
         },
         "expected_plan": {
-            "ops": [{"op": "clarify", "question": "Budget tracking is not currently supported in Pappu."}]
+            "ops": [{"op": "query", "query_kind": "budget"}]
         },
-        "expected_end_state": {"action": "unsupported"}
+        "expected_end_state": {"action": "query_result"}
     },
     {
         "id": "budget_03",
-        "group": "unsupported_budgets",
+        "group": "budgets",
         "input": "Alert me if I cross 10000 spending",
         "language": "en",
         "context": {
@@ -2259,13 +2259,13 @@ CASES = [
             "seeded_transactions": []
         },
         "expected_plan": {
-            "ops": [{"op": "clarify", "question": "Spending alerts and budgets are not currently supported."}]
+            "ops": [{"op": "chat", "kind": "unsupported"}]
         },
         "expected_end_state": {"action": "unsupported"}
     },
     {
         "id": "budget_04",
-        "group": "unsupported_budgets",
+        "group": "budgets",
         "input": "Create a budget of 20000 for travel",
         "language": "en",
         "context": {
@@ -2278,9 +2278,9 @@ CASES = [
             "seeded_transactions": []
         },
         "expected_plan": {
-            "ops": [{"op": "clarify", "question": "Budgets are not currently supported in Pappu."}]
+            "ops": [{"op": "set_budget", "category": "Transport", "amount": 20000}]
         },
-        "expected_end_state": {"action": "unsupported"}
+        "expected_end_state": {"action": "budget_set"}
     },
 
     # ----------------------------------------------------

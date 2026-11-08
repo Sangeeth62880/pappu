@@ -8,6 +8,7 @@ Supports:
 - count
 - biggest
 - compare (using two period sums)
+- budget (this month's spent vs budget, see executors/budget.py)
 """
 
 import uuid
@@ -35,6 +36,10 @@ def execute_query(
     """
     try:
         kind = op.query_kind
+
+        if kind == "budget":
+            from app.assistant.executors.budget import execute_budget_query
+            return execute_budget_query(db, user_id, op, ref_date=ref_date)
 
         if kind == "balances":
             # The balances executor must ignore a stray direction field.

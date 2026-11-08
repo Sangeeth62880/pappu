@@ -134,6 +134,12 @@ def compare_plans(actual: PlanV2, expected: PlanV2) -> Tuple[bool, str]:
                     elif act_val != exp_val:
                         return False, f"Op[{idx}] query selector.{field} mismatch: expected {exp_val}, got {act_val}"
 
+        elif exp_op.op == "set_budget":
+            if (act_op.category or "").lower() != (exp_op.category or "").lower():
+                return False, f"Op[{idx}] set_budget category mismatch: expected {exp_op.category}, got {act_op.category}"
+            if round(float(act_op.amount or 0), 2) != round(float(exp_op.amount or 0), 2):
+                return False, f"Op[{idx}] set_budget amount mismatch: expected {exp_op.amount}, got {act_op.amount}"
+
         elif exp_op.op == "clarify":
             if exp_op.missing:
                 exp_missing = set(exp_op.missing)
@@ -431,6 +437,11 @@ def compare_end_state(
         ):
             return True, "", "Match"
         return False, "planner", "Expected unsupported action"
+
+    elif action == "budget_set":
+        if any(r.get("action") == "set_budget" and r.get("ok") for r in response.results):
+            return True, "", "Match"
+        return False, "executor", "Expected the budget to be set"
 
     elif action == "undone":
         if any(r.get("action") == "undo" and r.get("ok") for r in response.results):

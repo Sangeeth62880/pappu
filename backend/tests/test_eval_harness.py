@@ -86,7 +86,7 @@ def test_cases_jsonl_integrity_and_minimum_counts():
         "multi_action": 10,
         "missing_info_clarify": 8,
         "off_topic_chat": 6,
-        "unsupported_budgets": 4,
+        "budgets": 4,
         "malayalam_script": 8,
         "manglish": 10,
         "mixed_language": 6,

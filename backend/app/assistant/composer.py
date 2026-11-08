@@ -257,6 +257,39 @@ TEMPLATES: Dict[str, Dict[str, str]] = {
     "range.since": {"en": " since {date}", "ml": "{date} മുതൽ "},
     "range.until": {"en": " until {date}", "ml": "{date} വരെ "},
     "range.all_time": {"en": " all time", "ml": "ഇതുവരെ "},
+    # Budgets (monthly, per category)
+    "budget.set": {
+        "en": "Set your {cat} budget to {amt} a month.",
+        "ml": "{cat} ബജറ്റ് മാസം {amt} ആയി സെറ്റ് ചെയ്തു.",
+    },
+    "budget.changed": {
+        "en": "Changed your {cat} budget from {amt_prev} to {amt} a month.",
+        "ml": "{cat} ബജറ്റ് {amt_prev} എന്നത് മാസം {amt} ആക്കി മാറ്റി.",
+    },
+    "budget.left": {
+        "en": "{cat}: {spent} of {budget} spent this month, {left} left.",
+        "ml": "{cat}: ഈ മാസം {budget} ബജറ്റിൽ {spent} ചെലവായി, {left} ബാക്കിയുണ്ട്.",
+    },
+    "budget.over": {
+        "en": "{cat}: {spent} of {budget} spent this month, {over} over budget.",
+        "ml": "{cat}: ഈ മാസം {budget} ബജറ്റിൽ {spent} ചെലവായി, {over} കൂടുതലായി.",
+    },
+    "budget.none_for": {
+        "en": "You have no {cat} budget yet.",
+        "ml": "{cat} വിഭാഗത്തിന് ഇതുവരെ ബജറ്റ് ഇല്ല.",
+    },
+    "budget.none": {
+        "en": "You have not set any budgets yet.",
+        "ml": "ഇതുവരെ ഒരു ബജറ്റും സെറ്റ് ചെയ്തിട്ടില്ല.",
+    },
+    "budget.invalid_category": {
+        "en": "Budgets can be set for {cats}.",
+        "ml": "{cats} എന്നീ വിഭാഗങ്ങൾക്കാണ് ബജറ്റ് സെറ്റ് ചെയ്യാൻ കഴിയുക.",
+    },
+    "budget.missing_category": {
+        "en": "Which category is the budget for?",
+        "ml": "ഏത് വിഭാഗത്തിനാണ് ബജറ്റ് എന്ന് പറയാമോ?",
+    },
     # Chat
     "chat.greeting": {
         "en": "Hello! How can I help you manage your expenses today?",
@@ -271,8 +304,8 @@ TEMPLATES: Dict[str, Dict[str, str]] = {
         "ml": "പണവുമായി ബന്ധപ്പെട്ട കാര്യങ്ങളിൽ മാത്രമേ എനിക്ക് സഹായിക്കാൻ കഴിയൂ.",
     },
     "chat.unsupported": {
-        "en": "Budgets are not available yet.",
-        "ml": "ബജറ്റ് സൗകര്യം ഇപ്പോൾ ലഭ്യമല്ല.",
+        "en": "That is not available yet.",
+        "ml": "ആ സൗകര്യം ഇപ്പോൾ ലഭ്യമല്ല.",
     },
     "chat.unsupported_bulk": {
         "en": "I can't delete everything at once. Tell me which transaction to delete.",
@@ -669,6 +702,10 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
     if q_kind == "query":
         q_kind = res.get("status") or data.get("query_kind", "list")
 
+    if q_kind == "budget":
+        text = _compose_budget_query(data, lang)
+        return text, text
+
     if q_kind == "balances":
         per_contact = data.get("balances") or data.get("per_contact") or []
         if not per_contact:
@@ -837,6 +874,52 @@ def _compose_single_query(res: Dict[str, Any], lang: str) -> Tuple[str, str]:
 
     done = render("query.done", lang)
     return done, done
+
+
+def _budget_line(item: Dict[str, Any], lang: str) -> str:
+    """One category's spent vs budget this month."""
+    values = {
+        "cat": localize_category(item.get("category"), lang),
+        "spent": format_inr(item.get("spent", 0)),
+        "budget": format_inr(item.get("budget", 0)),
+    }
+    if (item.get("over_by") or 0) > 0:
+        return render("budget.over", lang, over=format_inr(item["over_by"]), **values)
+    return render("budget.left", lang, left=format_inr(item.get("remaining", 0)), **values)
+
+
+def _compose_budget_query(data: Dict[str, Any], lang: str) -> str:
+    items = data.get("budgets") or []
+    if not items:
+        category = data.get("category")
+        if category:
+            return render("budget.none_for", lang, cat=localize_category(category, lang))
+        return render("budget.none", lang)
+    return " ".join(_budget_line(item, lang) for item in items)
+
+
+def _compose_set_budget(res: Dict[str, Any], lang: str) -> str:
+    data = res.get("data") or {}
+    cat = localize_category(data.get("category"), lang)
+    amt = format_inr(data.get("budget"))
+    prev = data.get("previous_budget")
+    if prev is not None and float(prev) != float(data.get("budget") or 0):
+        return render("budget.changed", lang, cat=cat, amt_prev=format_inr(prev), amt=amt)
+    return render("budget.set", lang, cat=cat, amt=amt)
+
+
+BUDGET_CATEGORY_ERRORS = ("budget_missing_category", "budget_invalid_category")
+
+
+def _compose_budget_category_error(res: Dict[str, Any], lang: str) -> str:
+    if (res.get("status") or res.get("error")) == "budget_missing_category":
+        return render("budget.missing_category", lang)
+    names = [localize_category(c, lang) for c in (res.get("data") or {}).get("categories") or []]
+    if lang == "ml" or len(names) < 2:
+        cats = ", ".join(names)
+    else:
+        cats = ", ".join(names[:-1]) + " and " + names[-1]
+    return render("budget.invalid_category", lang, cats=cats)
 
 
 def _compose_single_undo(res: Dict[str, Any], lang: str) -> str:
@@ -1023,6 +1106,10 @@ def _compose(
                 sent = _compose_single_undo(r, lang)
                 success_sentences.append(sent)
                 spoken_sentences.append(sent)
+            elif act == "set_budget":
+                sent = _compose_set_budget(r, lang)
+                success_sentences.append(sent)
+                spoken_sentences.append(sent)
             else:
                 done = render("op.done", lang)
                 success_sentences.append(done)
@@ -1030,7 +1117,9 @@ def _compose(
         else:
             err = r.get("error") or "Failed to process"
             filters = r.get("filters_used") or filters_used
-            if (filters and filters.get("unknown_contact")) or "unknown contact" in err.lower():
+            if (r.get("status") or err) in BUDGET_CATEGORY_ERRORS:
+                failure_sentences.append(_compose_budget_category_error(r, lang))
+            elif (filters and filters.get("unknown_contact")) or "unknown contact" in err.lower():
                 sent = _compose_resolver_none(filters, lang)
                 failure_sentences.append(sent)
             elif "not found" in err.lower():
