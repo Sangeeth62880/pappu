@@ -3,7 +3,8 @@
  */
 const withListenEntryPoints = require('../plugins/withListenEntryPoints');
 
-const { addTileService, tileServiceSource } = withListenEntryPoints;
+const { addTileService, tileServiceSource, addAssistActivity, assistActivitySource } =
+  withListenEntryPoints;
 
 function bareManifest() {
   return {
@@ -15,6 +16,7 @@ function bareManifest() {
 }
 
 const services = (m) => m.manifest.application[0].service || [];
+const activities = (m) => m.manifest.application[0].activity || [];
 
 describe('withListenEntryPoints: Quick Settings tile', () => {
   test('declares an exported TileService bound by the system with the QS_TILE action', () => {
@@ -49,3 +51,42 @@ describe('withListenEntryPoints: Quick Settings tile', () => {
     expect(src).toContain('unlockAndRun');
   });
 });
+
+describe('withListenEntryPoints: default digital assistant', () => {
+  test('declares an ACTION_ASSIST activity, which qualifies the app for the assistant role', () => {
+    const [assist] = activities(addAssistActivity(bareManifest()));
+
+    expect(assist.$['android:name']).toBe('.AssistActivity');
+    expect(assist.$['android:exported']).toBe('true');
+    expect(assist.$['android:excludeFromRecents']).toBe('true');
+    expect(assist['intent-filter']).toEqual([
+      {
+        action: [{ $: { 'android:name': 'android.intent.action.ASSIST' } }],
+        category: [{ $: { 'android:name': 'android.intent.category.DEFAULT' } }],
+      },
+    ]);
+  });
+
+  test('keeps existing activities and is not added twice', () => {
+    const manifest = bareManifest();
+    manifest.manifest.application[0].activity.push({ $: { 'android:name': '.MainActivity' } });
+
+    addAssistActivity(addAssistActivity(manifest));
+
+    expect(activities(manifest).map((a) => a.$['android:name'])).toEqual([
+      '.MainActivity',
+      '.AssistActivity',
+    ]);
+  });
+
+  test('the activity only forwards to pappu://listen in this app and finishes', () => {
+    const src = assistActivitySource('com.sangeethps.pappu');
+
+    expect(src).toMatch(/^package com\.sangeethps\.pappu\n/);
+    expect(src).toContain('class AssistActivity : Activity()');
+    expect(src).toContain('Uri.parse("pappu://listen")');
+    expect(src).toContain('setPackage(packageName)');
+    expect(src).toContain('finish()');
+  });
+});
+
