@@ -26,6 +26,7 @@ import Button from '../components/ui/Button';
 import BottomSheet from '../components/ui/BottomSheet';
 import MascotDevToggle from '../components/ui/MascotDevToggle';
 import BudgetsSection from '../components/BudgetsSection';
+import QuickAccessSection from '../components/QuickAccessSection';
 import { useReduceMotion } from '../utils/reduceMotion';
 import * as Haptics from 'expo-haptics';
 
@@ -35,6 +36,7 @@ import * as Haptics from 'expo-haptics';
  * - Profile Card (72px avatar with ₹, user name, email)
  * - Budgets Card (this month's spent vs budget per category, edit sheet)
  * - Settings Card (Language switcher, Voice replies switch, Clear chat history row)
+ * - Quick access Card (pappu://listen setup steps per platform, Test it)
  * - Sign Out button (Destructive outline)
  * - Dialogs: "Clear chat history?" (Pappu concerned) and "Sign out?" (Pappu happy/waving)
  *
@@ -338,7 +340,10 @@ function MeScreenInner({
         ) : null}
       </View>
 
-      {/* ── 4. Sign Out Button ── */}
+      {/* ── 4. Quick access (press a button and talk) ── */}
+      <QuickAccessSection />
+
+      {/* ── 5. Sign Out Button ── */}
       <View style={styles.signOutButtonContainer}>
         <Button
           testID="auth-signout-button"
