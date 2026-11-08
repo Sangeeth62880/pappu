@@ -7,7 +7,9 @@ import * as client from '../src/api/client';
 import * as supabaseApi from '../src/api/supabase';
 import * as SecureStore from 'expo-secure-store';
 import { mockAudioRecorder, requestRecordingPermissionsAsync } from 'expo-audio';
+import * as QuickActions from 'expo-quick-actions';
 import {
+  TALK_QUICK_ACTION,
   isListenUrl,
   handleIncomingUrl,
   takeListenRequest,
@@ -19,6 +21,19 @@ import {
 jest.mock('../src/api/client');
 jest.mock('../src/api/supabase');
 jest.mock('expo-secure-store');
+
+let mockInitialQuickAction = null;
+const mockQuickActionListeners = [];
+jest.mock('expo-quick-actions', () => ({
+  get initial() {
+    return mockInitialQuickAction;
+  },
+  setItems: jest.fn(() => Promise.resolve()),
+  addListener: jest.fn((fn) => {
+    mockQuickActionListeners.push(fn);
+    return { remove: jest.fn() };
+  }),
+}));
 
 const session = { access_token: 'mock_jwt_token', user: { email: 'test@pappu.dev' } };
 const summary = {
@@ -80,6 +95,8 @@ describe('pappu://listen deep link', () => {
     jest.spyOn(Date, 'now').mockImplementation(() => clock);
 
     urlListeners = [];
+    mockInitialQuickAction = null;
+    mockQuickActionListeners.length = 0;
     Linking.addEventListener.mockImplementation((type, fn) => {
       urlListeners.push(fn);
       return { remove: () => (urlListeners = urlListeners.filter((f) => f !== fn)) };
@@ -249,5 +266,46 @@ describe('pappu://listen deep link', () => {
     expect(client.transcribeAudio).not.toHaveBeenCalled();
     expectMicIdle(utils);
     expect(utils.getByTestId('mic-open-settings')).toBeTruthy();
+  });
+
+  describe('"Talk to Pappu" icon quick action', () => {
+    const action = { ...TALK_QUICK_ACTION };
+
+    test('is registered with the listen link on start', async () => {
+      await render(<App />);
+      await waitFor(() => expect(QuickActions.setItems).toHaveBeenCalledWith([TALK_QUICK_ACTION]));
+      expect(TALK_QUICK_ACTION.title).toBe('Talk to Pappu');
+      expect(TALK_QUICK_ACTION.params.href).toBe('pappu://listen');
+    });
+
+    test('cold start from the icon opens the assistant and records', async () => {
+      mockInitialQuickAction = action;
+      const utils = await render(<App />);
+
+      expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+      await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
+    });
+
+    test('warm start from the icon opens the assistant and records', async () => {
+      const utils = await render(<App />);
+      expect(await utils.findByTestId('dashboard-view')).toBeTruthy();
+
+      await act(async () => mockQuickActionListeners.forEach((fn) => fn(action)));
+
+      expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+      await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
+    });
+
+    test('an action without the listen link is ignored', async () => {
+      const utils = await render(<App />);
+      expect(await utils.findByTestId('dashboard-view')).toBeTruthy();
+
+      await act(async () =>
+        mockQuickActionListeners.forEach((fn) => fn({ id: 'x', title: 'X', params: { href: '/x' } }))
+      );
+
+      expect(utils.queryByTestId('assistant-modal')).toBeNull();
+      expect(mockAudioRecorder.record).not.toHaveBeenCalled();
+    });
   });
 });

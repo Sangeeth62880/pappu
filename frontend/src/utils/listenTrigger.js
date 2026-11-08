@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import * as QuickActions from 'expo-quick-actions';
 import { isMicBusy } from './micActivity';
 
 /**
@@ -10,6 +11,14 @@ import { isMicBusy } from './micActivity';
  * it: fonts loaded, health check passed, session restored. HomeScreen consumes it.
  */
 export const LISTEN_URL = 'pappu://listen';
+
+// Long-press on the app icon. Android resolves icon as a drawable or mipmap name.
+export const TALK_QUICK_ACTION = {
+  id: 'talk-to-pappu',
+  title: 'Talk to Pappu',
+  icon: Platform.OS === 'ios' ? 'symbol:mic.fill' : 'ic_launcher',
+  params: { href: LISTEN_URL },
+};
 
 // A request waits this long for startup (Render cold start, a health check retry).
 export const LISTEN_REQUEST_MAX_AGE_MS = 2 * 60 * 1000;
@@ -76,12 +85,19 @@ export function useListenRequest() {
 }
 
 /**
- * Listens for pappu://listen: the URL that launched the app (once per process) and
- * every URL that arrives afterwards. Returns a cleanup function.
+ * Listens for pappu://listen: the URL or icon quick action that launched the app (once
+ * per process) and every one that arrives afterwards. Also registers the "Talk to
+ * Pappu" quick action, which carries the same link. Returns a cleanup function.
  */
 export function startListenLinks() {
+  Promise.resolve()
+    .then(() => QuickActions.setItems([TALK_QUICK_ACTION]))
+    .catch(() => {});
+
   if (!initialUrlHandled) {
     initialUrlHandled = true;
+    const initialAction = QuickActions.initial;
+    if (initialAction?.params?.href) handleIncomingUrl(initialAction.params.href);
     Promise.resolve()
       .then(() => Linking.getInitialURL())
       .then((url) => {
@@ -89,8 +105,14 @@ export function startListenLinks() {
       })
       .catch(() => {});
   }
-  const subscription = Linking.addEventListener('url', (event) => handleIncomingUrl(event?.url));
-  return () => subscription?.remove?.();
+  const linkSubscription = Linking.addEventListener('url', (event) => handleIncomingUrl(event?.url));
+  const actionSubscription = QuickActions.addListener((action) =>
+    handleIncomingUrl(action?.params?.href)
+  );
+  return () => {
+    linkSubscription?.remove?.();
+    actionSubscription?.remove?.();
+  };
 }
 
 export function resetListenTriggerForTests() {
