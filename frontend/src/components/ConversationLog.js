@@ -23,6 +23,7 @@ import {
 import { generateUUID } from '../utils/uuid';
 import { playAudioBase64 } from '../utils/audioPlayer';
 import { ttsLanguageCode } from '../utils/ttsLanguage';
+import { voiceRepliesEnabled } from '../utils/voiceReplies';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useReduceMotion } from '../utils/reduceMotion';
 import { queryClient } from '../data/queryClient';
@@ -247,6 +248,16 @@ export default function ConversationLog({
     [token]
   );
 
+  // Automatic playback after a reply; skipped when Me → Voice replies is off.
+  const autoSpeak = useCallback(
+    async (text, language = 'en', messageId = null) => {
+      if (!token || !text) return null;
+      if (!(await voiceRepliesEnabled(token))) return null;
+      return speakResponse(text, language, messageId);
+    },
+    [token, speakResponse]
+  );
+
   // Invalidate queries when changed: true
   const handleDataChanged = useCallback(() => {
     if (queryClient) {
@@ -382,7 +393,7 @@ export default function ConversationLog({
 
         // Play audio if spokenText exists
         if (spokenText) {
-          speakResponse(spokenText, ttsLanguageCode(res), msgId);
+          autoSpeak(spokenText, ttsLanguageCode(res), msgId);
         }
 
         if (res.changed) {
@@ -410,7 +421,7 @@ export default function ConversationLog({
         setLoading(false);
       }
     },
-    [loading, token, reduceMotion, speakResponse, handleDataChanged, setMessages, inputText]
+    [loading, token, reduceMotion, autoSpeak, handleDataChanged, setMessages, inputText]
   );
 
   // Answering pending confirmations / disambiguations directly
@@ -464,7 +475,7 @@ export default function ConversationLog({
         }
 
         if (spokenText) {
-          speakResponse(spokenText, ttsLanguageCode(res), msgId);
+          autoSpeak(spokenText, ttsLanguageCode(res), msgId);
         }
 
         if (res.changed) {
@@ -487,7 +498,7 @@ export default function ConversationLog({
         setLoading(false);
       }
     },
-    [token, speakResponse, handleDataChanged, setMessages]
+    [token, autoSpeak, handleDataChanged, setMessages]
   );
 
   // Retry sending last failed message using same client_msg_id

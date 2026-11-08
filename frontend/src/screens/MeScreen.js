@@ -170,7 +170,9 @@ function MeScreenInner({
   // ── Preferences Mutation ──
   const prefsMutation = useMutation({
     mutationFn: (updates) => patchProfile(token, updates),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // The assistant reads voice_replies from this cache before speaking, so update it now.
+      if (updated) queryClient.setQueryData(queryKeys.profile(), updated);
       queryClient.invalidateQueries({ queryKey: queryKeys.profile() });
     },
   });

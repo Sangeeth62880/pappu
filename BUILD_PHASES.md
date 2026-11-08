@@ -4,7 +4,7 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 
 ## Status (verified 2026-11-08 against code and tests, not earlier claims)
 
-Current suites: **621 pytest passed** (`backend/tests`), **271 Jest passed in 33 suites** (`frontend/tests`). Test counts written inside the phase sections below are historical.
+Current suites: **621 pytest passed** (`backend/tests`), **279 Jest passed in 34 suites** (`frontend/tests`). Test counts written inside the phase sections below are historical.
 
 | Phase | Status | Evidence | Open |
 |---|---|---|---|
@@ -16,7 +16,7 @@ Current suites: **621 pytest passed** (`backend/tests`), **271 Jest passed in 33
 | 5 Dashboard UI | Done (automated tests) | `dashboard.test.js`, `conversation.test.js`, `home_screen.test.js` | Manual demo QA run has no record in the repo |
 | 5.5 People | Done | `test_people.py`, `people_screen.test.js` | |
 | 6 STT | Built and unit tested, **not accepted** | `app/stt/`, `test_stt.py`, `mic_button.test.js`, `voice_*.test.js` | Manual phone spot check: `VOICE_TEST_CHECKLIST.md` §3, §4 |
-| 7 TTS | Built and unit tested, **not accepted** | `app/tts/`, `test_tts.py`, `test_reply_language.py`, `tts_language.test.js`, `audio_player.test.js` | Manual spoken check: checklist §3, §4, §7. Me screen "Voice replies" toggle is saved but never read by playback code |
+| 7 TTS | Built and unit tested, **not accepted** | `app/tts/`, `test_tts.py`, `test_reply_language.py`, `tts_language.test.js`, `audio_player.test.js` | Manual spoken check: checklist §3, §4, §7 |
 | 8 End to end voice | **In progress** | Voice hardening (0a8967a, 434eead, b699a0c, 0b99bae, 31c9a54), retry idempotency (220de03) | No end to end voice script exists; acceptance is the manual run of `VOICE_TEST_CHECKLIST.md` |
 | 9 Intelligence + polish | **In progress** | Category breakdown, highest category, period compare (`test_period_analytics.py`, `test_query_shapes.py`); budgets and budget alerts (`test_budgets.py`, `budgets_section.test.js`); UI polish via Phase 13 | Savings estimation not implemented; final spec drift review not done; Phase 8 regression pass blocked on Phase 8 |
 | 10 Light design system | Done, theme later replaced by Phase 13 | `test_period_analytics.py`, `primitives.test.js` | |

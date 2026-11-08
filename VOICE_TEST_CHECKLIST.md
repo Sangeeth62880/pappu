@@ -81,7 +81,7 @@ Check the reply text, that it is **spoken in English**, and the Home dashboard.
 |---|---|---|---|
 | 7.1 | Say a command, and switch on airplane mode the moment the reply **text** appears (before audio starts). | Reply text stays visible, no crash, state returns to idle. Next command (online) speaks normally. | |
 | 7.2 | Send two commands back to back. | Only one voice plays at a time; the first stops when the second starts. | |
-| 7.3 | Me → **Voice replies** off, then send a voice command. | **Known gap:** the toggle is saved (`PATCH /profile`) but no playback code reads `voice_replies`, so Pappu still speaks. Record what happens. | |
+| 7.3 | Me → **Voice replies** off, then send a voice command (assistant screen and the header mic sheet). | Reply text shows, **nothing is spoken**. Tapping the speaker icon on that reply still plays it. Turn the toggle back on: the next reply is spoken. | |
 | 7.4 | Phone on silent / Do Not Disturb. | Record whether replies are audible; no crash either way. | |
 
 ## 8. Add, edit, delete, undo by voice

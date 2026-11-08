@@ -23,6 +23,7 @@ import {
 import { generateUUID } from '../../utils/uuid';
 import { playAudioBase64 } from '../../utils/audioPlayer';
 import { ttsLanguageCode } from '../../utils/ttsLanguage';
+import { voiceRepliesEnabled } from '../../utils/voiceReplies';
 
 function formatTime(date = new Date()) {
   try {
@@ -65,8 +66,10 @@ export default function VoiceListeningSheet({
     }
   }, [visible]);
 
+  // Every call here is automatic playback after a reply; Me → Voice replies off skips it.
   const speak = async (text, lang = 'en') => {
     if (!token || !text) return;
+    if (!(await voiceRepliesEnabled(token))) return;
     try {
       const targetLang = ttsLanguageCode(lang);
       const res = await synthesizeSpeech(token, text, targetLang);

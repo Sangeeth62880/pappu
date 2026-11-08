@@ -418,6 +418,7 @@ Supported server moods: `happy`, `worried`, `excited`, `confused`, `neutral`, `c
   - `GET /summary/people/{id}`: Contact transaction history and net balance ledger.
 - **Profile & Preferences**:
   - `GET /profile`: Get user profile, preferred language (`en` | `ml`), and preferences (`voice_replies`, `haptic_feedback`, `sound_effects`).
+    - `voice_replies: false` stops replies from being spoken automatically (assistant screen and voice sheet, via `frontend/src/utils/voiceReplies.js`); the speaker button on a message still plays it. Unknown or failed lookups speak (default true).
   - `PATCH /profile`: Update preferences or preferred language.
 - **Budgets**:
   - `GET /budgets`: This month's spent vs budget per category budget.
