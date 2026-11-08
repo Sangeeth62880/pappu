@@ -188,7 +188,7 @@ Action operations include:
 Decisions (made 2026-11-08, do not re-litigate):
 * Budgets are monthly and per category. One row per (user, category) in `category_budgets`; the same amount applies to every IST calendar month.
 * Budgetable categories: Food, Transport, Shopping, Bills, Entertainment, Other. Salary (income) and People (person transfers, excluded from spending) cannot have a budget. An unknown or non budgetable category gets one reply listing the valid ones; no category is ever created.
-* Spent = the System-Wide Spending Definition (§7): expense transactions with no contact, in that category, dated inside the current IST month.
+* Spent = the System-Wide Spending Definition (§7), applied with `is_spending_txn` from `app/services/spending.py` (the same check the summary uses): expense transactions with no contact, in that category, dated inside the current IST month.
 * Planner ops: `{"op": "set_budget", "category", "amount"}` sets or replaces a budget; `{"op": "query", "query_kind": "budget", "selector": {"category"?}}` reports spent vs budget (no category = every budget). The LLM only plans; `app/services/budgets.py` and `app/assistant/executors/budget.py` do the work.
 * `set_budget` is an upsert that executes without a confirmation step: it never touches a transaction (so §6 edit/delete confirmation does not apply), and the reply states the old and new amount when it replaces one. It has no undo entry; saying it again replaces the amount.
 * State: `ok` below 80%, `near` from 80% to 100% inclusive, `over` above 100%.
@@ -307,6 +307,7 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 | GET | `/summary/people/{contact_id}` | Full transaction history with that contact plus net balance and contact details |
 | GET | `/budgets` | This month's `{category, budget, spent, remaining, over_by, percent, state, month}` for every budget the user set, plus the budgetable `categories` |
 | PUT | `/budgets/{category}` | Body `{amount}` (> 0). Creates or replaces that category's monthly budget; 422 for categories that cannot have one |
+| DELETE | `/budgets/{category}` | Removes that category's budget (204). 404 when the verified user has no budget there (another user's budget is never reachable); 422 for categories that cannot have one |
 
 ### GET `/summary` Query & Response Contract
 
@@ -423,6 +424,7 @@ Supported server moods: `happy`, `worried`, `excited`, `confused`, `neutral`, `c
 - **Budgets**:
   - `GET /budgets`: This month's spent vs budget per category budget.
   - `PUT /budgets/{category}`: Create or replace a category's monthly budget (`{amount}`).
+  - `DELETE /budgets/{category}`: Remove a category's monthly budget.
 - **Analytics & Summary**:
   - `GET /summary?period=week|month|year`: Period totals (`total_spent`, `total_income`, `net`), daily buckets, category breakdown, and previous period delta.
 - **Assistant & Pending Actions**:

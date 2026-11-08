@@ -9,7 +9,7 @@ Per-category monthly budgets (Phase 9).
 """
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -294,9 +294,89 @@ def test_put_rejects_non_positive_amounts(db, amount):
     assert res.status_code == 422
 
 
+def _freeze_budget_clock(monkeypatch, utc_instant):
+    """Pins the budgets service clock to the IST time of a UTC instant."""
+    ist_now = utc_instant.astimezone(IST)
+    monkeypatch.setattr("app.services.budgets.get_current_ist_datetime", lambda: ist_now)
+
+
+def _month_edge_txns(db, user_id):
+    _txn(db, user_id, "Food", 900, txn_date=date(2026, 10, 31))
+    _txn(db, user_id, "Food", 200, txn_date=date(2026, 11, 1))
+    _txn(db, user_id, "Food", 300, txn_date=date(2026, 11, 30))
+    _txn(db, user_id, "Food", 700, txn_date=date(2026, 12, 1))
+
+
+def test_last_ist_day_of_the_month_counts_the_whole_month(db, monkeypatch):
+    _freeze_budget_clock(monkeypatch, datetime(2026, 11, 30, 18, 20, tzinfo=timezone.utc))  # 30 Nov 23:50 IST
+    user_id = _user(db)
+    _month_edge_txns(db, user_id)
+    client.put("/budgets/Food", json={"amount": 5000}, headers=_auth(user_id))
+    body = client.get("/budgets", headers=_auth(user_id)).json()
+    assert body["month"] == "2026-11"
+    assert body["budgets"][0]["spent"] == 500
+
+
+def test_first_ist_day_of_the_next_month_starts_a_new_month(db, monkeypatch):
+    # 1 Dec 00:10 IST is still 30 Nov in UTC; the budget month follows IST.
+    _freeze_budget_clock(monkeypatch, datetime(2026, 11, 30, 18, 40, tzinfo=timezone.utc))
+    user_id = _user(db)
+    _month_edge_txns(db, user_id)
+    client.put("/budgets/Food", json={"amount": 5000}, headers=_auth(user_id))
+    body = client.get("/budgets", headers=_auth(user_id)).json()
+    assert body["month"] == "2026-12"
+    assert body["budgets"][0]["month"] == "2026-12"
+    assert body["budgets"][0]["spent"] == 700
+
+
+def test_budget_with_zero_spend(db):
+    user_id = _user(db)
+    client.put("/budgets/Entertainment", json={"amount": 1500}, headers=_auth(user_id))
+    item = client.get("/budgets", headers=_auth(user_id)).json()["budgets"][0]
+    assert item == {
+        "category": "Entertainment", "budget": 1500, "spent": 0, "remaining": 1500, "over_by": 0,
+        "percent": 0, "state": "ok", "month": "2026-11", "previous_budget": None,
+    }
+
+
+def test_budget_over_its_amount(db):
+    user_id = _user(db)
+    _txn(db, user_id, "Shopping", 2600)
+    client.put("/budgets/Shopping", json={"amount": 2000}, headers=_auth(user_id))
+    item = client.get("/budgets", headers=_auth(user_id)).json()["budgets"][0]
+    assert item["spent"] == 2600
+    assert item["remaining"] == 0
+    assert item["over_by"] == 600
+    assert item["percent"] == 130
+    assert item["state"] == "over"
+
+
+def test_delete_removes_only_that_budget(db):
+    user_id = _user(db)
+    client.put("/budgets/Food", json={"amount": 5000}, headers=_auth(user_id))
+    client.put("/budgets/Bills", json={"amount": 2000}, headers=_auth(user_id))
+    res = client.delete("/budgets/food", headers=_auth(user_id))
+    assert res.status_code == 204
+    assert [b["category"] for b in client.get("/budgets", headers=_auth(user_id)).json()["budgets"]] == ["Bills"]
+    assert client.delete("/budgets/Food", headers=_auth(user_id)).status_code == 404
+
+
+def test_delete_cannot_touch_another_users_budget(db):
+    owner, other = _user(db), _user(db)
+    client.put("/budgets/Food", json={"amount": 5000}, headers=_auth(owner))
+    assert client.delete("/budgets/Food", headers=_auth(other)).status_code == 404
+    assert client.get("/budgets", headers=_auth(owner)).json()["budgets"][0]["budget"] == 5000
+
+
+@pytest.mark.parametrize("category", ["Salary", "People", "Travel"])
+def test_delete_rejects_categories_that_cannot_have_a_budget(db, category):
+    assert client.delete(f"/budgets/{category}", headers=_auth(_user(db))).status_code == 422
+
+
 def test_budget_endpoints_require_a_valid_token(db):
     assert client.get("/budgets").status_code == 401
     assert client.put("/budgets/Food", json={"amount": 100}).status_code == 401
+    assert client.delete("/budgets/Food").status_code == 401
 
 
 def test_budgets_are_isolated_between_users(db):

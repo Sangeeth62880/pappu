@@ -7,9 +7,10 @@ produces set_budget / query budget actions that the executors pass in here.
 Rules:
 - Budgets exist for the fixed expense categories in BUDGET_CATEGORIES. Salary (income)
   and People (person transfers, excluded from spending) cannot have a budget.
-- One budget per (user, category). Setting it again replaces the amount (upsert).
-- Spent uses the system-wide spending definition (app/services/spending.py): expense
-  transactions with no contact, in the category, inside the current IST calendar month.
+- One budget per (user, category). Setting it again replaces the amount (upsert);
+  delete_budget removes it.
+- Spent uses the system-wide spending definition (is_spending_txn in app/services/spending.py,
+  the same check the summary uses), in the category, inside the current IST calendar month.
 - Every query is scoped by the verified user_id.
 - Alert: an add that moves its category across 80% (ok to near) or 100% (to over) in the
   current IST month gets one alert. Later adds in the same state do not repeat it.
@@ -20,13 +21,13 @@ from datetime import date
 from decimal import Decimal, ROUND_FLOOR
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.budget import CategoryBudget
 from app.models.category import Category
 from app.models.transaction import Transaction
 from app.services.date_utils import get_current_ist_datetime, resolve_period_to_dates
+from app.services.spending import is_spending_txn
 from app.assistant.validation import KNOWN_CATEGORIES, validate_amount
 
 BUDGET_CATEGORIES: Tuple[str, ...] = ("Food", "Transport", "Shopping", "Bills", "Entertainment", "Other")
@@ -85,20 +86,23 @@ def _spent_by_category(
     end: date,
     category_ids: Optional[List[int]] = None,
 ) -> Dict[int, Decimal]:
+    """This user's spending per category between start and end, using is_spending_txn."""
     query = (
-        db.query(Transaction.category_id, func.sum(Transaction.amount))
+        db.query(Transaction)
+        .options(joinedload(Transaction.category))
         .filter(
             Transaction.user_id == user_id,
-            Transaction.type == "expense",
-            Transaction.contact_id.is_(None),
             Transaction.txn_date >= start,
             Transaction.txn_date <= end,
         )
     )
     if category_ids is not None:
         query = query.filter(Transaction.category_id.in_(category_ids))
-    rows = query.group_by(Transaction.category_id).all()
-    return {cat_id: Decimal(str(total or 0)) for cat_id, total in rows}
+    totals: Dict[int, Decimal] = {}
+    for txn in query.all():
+        if is_spending_txn(txn, allow_people=False):
+            totals[txn.category_id] = totals.get(txn.category_id, Decimal("0.00")) + Decimal(str(txn.amount))
+    return totals
 
 
 def _category_row(db: Session, canonical: str) -> Category:
@@ -231,3 +235,18 @@ def set_budget(
     item = status_item(canonical, value, spent, start)
     item["previous_budget"] = float(previous) if previous is not None else None
     return item
+
+
+def delete_budget(db: Session, user_id: uuid.UUID, category: Optional[str]) -> bool:
+    """Removes the user's budget for category and commits. False when the user has none."""
+    canonical = budget_category_name(category)
+    if not canonical:
+        raise BudgetCategoryError(f"No budget category for {category!r}")
+    cat = _category_row(db, canonical)
+    deleted = (
+        db.query(CategoryBudget)
+        .filter(CategoryBudget.user_id == user_id, CategoryBudget.category_id == cat.id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return deleted > 0

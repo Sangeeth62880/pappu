@@ -3,6 +3,7 @@ Budgets API (PROJECT_SPEC.md §8).
 
 - GET /budgets: this month's spent vs budget for every budget the user has set.
 - PUT /budgets/{category}: create or replace the monthly budget for one category.
+- DELETE /budgets/{category}: remove it (404 when the verified user has no budget there).
 
 user_id always comes from the verified JWT, never from the request.
 """
@@ -11,7 +12,7 @@ import uuid
 from decimal import Decimal
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -59,6 +60,14 @@ def get_budgets(
     return BudgetListResponse(**budget_service.list_budgets(db, user_id))
 
 
+def _require_budget_category(category: str) -> None:
+    if not budget_service.budget_category_name(category):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Budgets can be set for: {', '.join(budget_service.BUDGET_CATEGORIES)}",
+        )
+
+
 @router.put("/{category}", response_model=BudgetItem)
 def put_budget(
     category: str,
@@ -66,11 +75,7 @@ def put_budget(
     db: Session = Depends(get_db),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> BudgetItem:
-    if not budget_service.budget_category_name(category):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Budgets can be set for: {', '.join(budget_service.BUDGET_CATEGORIES)}",
-        )
+    _require_budget_category(category)
     _ensure_profile(db, user_id)
     try:
         item = budget_service.set_budget(db, user_id, category, body.amount)
@@ -78,3 +83,15 @@ def put_budget(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     return BudgetItem(**item)
+
+
+@router.delete("/{category}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_budget(
+    category: str,
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> Response:
+    _require_budget_category(category)
+    if not budget_service.delete_budget(db, user_id, category):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Budget not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
