@@ -370,6 +370,25 @@ export async function fetchProfile(token) {
 }
 
 /**
+ * GET /budgets - This month's spent vs budget per category budget.
+ * Returns { month, budgets: [{ category, budget, spent, remaining, over_by, percent, state }], categories }.
+ */
+export async function fetchBudgets(token) {
+  return request('/budgets', { method: 'GET', token });
+}
+
+/**
+ * PUT /budgets/{category} - Creates or replaces a category's monthly budget.
+ */
+export async function setBudget(token, category, amount) {
+  return request(`/budgets/${encodeURIComponent(category)}`, {
+    method: 'PUT',
+    token,
+    body: { amount },
+  });
+}
+
+/**
  * PATCH /profile - Updates user preferences (language, voice_replies).
  */
 export async function patchProfile(token, { language, voice_replies } = {}) {

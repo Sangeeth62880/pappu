@@ -8,6 +8,7 @@
  * 2. people: ['people'] (contacts list and balances)
  * 3. transactions: ['transactions'] (all filter combinations)
  * 4. affected contact: ['contact', contactId] (if a contact was involved)
+ * 5. budgets: ['budgets'] (spent this month changes with every transaction)
  *
  * Whenever profile preferences change (language, voice replies):
  * - profile: ['profile'] MUST be invalidated.
@@ -34,6 +35,9 @@ export const queryKeys = {
 
   // Chat message history
   chatHistory: () => ['chatHistory'],
+
+  // Category budgets (this month's spent vs budget)
+  budgets: () => ['budgets'],
 };
 
 /**
@@ -48,6 +52,7 @@ export async function invalidateOnTransactionChange(queryClient, { contactId } =
     queryClient.invalidateQueries({ queryKey: queryKeys.allSummary }),
     queryClient.invalidateQueries({ queryKey: queryKeys.people() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.allTransactions }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() }),
   ];
 
   if (contactId) {

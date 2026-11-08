@@ -158,6 +158,7 @@ function MainTabNavigator({
                 {...props}
                 token={token}
                 userEmail={userEmail}
+                refreshTrigger={refreshTrigger}
                 onClearChatHistory={handleClearChatHistory}
                 onSignOut={handleSignOut}
               />
