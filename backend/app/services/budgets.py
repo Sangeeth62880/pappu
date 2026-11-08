@@ -12,8 +12,9 @@ Rules:
 - Spent uses the system-wide spending definition (is_spending_txn in app/services/spending.py,
   the same check the summary uses), in the category, inside the current IST calendar month.
 - Every query is scoped by the verified user_id.
-- Alert: an add that moves its category across 80% (ok to near) or 100% (to over) in the
-  current IST month gets one alert. Later adds in the same state do not repeat it.
+- Alert: an add, or an edit that raises spending, that moves its category across 80%
+  (ok to near) or 100% (to over) in the current IST month gets one alert. Later changes in
+  the same state do not repeat it. Deletes and undo only lower or restore, so never alert.
 """
 
 import uuid
@@ -32,7 +33,7 @@ from app.assistant.validation import KNOWN_CATEGORIES, validate_amount
 
 BUDGET_CATEGORIES: Tuple[str, ...] = ("Food", "Transport", "Shopping", "Bills", "Entertainment", "Other")
 
-# A budget is "near" from 80% of the amount up to 100%, and "over" above 100%.
+# A budget is "near" from 80% of the amount, and "over" from 100% (all of it used).
 NEAR_PERCENT = Decimal("80")
 FULL_PERCENT = Decimal("100")
 
@@ -57,7 +58,7 @@ def month_bounds(ref_date: Optional[Union[date, str]] = None) -> Tuple[date, dat
 
 
 def _ratio_state(spent: Decimal, budget: Decimal) -> str:
-    if spent * 100 > budget * FULL_PERCENT:
+    if spent * 100 >= budget * FULL_PERCENT:
         return "over"
     if spent * 100 >= budget * NEAR_PERCENT:
         return "near"
@@ -181,13 +182,48 @@ _STATE_ORDER = {"ok": 0, "near": 1, "over": 2}
 
 
 def alert_for_add(db: Session, user_id: uuid.UUID, txn: Transaction) -> Optional[Dict[str, Any]]:
+    """Alert for a committed add (see _alert_for_change); the txn counted nothing before."""
+    return _alert_for_change(db, user_id, txn, Decimal("0.00"))
+
+
+def alert_for_edit(
+    db: Session,
+    user_id: uuid.UUID,
+    txn: Transaction,
+    previous_state: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """
+    Alert for a committed edit. previous_state is the edit executor's undo snapshot; the
+    txn counted its old amount before only if it was spending in the same category this month.
+    """
+    try:
+        start, end = month_bounds()
+        prev_date = date.fromisoformat(str(previous_state.get("txn_date")))
+        counted_before = (
+            previous_state.get("category_id") == txn.category_id
+            and start <= prev_date <= end
+            and is_spending_txn(previous_state, allow_people=False)
+        )
+        before = Decimal(str(previous_state.get("amount"))) if counted_before else Decimal("0.00")
+    except Exception:
+        return None
+    return _alert_for_change(db, user_id, txn, before)
+
+
+def _alert_for_change(
+    db: Session,
+    user_id: uuid.UUID,
+    txn: Transaction,
+    counted_before: Decimal,
+) -> Optional[Dict[str, Any]]:
     """
     Status item plus "alert" ('near' | 'over') when the committed txn moved its category's
     spending this month across a threshold; None otherwise (including no budget, not
-    spending, another month, or any error, so an alert can never fail the add).
+    spending, another month, or any error, so an alert can never fail the change).
+    counted_before is what this txn added to the same category this month before the change.
     """
     try:
-        if txn.type != "expense" or txn.contact_id is not None:
+        if not is_spending_txn(txn, allow_people=False):
             return None
         start, end = month_bounds()
         if not (start <= txn.txn_date <= end):
@@ -203,7 +239,7 @@ def alert_for_add(db: Session, user_id: uuid.UUID, txn: Transaction) -> Optional
         budget_row, name = row
         budget = Decimal(str(budget_row.amount))
         spent_after = _spent_by_category(db, user_id, start, end, [txn.category_id]).get(txn.category_id, Decimal("0.00"))
-        spent_before = spent_after - Decimal(str(txn.amount))
+        spent_before = spent_after - Decimal(str(txn.amount)) + counted_before
         before, after = _ratio_state(spent_before, budget), _ratio_state(spent_after, budget)
         if after == "ok" or _STATE_ORDER[after] <= _STATE_ORDER[before]:
             return None

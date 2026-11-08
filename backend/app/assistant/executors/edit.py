@@ -21,6 +21,8 @@ from app.assistant.validation import (
     resolve_category,
 )
 from app.assistant.executors.base import ActionResult, serialize_transaction
+# Module import: app.services.budgets imports app.assistant.validation (see executors/budget.py).
+from app.services import budgets as budget_service
 
 
 def execute_edit(
@@ -132,6 +134,9 @@ def execute_edit(
 
         txn_data = serialize_transaction(txn)
         txn_data["previous"] = previous_state
+        budget_alert = budget_service.alert_for_edit(db, user_id, txn, previous_state)
+        if budget_alert:
+            txn_data["budget_alert"] = budget_alert
 
         return ActionResult(
             ok=True,

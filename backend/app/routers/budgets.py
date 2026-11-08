@@ -31,7 +31,7 @@ class BudgetItem(BaseModel):
     remaining: float
     over_by: float
     percent: int
-    state: str  # 'ok' | 'near' (80% to 100%) | 'over' (above 100%)
+    state: str  # 'ok' | 'near' (from 80%) | 'over' (from 100%)
     month: str
     previous_budget: Optional[float] = None
 

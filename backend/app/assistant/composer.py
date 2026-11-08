@@ -296,8 +296,8 @@ TEMPLATES: Dict[str, Dict[str, str]] = {
         "ml": "ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ {cat} ബജറ്റ് {budget}, അതിന്റെ {pct} ശതമാനം ചെലവായി.",
     },
     "budget.alert_over": {
-        "en": "Heads up: {cat} is over budget this month, {spent} of {budget}.",
-        "ml": "ശ്രദ്ധിക്കൂ: ഈ മാസം {cat} ബജറ്റ് {budget} കടന്നു, ആകെ {spent} ചെലവായി.",
+        "en": "Heads up: your {cat} budget of {budget} is used up this month, {spent} spent.",
+        "ml": "ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ {cat} ബജറ്റ് {budget} തീർന്നു, ആകെ {spent} ചെലവായി.",
     },
     "budget.missing_category": {
         "en": "Which category is the budget for?",
@@ -921,13 +921,33 @@ def _compose_set_budget(res: Dict[str, Any], lang: str) -> str:
     return render("budget.set", lang, cat=cat, amt=amt)
 
 
-def budget_alert_lines(results: Optional[List[Dict[str, Any]]], lang: str) -> List[str]:
-    """One alert line per successful add that crossed a budget threshold (see services/budgets.py)."""
-    lines = []
+def _budget_alerts(results: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """
+    Budget alerts on successful adds and edits (see services/budgets.py), one per category:
+    when one plan crosses 80% and then 100%, only the 100% alert is kept.
+    """
+    by_category: Dict[str, Dict[str, Any]] = {}
     for r in results or []:
-        alert = (r.get("data") or {}).get("budget_alert") if r.get("ok") and r.get("action") == "add" else None
+        if not r.get("ok") or r.get("action") not in ("add", "edit"):
+            continue
+        alert = (r.get("data") or {}).get("budget_alert")
         if not alert:
             continue
+        category = alert.get("category")
+        if category not in by_category or alert.get("alert") == "over":
+            by_category[category] = alert
+    return list(by_category.values())
+
+
+def budget_alert_mood(results: Optional[List[Dict[str, Any]]]) -> Optional[str]:
+    """'concerned' when results crossed 100% of a budget, else None (80% keeps the usual mood)."""
+    return "concerned" if any(a.get("alert") == "over" for a in _budget_alerts(results)) else None
+
+
+def budget_alert_lines(results: Optional[List[Dict[str, Any]]], lang: str) -> List[str]:
+    """One alert line per category whose budget threshold the results crossed."""
+    lines = []
+    for alert in _budget_alerts(results):
         values = {"cat": localize_category(alert.get("category"), lang), "budget": format_inr(alert.get("budget"))}
         if alert.get("alert") == "over":
             lines.append(render("budget.alert_over", lang, spent=format_inr(alert.get("spent")), **values))
@@ -1238,8 +1258,8 @@ def derive_mood(
             if r.get("status") in ("needs_confirmation", "contact_confirm") or r.get("needs_confirmation"):
                 return "concerned"
 
-    # A budget alert on an add -> concerned
-    if budget_alert_lines(results, "en"):
+    # Crossing 100% of a budget -> concerned (crossing 80% keeps the usual add mood)
+    if budget_alert_mood(results):
         return "concerned"
 
     # 3. Income added -> excited

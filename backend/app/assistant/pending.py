@@ -43,6 +43,7 @@ from app.assistant.composer import (
     _compose_single_delete,
     _compose_single_edit,
     budget_alert_lines,
+    budget_alert_mood,
 )
 
 DEFAULT_EXPIRY_SECONDS = 300  # 5 minutes
@@ -77,6 +78,7 @@ def _response(
         results=results or [],
         pending=pending,
         changed=changed,
+        mood=budget_alert_mood(results) or "neutral",
     )
 
 
@@ -537,7 +539,9 @@ def handle_answer_pending(
                 else:
                     reply = render("pending.updated_undo", lang)
 
-                return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
+                dumped = [r.model_dump() for r in results]
+                reply = " ".join([reply, *budget_alert_lines(dumped, lang)])
+                return _response(lang, reply, results=dumped, changed=True)
 
             elif op_type == "add":
                 add_op = AddAction.model_validate(op_data)
@@ -670,8 +674,9 @@ def handle_answer_pending(
             if failed:
                 return failed
 
-            reply = render("pending.updated", lang)
-            return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
+            dumped = [r.model_dump() for r in results]
+            reply = " ".join([render("pending.updated", lang), *budget_alert_lines(dumped, lang)])
+            return _response(lang, reply, results=dumped, changed=True)
 
     # Fallback for unrecognized answer
     summary = format_pending_summary(item)

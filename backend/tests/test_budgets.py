@@ -32,7 +32,9 @@ from app.models.transaction import Transaction
 from app.assistant.context import AssistantContext
 from app.assistant.planner import AssistantPlanner
 from app.assistant.sanitizer import sanitize_plan
-from app.assistant.schemas import AddAction, Plan, QueryAction, Selector, SetBudgetAction
+from app.assistant.schemas import (
+    AddAction, DeleteAction, EditAction, Plan, QueryAction, Selector, SetBudgetAction, UndoActionOp,
+)
 from app.services import budgets as budget_service
 from app.services.date_utils import IST
 from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
@@ -445,7 +447,8 @@ def test_budgets_are_isolated_between_users(db):
 @pytest.mark.parametrize("spent,state,percent", [
     (3999, "ok", 79),
     (4000, "near", 80),
-    (5000, "near", 100),
+    (4999, "near", 99),
+    (5000, "over", 100),
     (5001, "over", 100),
 ])
 def test_budget_state_thresholds(db, spent, state, percent):
@@ -674,7 +677,7 @@ def test_add_crossing_80_percent_appends_a_near_alert(db):
     data = _send(user_id, "spent 200 on lunch", _add_plan(200)).json()
     assert data["reply_text"] == "Added ₹200 to Food. Heads up: Food is at 82% of its ₹5,000 budget this month."
     assert data["spoken_text"] == data["reply_text"]
-    assert data["mood"] == "concerned"
+    assert data["mood"] == "happy"  # only the 100% crossing makes Pappu concerned
     assert data["results"][0]["data"]["budget_alert"]["alert"] == "near"
 
 
@@ -690,21 +693,38 @@ def test_add_crossing_100_percent_appends_an_over_alert(db):
     user_id = _user(db)
     _food_budget(db, user_id, spent=4200)
     data = _send(user_id, "spent 900 on dinner", _add_plan(900)).json()
-    assert data["reply_text"] == "Added ₹900 to Food. Heads up: Food is over budget this month, ₹5,100 of ₹5,000."
+    assert data["reply_text"] == (
+        "Added ₹900 to Food. Heads up: your Food budget of ₹5,000 is used up this month, ₹5,100 spent."
+    )
+    assert data["spoken_text"] == data["reply_text"]
+    assert data["mood"] == "concerned"
 
 
 def test_add_jumping_past_both_thresholds_gives_one_over_alert(db):
     user_id = _user(db)
     _food_budget(db, user_id, spent=1000)
     data = _send(user_id, "spent 4500 on a party", _add_plan(4500)).json()
-    assert data["reply_text"] == "Added ₹4,500 to Food. Heads up: Food is over budget this month, ₹5,500 of ₹5,000."
+    assert data["reply_text"] == (
+        "Added ₹4,500 to Food. Heads up: your Food budget of ₹5,000 is used up this month, ₹5,500 spent."
+    )
 
 
-def test_add_exactly_at_100_percent_is_near_not_over(db):
+def test_add_reaching_exactly_100_percent_is_the_100_crossing(db):
     user_id = _user(db)
-    _food_budget(db, user_id, spent=3000)
-    data = _send(user_id, "spent 2000 on food", _add_plan(2000)).json()
-    assert data["reply_text"] == "Added ₹2,000 to Food. Heads up: Food is at 100% of its ₹5,000 budget this month."
+    _food_budget(db, user_id, spent=4500)
+    data = _send(user_id, "spent 500 on food", _add_plan(500)).json()
+    assert data["reply_text"] == (
+        "Added ₹500 to Food. Heads up: your Food budget of ₹5,000 is used up this month, ₹5,000 spent."
+    )
+    assert data["mood"] == "concerned"
+
+
+def test_add_while_already_over_does_not_repeat_the_alert(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=5200)
+    data = _send(user_id, "spent 100 on tea", _add_plan(100)).json()
+    assert data["reply_text"] == "Added ₹100 to Food."
+    assert data["mood"] == "happy"
 
 
 @pytest.mark.parametrize("plan", [
@@ -746,9 +766,13 @@ def test_over_alert_in_malayalam(db):
     user_id = _user(db, "ml")
     _food_budget(db, user_id, spent=4200)
     data = _send(user_id, "അത്താഴത്തിന് 900 രൂപ", _add_plan(900, language="ml")).json()
-    assert data["spoken_text"] == (
-        "ഭക്ഷണം വിഭാഗത്തിൽ 900 രൂപ ചേർത്തു. ശ്രദ്ധിക്കൂ: ഈ മാസം ഭക്ഷണം ബജറ്റ് 5000 രൂപ കടന്നു, ആകെ 5100 രൂപ ചെലവായി."
+    assert data["reply_text"] == (
+        "ഭക്ഷണം വിഭാഗത്തിൽ ₹900 ചേർത്തു. ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ ഭക്ഷണം ബജറ്റ് ₹5,000 തീർന്നു, ആകെ ₹5,100 ചെലവായി."
     )
+    assert data["spoken_text"] == (
+        "ഭക്ഷണം വിഭാഗത്തിൽ 900 രൂപ ചേർത്തു. ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ ഭക്ഷണം ബജറ്റ് 5000 രൂപ തീർന്നു, ആകെ 5100 രൂപ ചെലവായി."
+    )
+    assert data["mood"] == "concerned"
 
 
 def test_multi_add_appends_the_alert_after_the_combined_reply(db):
@@ -779,3 +803,138 @@ def test_confirmed_future_date_add_this_month_alerts(db):
     assert res.json()["reply_text"] == (
         "Recorded transaction. Heads up: Food is at 82% of its ₹5,000 budget this month."
     )
+
+
+def test_multi_action_plan_crossing_80_alerts_once(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=3500)
+    plan = Plan(actions=[
+        AddAction(kind="expense", amount=300, category="Food"),   # 76%
+        AddAction(kind="expense", amount=300, category="Food"),   # 82%, crosses 80
+        AddAction(kind="expense", amount=100, category="Food"),   # 84%
+    ], language="en")
+    data = _send(user_id, "300 lunch, 300 dinner and 100 tea", plan).json()
+    assert data["reply_text"].count("Heads up") == 1
+    assert data["reply_text"].endswith("Heads up: Food is at 82% of its ₹5,000 budget this month.")
+    assert data["mood"] == "happy"
+
+
+def test_multi_action_plan_crossing_80_then_100_gives_only_the_100_line(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=3700)
+    plan = Plan(actions=[
+        AddAction(kind="expense", amount=500, category="Food"),    # 84%, crosses 80
+        AddAction(kind="expense", amount=1000, category="Food"),   # 104%, crosses 100
+    ], language="en")
+    data = _send(user_id, "500 lunch and 1000 party", plan).json()
+    assert data["reply_text"] == (
+        "Added ₹500 to Food and Added ₹1,000 to Food. "
+        "Heads up: your Food budget of ₹5,000 is used up this month, ₹5,200 spent."
+    )
+    assert data["mood"] == "concerned"
+
+
+# ==============================================================================
+# 5. Budget alert after an edit, delete or undo
+# ==============================================================================
+
+def _edit_last(amount=None, category=None, language="en"):
+    patch_ = {k: v for k, v in (("amount", amount), ("category", category)) if v is not None}
+    return Plan(actions=[EditAction(selector=Selector(ref="last_touched"), patch=patch_)], language=language)
+
+
+def test_edit_raising_an_expense_across_80_alerts(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=0)
+    _send(user_id, "spent 3000 on food", _add_plan(3000))                      # 60%
+    data = _send(user_id, "make it 4200", _edit_last(amount=4200)).json()      # 84%
+    assert data["reply_text"] == (
+        "Changed Food ₹3,000 on 8 Nov to ₹4,200. Say undo to revert. "
+        "Heads up: Food is at 84% of its ₹5,000 budget this month."
+    )
+    assert data["results"][0]["data"]["budget_alert"]["alert"] == "near"
+    assert data["mood"] == "neutral"  # an edit's usual mood; 80% does not change it
+
+
+def test_edit_raising_an_expense_across_100_alerts_in_malayalam(db):
+    user_id = _user(db, "ml")
+    _food_budget(db, user_id, spent=0)
+    _send(user_id, "ഭക്ഷണത്തിന് 4500", _add_plan(4500, language="ml"))        # 90%
+    data = _send(user_id, "അത് 5200 ആക്കൂ", _edit_last(amount=5200, language="ml")).json()
+    assert data["reply_text"].endswith("ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ ഭക്ഷണം ബജറ്റ് ₹5,000 തീർന്നു, ആകെ ₹5,200 ചെലവായി.")
+    assert data["spoken_text"].endswith("ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ ഭക്ഷണം ബജറ്റ് 5000 രൂപ തീർന്നു, ആകെ 5200 രൂപ ചെലവായി.")
+    assert data["mood"] == "concerned"
+
+
+def test_edit_moving_an_expense_into_a_budgeted_category_alerts(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=3500)                                      # 70%
+    _send(user_id, "auto 800", _add_plan(800, category="Transport"))
+    data = _send(user_id, "that was food", _edit_last(category="Food")).json()  # 86%
+    assert data["reply_text"].endswith("Heads up: Food is at 86% of its ₹5,000 budget this month.")
+
+
+@pytest.mark.parametrize("start,new_amount", [(4200, 3000), (4200, 4300)])
+def test_edit_that_lowers_or_stays_in_the_same_state_does_not_alert(db, start, new_amount):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=0)
+    _send(user_id, "spent on food", _add_plan(start))                          # 84%
+    data = _send(user_id, "change it", _edit_last(amount=new_amount)).json()
+    assert "Heads up" not in data["reply_text"]
+    assert "budget_alert" not in data["results"][0]["data"]
+
+
+def test_confirmed_edit_of_an_older_expense_alerts(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=3000)                                      # 60%
+    old = Transaction(
+        id=uuid.uuid4(), user_id=user_id, category_id=_cat(db, "Food").id, amount=Decimal("700"),
+        type="expense", txn_date=date(2026, 11, 2), created_at=datetime(2026, 11, 2, 9, 0, tzinfo=timezone.utc),
+    )
+    db.add(old)
+    db.commit()
+    plan = Plan(actions=[EditAction(selector=Selector(category="Food", amount=700), patch={"amount": 1200})])
+    first = _send(user_id, "the 700 food was 1200", plan).json()
+    assert first["pending"]["kind"] == "confirm"
+    done = _answer(user_id, first["pending"]["id"], "yes")                    # 84%
+    assert done["reply_text"].endswith("Heads up: Food is at 84% of its ₹5,000 budget this month.")
+    assert done["spoken_text"] == done["reply_text"]
+
+
+def test_delete_below_a_threshold_never_alerts_and_the_next_crossing_alerts_again(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=4200)                                      # 84%
+    over = _send(user_id, "dinner 900", _add_plan(900)).json()                 # 102%
+    assert "is used up" in over["reply_text"]
+
+    first = _send(user_id, "delete that", Plan(actions=[DeleteAction(selector=Selector(ref="last_touched"))])).json()
+    done = _answer(user_id, first["pending"]["id"], "yes")                    # back to 84%
+    assert "Heads up" not in done["reply_text"]
+    assert done["mood"] == "neutral"
+
+    again = _send(user_id, "dinner 900", _add_plan(900)).json()
+    assert again["reply_text"].endswith("Heads up: your Food budget of ₹5,000 is used up this month, ₹5,100 spent.")
+
+
+def test_undo_never_alerts_and_the_next_crossing_alerts_again(db):
+    user_id = _user(db)
+    _food_budget(db, user_id)                                                  # 3900, 78%
+    crossed = _send(user_id, "lunch 200", _add_plan(200)).json()               # 82%
+    assert "Heads up" in crossed["reply_text"]
+
+    undone = _send(user_id, "undo", Plan(actions=[UndoActionOp()])).json()     # back to 78%
+    assert undone["reply_text"] == "Undone last action."
+
+    again = _send(user_id, "lunch 200", _add_plan(200)).json()
+    assert again["reply_text"].endswith("Heads up: Food is at 82% of its ₹5,000 budget this month.")
+
+
+def test_undo_restoring_a_deleted_expense_over_a_threshold_does_not_alert(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=3900)
+    _send(user_id, "lunch 1200", _add_plan(1200))                              # 102%
+    first = _send(user_id, "delete that", Plan(actions=[DeleteAction(selector=Selector(ref="last_touched"))])).json()
+    _answer(user_id, first["pending"]["id"], "yes")                           # 78%
+    undone = _send(user_id, "undo", Plan(actions=[UndoActionOp()])).json()     # 102% again
+    assert undone["reply_text"] == "Undone last action."
+    assert undone["mood"] == "neutral"
