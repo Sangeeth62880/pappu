@@ -43,7 +43,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFF8E7"
         }
-      ]
+      ],
+      "./plugins/withListenEntryPoints"
     ],
     "extra": {
       "eas": {
