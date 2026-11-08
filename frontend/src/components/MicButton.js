@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,42 +12,16 @@ import {
 } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import {
-  useAudioRecorder,
-  RecordingPresets,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-} from 'expo-audio';
-import { transcribeAudio } from '../api/client';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useReduceMotion } from '../utils/reduceMotion';
-import { setMicBusy } from '../utils/micActivity';
-import { playListenCue } from '../utils/audioPlayer';
+import { useVoiceRecorder } from '../utils/useVoiceRecorder';
 
-let nextMicId = 1;
-
-// Metering feeds the silence detection of hands-free recordings; taps ignore it.
-const RECORDING_OPTIONS = { ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true };
-
-/**
- * Hands-free recordings (autoStartKey, pappu://listen) stop on their own: after
- * silenceMs of quiet that follows speech, or at maxMs. Levels are dBFS; the first
- * ignoreMs is skipped so the start cue's tail never counts as speech. A recording with
- * meter readings that never crossed speechDb is discarded without calling STT.
- */
-export const HANDS_FREE = {
-  silenceMs: 1200,
-  maxMs: 8000,
-  speechDb: -35,
-  ignoreMs: 300,
-  pollMs: 100,
-};
-
-const NO_SPEECH_MSG = 'No speech detected. Please try again.';
+export { HANDS_FREE } from '../utils/useVoiceRecorder';
 
 /**
  * MicButton with support for both standard mic icon and 70px Stitch Coin Mic.
- * Fixes permission denied recovery, error banner, and native cleanup.
+ * Recording, hands-free stop and STT live in useVoiceRecorder; this is the button,
+ * its pulse and its error banner (with a Settings link when permission is denied).
  */
 export default function MicButton({
   token,
@@ -64,24 +38,15 @@ export default function MicButton({
   autoStartKey = 0,
 }) {
   const reduceMotion = useReduceMotion();
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
-  const [permissionDenied, setPermissionDenied] = useState(false);
-
-  const isRecordingRef = useRef(false);
-  const isStartingRef = useRef(false);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
-  const streamRef = useRef(null);
-  const isMountedRef = useRef(true);
-  const autoModeRef = useRef(false);
-  const autoStopTimerRef = useRef(null);
-  const stopRecordingRef = useRef(null);
-  const micIdRef = useRef(null);
-  if (micIdRef.current === null) micIdRef.current = nextMicId++;
-  // Busy from the start of an attempt until it ends: starting, recording, transcribing.
-  const markBusy = (busy) => setMicBusy(micIdRef.current, busy);
+  const recorder = useVoiceRecorder({
+    token,
+    languageCode,
+    disabled,
+    onTranscribed,
+    onRecordingStateChange,
+    onError,
+  });
+  const { isRecording, isTranscribing, errorMessage, permissionDenied } = recorder;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Pulse animation while recording (disabled on reduce motion)
@@ -111,302 +76,16 @@ export default function MicButton({
     };
   }, [isRecording, reduceMotion, pulseAnim]);
 
-  // Native recorder hook for SDK 57
-  const nativeRecorder = Platform.OS !== 'web' && typeof useAudioRecorder === 'function'
-    ? useAudioRecorder(RECORDING_OPTIONS)
-    : null;
-
+  // pappu://listen: start without a tap. The recorder's start guard ignores it if busy.
   useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      clearAutoStop();
-      cleanupAudio();
-      markBusy(false);
-    };
-  }, []);
-
-  const clearAutoStop = () => {
-    if (autoStopTimerRef.current) {
-      clearInterval(autoStopTimerRef.current);
-      autoStopTimerRef.current = null;
-    }
-  };
-
-  // Hands-free: watch the input level and stop on silence after speech or at the cap.
-  const startAutoStop = () => {
-    clearAutoStop();
-    const { silenceMs, maxMs, speechDb, ignoreMs, pollMs } = HANDS_FREE;
-    const startedAt = Date.now();
-    let heardSpeech = false;
-    let meterSeen = false;
-    let lastSpeechAt = startedAt;
-    autoStopTimerRef.current = setInterval(() => {
-      if (!isRecordingRef.current) {
-        clearAutoStop();
-        return;
-      }
-      const now = Date.now();
-      let level;
-      try {
-        level = nativeRecorder?.getStatus?.()?.metering;
-      } catch (_e) {}
-      if (typeof level === 'number') {
-        meterSeen = true;
-        if (now - startedAt >= ignoreMs && level > speechDb) {
-          heardSpeech = true;
-          lastSpeechAt = now;
-        }
-      }
-      const silentAfterSpeech = heardSpeech && now - lastSpeechAt >= silenceMs;
-      if (silentAfterSpeech || now - startedAt >= maxMs) {
-        clearAutoStop();
-        // Without meter readings we can't tell silence from speech: let STT decide.
-        stopRecordingRef.current?.({ discard: meterSeen && !heardSpeech });
-      }
-    }, pollMs);
-  };
-
-  const cleanupAudio = async () => {
-    if (nativeRecorder && isRecordingRef.current) {
-      try {
-        await nativeRecorder.stop();
-      } catch (err) {
-        console.warn('[MicButton] Error during native recorder cleanup:', err);
-      }
-    }
-    if (streamRef.current) {
-      try {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      } catch (err) {
-        console.warn('[MicButton] Error during web stream cleanup:', err);
-      }
-      streamRef.current = null;
-    }
-    isRecordingRef.current = false;
-  };
-
-  const startRecording = async ({ auto = false } = {}) => {
-    // A second tap while the recorder is still starting must not start another one.
-    if (disabled || isTranscribing || isRecordingRef.current || isStartingRef.current) return;
-    isStartingRef.current = true;
-    autoModeRef.current = auto;
-    markBusy(true);
-    setErrorMessage(null);
-    setPermissionDenied(false);
-
-    try {
-      if (Platform.OS === 'web') {
-        if (typeof navigator === 'undefined' || !navigator?.mediaDevices?.getUserMedia) {
-          throw new Error('Audio recording requires HTTPS or localhost in browser.');
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        streamRef.current = stream;
-        audioChunksRef.current = [];
-
-        const options = { mimeType: 'audio/webm' };
-        let mediaRecorder;
-        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm')) {
-          mediaRecorder = new MediaRecorder(stream, options);
-        } else if (typeof MediaRecorder !== 'undefined') {
-          mediaRecorder = new MediaRecorder(stream);
-        } else {
-          throw new Error('MediaRecorder is not supported in this browser.');
-        }
-
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
-
-        mediaRecorder.onstop = async () => {
-          if (streamRef.current) {
-            try {
-              streamRef.current.getTracks().forEach((t) => t.stop());
-            } catch (e) {}
-            streamRef.current = null;
-          }
-
-          if (audioChunksRef.current.length === 0) {
-            markBusy(false);
-            if (isMountedRef.current) {
-              setErrorMessage('No audio data was recorded.');
-            }
-            return;
-          }
-
-          const mimeType = mediaRecorder.mimeType || 'audio/webm';
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          await processAudio(audioBlob);
-        };
-
-        mediaRecorderRef.current = mediaRecorder;
-        mediaRecorder.start(100);
-      } else {
-        // Native recording
-        const permission = await requestRecordingPermissionsAsync();
-        if (permission?.status !== 'granted') {
-          setPermissionDenied(true);
-          throw new Error('Microphone permission is required to record voice commands.');
-        }
-
-        // Hands-free: a short cue says "speak now", played before recording so it isn't recorded.
-        if (auto) {
-          await playListenCue();
-          if (!isMountedRef.current) {
-            markBusy(false);
-            return;
-          }
-        }
-
-        await setAudioModeAsync({
-          allowsRecording: true,
-          playsInSilentMode: true,
-        });
-
-        if (nativeRecorder?.prepareToRecordAsync) {
-          await nativeRecorder.prepareToRecordAsync();
-          // Unmounted (e.g. sheet closed) while starting: don't start a recorder nobody can stop.
-          if (!isMountedRef.current) {
-            markBusy(false);
-            return;
-          }
-          nativeRecorder.record();
-        }
-      }
-
-      isRecordingRef.current = true;
-      if (isMountedRef.current) {
-        setIsRecording(true);
-        if (onRecordingStateChange) onRecordingStateChange(true);
-      }
-      if (auto) startAutoStop();
-    } catch (err) {
-      console.warn('[MicButton] startRecording failed:', err);
-      isRecordingRef.current = false;
-      markBusy(false);
-      if (isMountedRef.current) {
-        setIsRecording(false);
-        if (onRecordingStateChange) onRecordingStateChange(false);
-        const isPerm = err.name === 'NotAllowedError' || err.name === 'SecurityError' || String(err.message).toLowerCase().includes('permission');
-        if (isPerm) setPermissionDenied(true);
-        setErrorMessage(err.message || 'Microphone access denied or recording failed to start');
-        if (onError) onError(err);
-      }
-    } finally {
-      isStartingRef.current = false;
-    }
-  };
-
-  const stopRecording = async ({ discard = false } = {}) => {
-    if (!isRecordingRef.current) return;
-    clearAutoStop();
-    isRecordingRef.current = false;
-    if (isMountedRef.current) {
-      setIsRecording(false);
-      if (onRecordingStateChange) onRecordingStateChange(false);
-    }
-
-    try {
-      if (Platform.OS === 'web' && mediaRecorderRef.current) {
-        if (mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop();
-        }
-      } else if (nativeRecorder) {
-        await nativeRecorder.stop();
-        if (discard) {
-          // Nothing was said: the mic is released and nothing is sent.
-          markBusy(false);
-          if (isMountedRef.current) {
-            setErrorMessage(NO_SPEECH_MSG);
-            if (onError) onError(new Error(NO_SPEECH_MSG));
-          }
-          return;
-        }
-        const uri = nativeRecorder.uri;
-        if (!uri) {
-          throw new Error('Recording stopped but no audio file URI was returned.');
-        }
-
-        const audioFile = {
-          uri,
-          name: 'recording.m4a',
-          type: 'audio/m4a',
-        };
-
-        await processAudio(audioFile);
-      } else {
-        throw new Error('No active recording found to stop.');
-      }
-    } catch (err) {
-      console.warn('[MicButton] stopRecording failed:', err);
-      markBusy(false);
-      if (isMountedRef.current) {
-        setErrorMessage(err.message || 'Failed to complete audio recording.');
-        if (onError) onError(err);
-      }
-    }
-  };
-
-  const processAudio = async (audioData) => {
-    if (!token) {
-      markBusy(false);
-      if (isMountedRef.current) {
-        setErrorMessage('Authentication required for voice input.');
-        if (onError) onError(new Error('Authentication required for voice input.'));
-      }
-      return;
-    }
-
-    try {
-      if (isMountedRef.current) {
-        setIsTranscribing(true);
-        setErrorMessage(null);
-      }
-
-      const res = await transcribeAudio(token, audioData, languageCode);
-      // Closed while transcribing: discard the audio, send nothing.
-      if (!isMountedRef.current) return;
-      const transcript = res?.transcript?.trim();
-
-      if (transcript && transcript.length > 0) {
-        if (onTranscribed) {
-          onTranscribed(transcript, { auto: autoModeRef.current });
-        }
-      } else {
-        if (isMountedRef.current) {
-          setErrorMessage(NO_SPEECH_MSG);
-          if (onError) onError(new Error(NO_SPEECH_MSG));
-        }
-      }
-    } catch (err) {
-      if (isMountedRef.current) {
-        setErrorMessage(err.message || 'Transcription failed');
-        if (onError) onError(err);
-      }
-    } finally {
-      markBusy(false);
-      if (isMountedRef.current) {
-        setIsTranscribing(false);
-      }
-    }
-  };
-
-  // pappu://listen: start without a tap. The start guard above ignores it if busy.
-  useEffect(() => {
-    if (autoStartKey) startRecording({ auto: true });
+    if (autoStartKey) recorder.start({ auto: true });
   }, [autoStartKey]);
 
-  // The hands-free timer outlives renders; it stops through the latest closure.
-  stopRecordingRef.current = stopRecording;
-
   const handlePress = () => {
-    if (isRecordingRef.current) {
-      stopRecording();
+    if (recorder.isRecordingRef.current) {
+      recorder.stop();
     } else {
-      startRecording();
+      recorder.start();
     }
   };
 
