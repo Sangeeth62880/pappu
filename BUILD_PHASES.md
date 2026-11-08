@@ -2,6 +2,28 @@
 
 Build in this order. Do not start a phase until the previous phase's acceptance criteria are met. Each task includes the test to write/run immediately after building it — not deferred to later.
 
+## Status (verified 2026-11-08 against code and tests, not earlier claims)
+
+Current suites: **621 pytest passed** (`backend/tests`), **271 Jest passed in 33 suites** (`frontend/tests`). Test counts written inside the phase sections below are historical.
+
+| Phase | Status | Evidence | Open |
+|---|---|---|---|
+| 0 Scaffolding | Done | `test_health.py`, `frontend/tests/App.test.js` | |
+| 1 Schema | Done | `app/models/`, `services/category_seed.py`, `test_models.py`, `test_schema.py`; `apply_schema.py` asserts tables and the 8 categories on the target DB | Target DB not re-checked in this session |
+| 2 CRUD + Auth | Done | `app/auth.py` (ES256 JWKS, `aud = authenticated`), `test_auth.py`, `test_transactions.py`, `test_isolation.py`, `test_summary.py` | |
+| 3 LLM intent layer | Done, superseded by the v2 planner (Phase 12) | `test_intent_parsing.py` | Legacy path |
+| 4 Confirmation routing | Done | `services/routing.py`, `test_routing.py`, `test_confirmation_integration.py`; v2 `assistant/pending.py`, `test_assistant_pending.py` | |
+| 5 Dashboard UI | Done (automated tests) | `dashboard.test.js`, `conversation.test.js`, `home_screen.test.js` | Manual demo QA run has no record in the repo |
+| 5.5 People | Done | `test_people.py`, `people_screen.test.js` | |
+| 6 STT | Built and unit tested, **not accepted** | `app/stt/`, `test_stt.py`, `mic_button.test.js`, `voice_*.test.js` | Manual phone spot check: `VOICE_TEST_CHECKLIST.md` §3, §4 |
+| 7 TTS | Built and unit tested, **not accepted** | `app/tts/`, `test_tts.py`, `test_reply_language.py`, `tts_language.test.js`, `audio_player.test.js` | Manual spoken check: checklist §3, §4, §7. Me screen "Voice replies" toggle is saved but never read by playback code |
+| 8 End to end voice | **In progress** | Voice hardening (0a8967a, 434eead, b699a0c, 0b99bae, 31c9a54), retry idempotency (220de03) | No end to end voice script exists; acceptance is the manual run of `VOICE_TEST_CHECKLIST.md` |
+| 9 Intelligence + polish | **In progress** | Category breakdown, highest category, period compare (`test_period_analytics.py`, `test_query_shapes.py`); budgets and budget alerts (`test_budgets.py`, `budgets_section.test.js`); UI polish via Phase 13 | Savings estimation not implemented; final spec drift review not done; Phase 8 regression pass blocked on Phase 8 |
+| 10 Light design system | Done, theme later replaced by Phase 13 | `test_period_analytics.py`, `primitives.test.js` | |
+| 11 Post Stitch polish | Done | `test_chat.py`, `transaction_edit.test.js`, `chat_history.test.js`, `voice_listening_sheet.test.js` | |
+| 12 Assistant v2 | Done | `app/assistant/`, `test_assistant_*.py`; eval 93.8% (152/162) in `tests/eval/eval_results/20261015_162746.json` | Eval not re-run since the prompt changed (reply language, budgets); budgets planner checked live on 11 phrases only |
+| 13 Stitch redesign | Done (automated tests) | `home_stitch_fidelity.test.js`, `assistant_modal_fidelity.test.js`, `primitives.test.js`, `me_screen.test.js` | 390x844, 360x780 and 1.3 font scale not checked on a device in this session |
+
 ---
 
 ## Phase 0 — Project Scaffolding
@@ -174,6 +196,8 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 
 **Tasks**
 1. Spending pattern analysis, highest-category detection, month-over-month comparison, budget alerts, savings estimation.
+   - Done: spending patterns / highest category / period compare (Phase 12 query kinds), per-category monthly budgets with set/status by voice and the Me screen card, budget alert line on adds (`PROJECT_SPEC.md` §5b Budgets).
+   - Not done: savings estimation.
 2. UI polish, avatar, language toggle refinement.
 3. Final review against `PROJECT_SPEC.md` for any drift introduced during the build.
 
@@ -187,7 +211,7 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 
 ## Phase 10 — Light Design System & Analytics Redesign
 
-*Note: This phase satisfies the previously unfinished Phase 5 "trends" requirement and implements key parts of Phase 9 analytics (spending patterns, highest category, period comparison, daily buckets, delta vs previous period). Phase 9 itself remains in progress for remaining predictive budgeting/alerts.*
+*Note: This phase satisfies the previously unfinished Phase 5 "trends" requirement and implements key parts of Phase 9 analytics (spending patterns, highest category, period comparison, daily buckets, delta vs previous period). Phase 9 itself remains in progress (budgets and alerts are now done; savings estimation is not).*
 
 **Tasks**
 1. Document data semantics, light-only design system tokens, glass policy, and new `/summary?period=` contract in `PROJECT_SPEC.md`.
@@ -241,7 +265,7 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 
 ## Phase 12: Pappu Assistant v2 Architecture and Intent Layer Migration
 
-Note: The compare and group_by operations implemented in this phase cover analytics capabilities of Phase 9. Phase 9 is not marked complete because budgets remain unsupported.
+Note: The compare and group_by operations implemented in this phase cover analytics capabilities of Phase 9. Budgets were added later (2026-11-08); Phase 9 stays in progress for savings estimation and its Phase 8 regression pass.
 
 **Tasks**
 1. Evaluation Harness: Created golden dataset cases.jsonl (149 test cases covering English, Malayalam, and Manglish) and runner.py with pluggable planners.
