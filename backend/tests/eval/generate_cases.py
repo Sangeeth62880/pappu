@@ -2204,7 +2204,7 @@ CASES = [
     },
 
     # ----------------------------------------------------
-    # 13. budgets (4 cases)
+    # 13. budgets (14 cases)
     # ----------------------------------------------------
     {
         "id": "budget_01",
@@ -2280,6 +2280,177 @@ CASES = [
         "expected_plan": {
             "ops": [{"op": "set_budget", "category": "Transport", "amount": 20000}]
         },
+        "expected_end_state": {"action": "budget_set"}
+    },
+
+    {
+        "id": "budget_05",
+        "group": "budgets",
+        "input": "set food budget 5000",
+        "language": "en",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "set_budget", "category": "Food", "amount": 5000}]},
+        "expected_end_state": {"action": "budget_set"}
+    },
+    {
+        "id": "budget_06",
+        "group": "budgets",
+        "input": "food budgetinu 5000 aakku",
+        "language": "mixed",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "set_budget", "category": "Food", "amount": 5000}]},
+        "expected_end_state": {"action": "budget_set"}
+    },
+    {
+        "id": "budget_07",
+        "group": "budgets",
+        "input": "how much budget left for food",
+        "language": "en",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "query", "query_kind": "budget", "selector": {"category": "Food"}}]},
+        "expected_end_state": {"action": "query_result"}
+    },
+    {
+        "id": "budget_08",
+        "group": "budgets",
+        "input": "എന്റെ budget എത്ര ബാക്കി",
+        "language": "ml",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "query", "query_kind": "budget"}]},
+        "expected_end_state": {"action": "query_result"}
+    },
+    {
+        "id": "budget_09",
+        "group": "budgets",
+        "input": "shopping budget 3000 vekku",
+        "language": "mixed",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "set_budget", "category": "Shopping", "amount": 3000}]},
+        "expected_end_state": {"action": "budget_set"}
+    },
+    {
+        "id": "budget_10",
+        "group": "budgets",
+        "input": "ente transport budget ethra baakki und",
+        "language": "mixed",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "query", "query_kind": "budget", "selector": {"category": "Transport"}}]},
+        "expected_end_state": {"action": "query_result"}
+    },
+    {
+        "id": "budget_11",
+        "group": "budgets",
+        "input": "ബില്ലുകൾക്ക് 2000 രൂപ ബജറ്റ് വെക്കണം",
+        "language": "ml",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "set_budget", "category": "Bills", "amount": 2000}]},
+        "expected_end_state": {"action": "budget_set"}
+    },
+    {
+        "id": "budget_12",
+        "group": "budgets",
+        "input": "Set a budget of 4000",
+        "language": "en",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "clarify", "question": "Which category is the budget for?", "missing": ["category"]}]},
+        "expected_end_state": {"action": "clarify"}
+    },
+    {
+        "id": "budget_13",
+        "group": "budgets",
+        "input": "entertainment budget set cheyyu",
+        "language": "mixed",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "clarify", "question": "How much should the monthly Entertainment budget be?", "missing": ["amount"]}]},
+        "expected_end_state": {"action": "clarify"}
+    },
+    {
+        "id": "budget_14",
+        "group": "budgets",
+        "input": "Change my food budget to 6000",
+        "language": "en",
+        "context": {
+            "today": "2026-10-14",
+            "weekday": "Wednesday",
+            "contacts": [],
+            "last_3_chat_turns": [],
+            "last_touched_transaction": None,
+            "pending_item": None,
+            "seeded_transactions": []
+        },
+        "expected_plan": {"ops": [{"op": "set_budget", "category": "Food", "amount": 6000}]},
         "expected_end_state": {"action": "budget_set"}
     },
 
