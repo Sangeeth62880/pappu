@@ -192,6 +192,7 @@ Decisions (made 2026-11-08, do not re-litigate):
 * Planner ops: `{"op": "set_budget", "category", "amount"}` sets or replaces a budget; `{"op": "query", "query_kind": "budget", "selector": {"category"?}}` reports spent vs budget (no category = every budget). The LLM only plans; `app/services/budgets.py` and `app/assistant/executors/budget.py` do the work.
 * `set_budget` is an upsert that executes without a confirmation step: it never touches a transaction (so §6 edit/delete confirmation does not apply), and the reply states the old and new amount when it replaces one. It has no undo entry; saying it again replaces the amount.
 * State: `ok` below 80%, `near` from 80% to 100% inclusive, `over` above 100%.
+* Alert: after an add that moves its category's spending this month across a threshold (`ok` to `near`, or anything to `over`), the add reply gets one alert line and mood `concerned`. Only expense adds with no contact, dated in the current IST month, count. Each threshold alerts once per crossing, not on every later add. This covers adds confirmed through a pending item (future date). No push notifications.
 
 ### Endpoints
 * `POST /assistant/message`: Primary conversational endpoint. Accepts `{ text: str, input: "text" | "voice", client_msg_id: str }`. Runs one LLM planner call, resolves entities, executes actions, and returns `{ reply, display_text, spoken_text, results, pending, changed }`.

@@ -41,6 +41,7 @@ from app.assistant.composer import (
     to_spoken,
     _compose_single_delete,
     _compose_single_edit,
+    budget_alert_lines,
 )
 
 DEFAULT_EXPIRY_SECONDS = 300  # 5 minutes
@@ -532,8 +533,9 @@ def handle_answer_pending(
                 item.status = "resolved"
                 db.commit()
 
-                reply = render("pending.recorded", lang)
-                return _response(lang, reply, results=[r.model_dump() for r in results], changed=True)
+                dumped = [r.model_dump() for r in results]
+                reply = " ".join([render("pending.recorded", lang), *budget_alert_lines(dumped, lang)])
+                return _response(lang, reply, results=dumped, changed=True)
 
         elif item.kind == "contact_confirm":
             plan_payload = item.plan_json or {}

@@ -11,6 +11,8 @@ Rules:
 - Spent uses the system-wide spending definition (app/services/spending.py): expense
   transactions with no contact, in the category, inside the current IST calendar month.
 - Every query is scoped by the verified user_id.
+- Alert: an add that moves its category across 80% (ok to near) or 100% (to over) in the
+  current IST month gets one alert. Later adds in the same state do not repeat it.
 """
 
 import uuid
@@ -155,6 +157,43 @@ def get_budget_status(
     start, end = month_bounds(ref_date)
     spent = _spent_by_category(db, user_id, start, end, [cat.id]).get(cat.id, Decimal("0.00"))
     return status_item(canonical, Decimal(str(row.amount)), spent, start)
+
+
+_STATE_ORDER = {"ok": 0, "near": 1, "over": 2}
+
+
+def alert_for_add(db: Session, user_id: uuid.UUID, txn: Transaction) -> Optional[Dict[str, Any]]:
+    """
+    Status item plus "alert" ('near' | 'over') when the committed txn moved its category's
+    spending this month across a threshold; None otherwise (including no budget, not
+    spending, another month, or any error, so an alert can never fail the add).
+    """
+    try:
+        if txn.type != "expense" or txn.contact_id is not None:
+            return None
+        start, end = month_bounds()
+        if not (start <= txn.txn_date <= end):
+            return None
+        row = (
+            db.query(CategoryBudget, Category.name)
+            .join(Category, Category.id == CategoryBudget.category_id)
+            .filter(CategoryBudget.user_id == user_id, CategoryBudget.category_id == txn.category_id)
+            .first()
+        )
+        if not row or row[1] not in BUDGET_CATEGORIES:
+            return None
+        budget_row, name = row
+        budget = Decimal(str(budget_row.amount))
+        spent_after = _spent_by_category(db, user_id, start, end, [txn.category_id]).get(txn.category_id, Decimal("0.00"))
+        spent_before = spent_after - Decimal(str(txn.amount))
+        before, after = _ratio_state(spent_before, budget), _ratio_state(spent_after, budget)
+        if after == "ok" or _STATE_ORDER[after] <= _STATE_ORDER[before]:
+            return None
+        item = status_item(name, budget, spent_after, start)
+        item["alert"] = after
+        return item
+    except Exception:
+        return None
 
 
 def set_budget(

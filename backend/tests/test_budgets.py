@@ -30,7 +30,7 @@ from app.models.profile import Profile
 from app.models.transaction import Transaction
 from app.assistant.context import AssistantContext
 from app.assistant.planner import AssistantPlanner
-from app.assistant.schemas import Plan, QueryAction, Selector, SetBudgetAction
+from app.assistant.schemas import AddAction, Plan, QueryAction, Selector, SetBudgetAction
 from app.services.date_utils import IST
 from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
 
@@ -370,3 +370,133 @@ def test_assistant_set_budget_for_salary_is_refused(db, text, lang, expected):
     data = _send(user_id, text, _set_plan("Salary", 5000, lang)).json()
     assert data["reply_text"] == expected
     assert db.query(CategoryBudget).count() == 0
+
+
+# ==============================================================================
+# 4. Budget alert after an add
+# ==============================================================================
+
+def _add_plan(amount, category="Food", language="en", kind="expense", date_str=None, **extra):
+    return Plan(
+        actions=[AddAction(kind=kind, amount=amount, category=category, date=date_str, **extra)],
+        language=language,
+    )
+
+
+def _food_budget(db, user_id, spent=3900, budget=5000):
+    if spent:
+        _txn(db, user_id, "Food", spent)
+    client.put("/budgets/Food", json={"amount": budget}, headers=_auth(user_id))
+
+
+def test_add_crossing_80_percent_appends_a_near_alert(db):
+    user_id = _user(db)
+    _food_budget(db, user_id)
+    data = _send(user_id, "spent 200 on lunch", _add_plan(200)).json()
+    assert data["reply_text"] == "Added ₹200 to Food. Heads up: Food is at 82% of its ₹5,000 budget this month."
+    assert data["spoken_text"] == data["reply_text"]
+    assert data["mood"] == "concerned"
+    assert data["results"][0]["data"]["budget_alert"]["alert"] == "near"
+
+
+def test_add_that_stays_near_does_not_repeat_the_alert(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=4100)
+    data = _send(user_id, "spent 100 on tea", _add_plan(100)).json()
+    assert data["reply_text"] == "Added ₹100 to Food."
+    assert data["mood"] == "happy"
+
+
+def test_add_crossing_100_percent_appends_an_over_alert(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=4200)
+    data = _send(user_id, "spent 900 on dinner", _add_plan(900)).json()
+    assert data["reply_text"] == "Added ₹900 to Food. Heads up: Food is over budget this month, ₹5,100 of ₹5,000."
+
+
+def test_add_jumping_past_both_thresholds_gives_one_over_alert(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=1000)
+    data = _send(user_id, "spent 4500 on a party", _add_plan(4500)).json()
+    assert data["reply_text"] == "Added ₹4,500 to Food. Heads up: Food is over budget this month, ₹5,500 of ₹5,000."
+
+
+def test_add_exactly_at_100_percent_is_near_not_over(db):
+    user_id = _user(db)
+    _food_budget(db, user_id, spent=3000)
+    data = _send(user_id, "spent 2000 on food", _add_plan(2000)).json()
+    assert data["reply_text"] == "Added ₹2,000 to Food. Heads up: Food is at 100% of its ₹5,000 budget this month."
+
+
+@pytest.mark.parametrize("plan", [
+    _add_plan(2000, category="Transport"),                       # no budget for Transport
+    _add_plan(2000, date_str=LAST_MONTH.isoformat()),            # another month
+    _add_plan(2000, kind="income", category="Salary"),          # income
+])
+def test_adds_that_never_alert(db, plan):
+    user_id = _user(db)
+    _food_budget(db, user_id)
+    data = _send(user_id, "add it", plan).json()
+    assert "Heads up" not in data["reply_text"]
+    assert "budget_alert" not in (data["results"][0]["data"] or {})
+
+
+def test_person_add_never_alerts(db):
+    user_id = _user(db)
+    db.add(Contact(id=uuid.uuid4(), user_id=user_id, name="Rahul"))
+    db.commit()
+    _food_budget(db, user_id)
+    plan = _add_plan(2000, kind="person", category=None, contact="Rahul", direction="sent")
+    data = _send(user_id, "sent 2000 to Rahul", plan).json()
+    assert "Heads up" not in data["reply_text"]
+
+
+def test_alert_in_malayalam(db):
+    user_id = _user(db, "ml")
+    _food_budget(db, user_id)
+    data = _send(user_id, "ഊണിന് 200 രൂപ", _add_plan(200, language="ml")).json()
+    assert data["reply_text"] == (
+        "ഭക്ഷണം വിഭാഗത്തിൽ ₹200 ചേർത്തു. ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ ഭക്ഷണം ബജറ്റ് ₹5,000, അതിന്റെ 82 ശതമാനം ചെലവായി."
+    )
+    assert data["spoken_text"] == (
+        "ഭക്ഷണം വിഭാഗത്തിൽ 200 രൂപ ചേർത്തു. ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ ഭക്ഷണം ബജറ്റ് 5000 രൂപ, അതിന്റെ 82 ശതമാനം ചെലവായി."
+    )
+
+
+def test_over_alert_in_malayalam(db):
+    user_id = _user(db, "ml")
+    _food_budget(db, user_id, spent=4200)
+    data = _send(user_id, "അത്താഴത്തിന് 900 രൂപ", _add_plan(900, language="ml")).json()
+    assert data["spoken_text"] == (
+        "ഭക്ഷണം വിഭാഗത്തിൽ 900 രൂപ ചേർത്തു. ശ്രദ്ധിക്കൂ: ഈ മാസം ഭക്ഷണം ബജറ്റ് 5000 രൂപ കടന്നു, ആകെ 5100 രൂപ ചെലവായി."
+    )
+
+
+def test_multi_add_appends_the_alert_after_the_combined_reply(db):
+    user_id = _user(db)
+    _food_budget(db, user_id)
+    plan = Plan(actions=[
+        AddAction(kind="expense", amount=200, category="Food"),
+        AddAction(kind="expense", amount=80, category="Transport"),
+    ], language="en")
+    data = _send(user_id, "200 lunch and 80 auto", plan).json()
+    assert data["reply_text"] == (
+        "Added ₹200 to Food and Added ₹80 to Transport. "
+        "Heads up: Food is at 82% of its ₹5,000 budget this month."
+    )
+
+
+def test_confirmed_future_date_add_this_month_alerts(db):
+    user_id = _user(db)
+    _food_budget(db, user_id)
+    first = _send(user_id, "dinner 200 on the 20th", _add_plan(200, date_str="2026-11-20")).json()
+    assert first["pending"]["kind"] == "confirm"
+    res = client.post(
+        f"/assistant/pending/{first['pending']['id']}/answer",
+        json={"answer": "yes"},
+        headers=_auth(user_id),
+    )
+    assert res.status_code == 200
+    assert res.json()["reply_text"] == (
+        "Recorded transaction. Heads up: Food is at 82% of its ₹5,000 budget this month."
+    )

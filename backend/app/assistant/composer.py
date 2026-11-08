@@ -286,6 +286,14 @@ TEMPLATES: Dict[str, Dict[str, str]] = {
         "en": "Budgets can be set for {cats}.",
         "ml": "{cats} എന്നീ വിഭാഗങ്ങൾക്കാണ് ബജറ്റ് സെറ്റ് ചെയ്യാൻ കഴിയുക.",
     },
+    "budget.alert_near": {
+        "en": "Heads up: {cat} is at {pct}% of its {budget} budget this month.",
+        "ml": "ശ്രദ്ധിക്കൂ: ഈ മാസത്തെ {cat} ബജറ്റ് {budget}, അതിന്റെ {pct} ശതമാനം ചെലവായി.",
+    },
+    "budget.alert_over": {
+        "en": "Heads up: {cat} is over budget this month, {spent} of {budget}.",
+        "ml": "ശ്രദ്ധിക്കൂ: ഈ മാസം {cat} ബജറ്റ് {budget} കടന്നു, ആകെ {spent} ചെലവായി.",
+    },
     "budget.missing_category": {
         "en": "Which category is the budget for?",
         "ml": "ഏത് വിഭാഗത്തിനാണ് ബജറ്റ് എന്ന് പറയാമോ?",
@@ -908,6 +916,21 @@ def _compose_set_budget(res: Dict[str, Any], lang: str) -> str:
     return render("budget.set", lang, cat=cat, amt=amt)
 
 
+def budget_alert_lines(results: Optional[List[Dict[str, Any]]], lang: str) -> List[str]:
+    """One alert line per successful add that crossed a budget threshold (see services/budgets.py)."""
+    lines = []
+    for r in results or []:
+        alert = (r.get("data") or {}).get("budget_alert") if r.get("ok") and r.get("action") == "add" else None
+        if not alert:
+            continue
+        values = {"cat": localize_category(alert.get("category"), lang), "budget": format_inr(alert.get("budget"))}
+        if alert.get("alert") == "over":
+            lines.append(render("budget.alert_over", lang, spent=format_inr(alert.get("spent")), **values))
+        else:
+            lines.append(render("budget.alert_near", lang, pct=alert.get("percent"), **values))
+    return lines
+
+
 BUDGET_CATEGORY_ERRORS = ("budget_missing_category", "budget_invalid_category")
 
 
@@ -1160,6 +1183,11 @@ def _compose(
 
     spoken_text = " ".join(spoken_parts) if spoken_parts else render("done", lang)
 
+    alerts = budget_alert_lines(results, lang)
+    if alerts:
+        reply_text = " ".join([reply_text, *alerts])
+        spoken_text = " ".join([spoken_text, *alerts])
+
     return reply_text, spoken_text
 
 
@@ -1204,6 +1232,10 @@ def derive_mood(
         for r in results:
             if r.get("status") in ("needs_confirmation", "contact_confirm") or r.get("needs_confirmation"):
                 return "concerned"
+
+    # A budget alert on an add -> concerned
+    if budget_alert_lines(results, "en"):
+        return "concerned"
 
     # 3. Income added -> excited
     # 4. Expense added -> happy

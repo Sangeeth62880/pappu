@@ -24,6 +24,8 @@ from app.assistant.validation import (
     validate_person_contact,
 )
 from app.assistant.executors.base import ActionResult, serialize_transaction
+# Module import: app.services.budgets imports app.assistant.validation (see executors/budget.py).
+from app.services import budgets as budget_service
 
 
 from app.assistant.contacts import resolve_contact, create_contact, add_alias_to_contact
@@ -212,6 +214,9 @@ def execute_add(
         )
         if op.kind == "person" and person_flow:
             serialized["person_flow"] = person_flow
+        budget_alert = budget_service.alert_for_add(db, user_id, txn)
+        if budget_alert:
+            serialized["budget_alert"] = budget_alert
 
         return ActionResult(
             ok=True,
