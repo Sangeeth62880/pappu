@@ -439,6 +439,11 @@ Supported server moods: `happy`, `worried`, `excited`, `confused`, `neutral`, `c
 - **Voice (STT / TTS)**:
   - `POST /stt/transcribe`: Audio to text transcription via Sarvam Saaras v3.
   - `POST /tts/synthesize`: Text to speech synthesis via Sarvam Bulbul v3.
+- **Button trigger (`pappu://listen`)**: frontend only; no new endpoints. Setup per platform in `docs/QUICK_ACCESS.md`.
+  - Opens the assistant and records one command after startup (fonts, health check, session restore). A link waits at most 2 minutes; signed out, it resumes only if sign in finishes within 60 seconds of the sign in screen showing. A link while any mic is busy is ignored.
+  - Hands-free recording: start cue after the mic permission, stop 1.2 s after speech ends (input level above -35 dBFS, first 0.3 s ignored) or at 8 s; metered silence is discarded without calling STT. Without meter readings it records to 8 s and lets STT decide.
+  - The reply is always spoken (the trigger means the user chose voice), overriding `voice_replies: false`. A pending confirmation gets exactly one more listen after the reply finishes; the answer is sent as a normal `/assistant/message` with a fresh `client_msg_id`, so the server's yes/no fast path (en, ml, Manglish) handles it.
+  - Entry points: app icon quick action (expo-quick-actions), Android Quick Settings tile and `ACTION_ASSIST` activity (default digital assistant) from `frontend/plugins/withListenEntryPoints.js`, iOS via a Shortcuts "Open URLs" action. No wake word, background listening, foreground service, App Intents or VoiceInteractionService.
 
 ---
 
