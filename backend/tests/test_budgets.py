@@ -17,6 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy import create_engine, event
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -31,6 +32,7 @@ from app.models.transaction import Transaction
 from app.assistant.context import AssistantContext
 from app.assistant.planner import AssistantPlanner
 from app.assistant.schemas import AddAction, Plan, QueryAction, Selector, SetBudgetAction
+from app.services import budgets as budget_service
 from app.services.date_utils import IST
 from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
 
@@ -172,6 +174,65 @@ def test_planner_budget_with_missing_amount_is_a_clarify():
 def test_set_budget_without_a_positive_amount_fails_validation(payload):
     with pytest.raises(ValidationError):
         Plan.model_validate({"ops": [payload]})
+
+
+# ==============================================================================
+# 2a. Model: constraints and per-user rows
+# ==============================================================================
+
+def _budget_row(db, user_id, category="Food", amount="5000"):
+    db.add(CategoryBudget(
+        id=uuid.uuid4(), user_id=user_id, category_id=_cat(db, category).id, amount=Decimal(amount),
+    ))
+    db.commit()
+
+
+def test_model_allows_one_budget_per_user_and_category(db):
+    user_id = _user(db)
+    _budget_row(db, user_id)
+    row = db.query(CategoryBudget).one()
+    assert row.amount == Decimal("5000.00")
+    assert row.category.name == "Food"
+    assert row.created_at is not None
+
+    with pytest.raises(IntegrityError):
+        _budget_row(db, user_id, amount="6000")
+    db.rollback()
+
+    # Another category for the same user, and the same category for another user, are fine.
+    _budget_row(db, user_id, "Transport")
+    _budget_row(db, _user(db))
+    assert db.query(CategoryBudget).count() == 3
+
+
+@pytest.mark.parametrize("amount", ["0", "-1"])
+def test_model_rejects_a_non_positive_amount(db, amount):
+    with pytest.raises(IntegrityError):
+        _budget_row(db, _user(db), amount=amount)
+
+
+def test_model_budgets_are_deleted_with_their_profile(db):
+    user_id, other = _user(db), _user(db)
+    _budget_row(db, user_id)
+    _budget_row(db, other)
+    db.query(Profile).filter(Profile.id == user_id).delete()
+    db.commit()
+    assert [r.user_id for r in db.query(CategoryBudget).all()] == [other]
+
+
+def test_service_reads_and_writes_are_scoped_to_the_user(db):
+    user_a, user_b = _user(db), _user(db)
+    _txn(db, user_a, "Food", 1000)
+    _txn(db, user_b, "Food", 70)
+    budget_service.set_budget(db, user_a, "Food", 5000)
+
+    assert budget_service.list_budgets(db, user_b)["budgets"] == []
+    assert budget_service.get_budget_status(db, user_b, "Food") is None
+
+    budget_service.set_budget(db, user_b, "Food", 100)
+    assert budget_service.get_budget_status(db, user_a, "Food")["budget"] == 5000
+    assert budget_service.get_budget_status(db, user_a, "Food")["spent"] == 1000
+    assert budget_service.get_budget_status(db, user_b, "Food")["spent"] == 70
 
 
 # ==============================================================================
