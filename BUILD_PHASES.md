@@ -196,7 +196,7 @@ Current suites: **621 pytest passed** (`backend/tests`), **279 Jest passed in 34
 
 **Tasks**
 1. Spending pattern analysis, highest-category detection, month-over-month comparison, budget alerts, savings estimation.
-   - Done: spending patterns / highest category / period compare (Phase 12 query kinds), per-category monthly budgets with set/status by voice and the Me screen card, budget alert line on adds (`PROJECT_SPEC.md` §5b Budgets).
+   - Done: spending patterns / highest category / period compare (Phase 12 query kinds), per-category monthly budgets with set (confirmed when it changes an amount)/status by voice and the Me screen card (set, edit, remove), budget alert line on adds and on edits that raise spending (`PROJECT_SPEC.md` §5b Budgets).
    - Not done: savings estimation.
 2. UI polish, avatar, language toggle refinement.
 3. Final review against `PROJECT_SPEC.md` for any drift introduced during the build.

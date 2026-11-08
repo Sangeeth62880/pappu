@@ -265,6 +265,7 @@ export default function ConversationLog({
       queryClient.invalidateQueries({ queryKey: queryKeys.people() });
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions() });
       queryClient.invalidateQueries({ queryKey: queryKeys.chatHistory() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
     }
     if (onTransactionMutated) {
       onTransactionMutated();

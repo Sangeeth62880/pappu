@@ -298,8 +298,10 @@ function InnerHomeScreen({
     } catch (err) {}
   };
 
+  // Every transaction change (add, edit, delete, undo; typed, voice or sheets) lands here.
   const handleTransactionMutated = () => {
     setRefreshTrigger((prev) => prev + 1);
+    queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
   };
 
   const handleUndo = async () => {

@@ -1,6 +1,6 @@
 /**
- * Budgets section on the Me screen: spent vs budget rows, progress bars, and the edit sheet.
- * Also covers the fetchBudgets / setBudget API client calls.
+ * Budgets section on the Me screen: spent vs budget rows, progress bars, and the edit sheet
+ * (set, edit, remove). Also covers the fetchBudgets / setBudget / deleteBudget API client calls.
  */
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
@@ -56,6 +56,7 @@ describe('BudgetsSection', () => {
     jest.clearAllMocks();
     client.fetchBudgets.mockResolvedValue(listing([item()]));
     client.setBudget.mockResolvedValue(item());
+    client.deleteBudget.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -85,6 +86,18 @@ describe('BudgetsSection', () => {
     expect(fillStyle('Shopping').width).toBe('85%');
     expect(fillStyle('Shopping').backgroundColor).toBe(colors.warning);
     expect(screen.getByText('₹150 left')).toBeTruthy();
+  });
+
+  test('exactly 100% used is red with nothing left', async () => {
+    client.fetchBudgets.mockResolvedValue(listing([
+      item({ spent: 5000, remaining: 0, over_by: 0, percent: 100, state: 'over' }),
+    ]));
+    await renderWithClient(<BudgetsSection token={TOKEN} />);
+
+    expect(await screen.findByText('₹5,000 of ₹5,000')).toBeTruthy();
+    expect(fillStyle('Food').width).toBe('100%');
+    expect(fillStyle('Food').backgroundColor).toBe(colors.expense);
+    expect(screen.getByText('₹0 left')).toBeTruthy();
   });
 
   test('shows an empty state when no budgets are set', async () => {
@@ -138,6 +151,54 @@ describe('BudgetsSection', () => {
     expect(client.setBudget).not.toHaveBeenCalled();
   });
 
+  test('a new budget sheet has no remove button', async () => {
+    await renderWithClient(<BudgetsSection token={TOKEN} />);
+    await screen.findByTestId('budget-row-Food');
+    await fireEvent.press(screen.getByTestId('budget-add-button'));
+    await screen.findByTestId('budget-amount-input');
+    expect(screen.queryByTestId('budget-remove-button')).toBeNull();
+  });
+
+  test('removes a budget after confirming in the dialog, then refetches', async () => {
+    await renderWithClient(<BudgetsSection token={TOKEN} />);
+    await fireEvent.press(await screen.findByTestId('budget-row-Food'));
+    await fireEvent.press(await screen.findByTestId('budget-remove-button'));
+
+    expect(await screen.findByText('Remove the Food budget?')).toBeTruthy();
+    expect(client.deleteBudget).not.toHaveBeenCalled();
+
+    client.fetchBudgets.mockResolvedValue(listing([]));
+    await fireEvent.press(screen.getByTestId('budget-remove-dialog-confirm'));
+
+    await waitFor(() => expect(client.deleteBudget).toHaveBeenCalledWith(TOKEN, 'Food'));
+    expect(await screen.findByTestId('budgets-empty')).toBeTruthy();
+    expect(client.fetchBudgets).toHaveBeenCalledTimes(2);
+    expect(screen.queryByTestId('budget-remove-dialog')).toBeNull();
+  });
+
+  test('keeping the budget in the dialog does not remove it', async () => {
+    await renderWithClient(<BudgetsSection token={TOKEN} />);
+    await fireEvent.press(await screen.findByTestId('budget-row-Food'));
+    await fireEvent.press(await screen.findByTestId('budget-remove-button'));
+    await fireEvent.press(await screen.findByTestId('budget-remove-dialog-cancel'));
+
+    expect(screen.queryByTestId('budget-remove-dialog')).toBeNull();
+    expect(screen.getByTestId('budget-save-button')).toBeTruthy();
+    expect(client.deleteBudget).not.toHaveBeenCalled();
+  });
+
+  test('shows the API error in the sheet when removing fails', async () => {
+    client.deleteBudget.mockRejectedValue(new Error('Budget not found'));
+    await renderWithClient(<BudgetsSection token={TOKEN} />);
+    await fireEvent.press(await screen.findByTestId('budget-row-Food'));
+    await fireEvent.press(await screen.findByTestId('budget-remove-button'));
+    await fireEvent.press(await screen.findByTestId('budget-remove-dialog-confirm'));
+
+    expect(await screen.findByText('Budget not found')).toBeTruthy();
+    expect(screen.queryByTestId('budget-remove-dialog')).toBeNull();
+    expect(screen.getByTestId('budget-save-button')).toBeTruthy();
+  });
+
   test('shows the API error and keeps the sheet open when saving fails', async () => {
     client.setBudget.mockRejectedValue(new Error('Network request failed'));
     await renderWithClient(<BudgetsSection token={TOKEN} />);
@@ -171,7 +232,7 @@ describe('BudgetsSection', () => {
 });
 
 describe('budgets API client', () => {
-  const { fetchBudgets, setBudget } = jest.requireActual('../src/api/client');
+  const { fetchBudgets, setBudget, deleteBudget } = jest.requireActual('../src/api/client');
   const originalFetch = global.fetch;
 
   afterAll(() => {
@@ -193,6 +254,17 @@ describe('budgets API client', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringMatching(/\/budgets\/Food$/),
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ amount: 5000 }) })
+    );
+  });
+
+  test('deleteBudget sends DELETE /budgets/{category} and accepts an empty 204 body', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true, status: 204, json: jest.fn().mockRejectedValue(new SyntaxError('Unexpected end of JSON input')),
+    });
+    await expect(deleteBudget(TOKEN, 'Food')).resolves.toBeNull();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/budgets\/Food$/),
+      expect.objectContaining({ method: 'DELETE', headers: expect.objectContaining({ Authorization: `Bearer ${TOKEN}` }) })
     );
   });
 });

@@ -389,6 +389,16 @@ export async function setBudget(token, category, amount) {
 }
 
 /**
+ * DELETE /budgets/{category} - Removes a category's monthly budget (204, 404 when none is set).
+ */
+export async function deleteBudget(token, category) {
+  return request(`/budgets/${encodeURIComponent(category)}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+/**
  * PATCH /profile - Updates user preferences (language, voice_replies).
  */
 export async function patchProfile(token, { language, voice_replies } = {}) {

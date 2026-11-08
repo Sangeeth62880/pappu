@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { colors, radius, spacing, typography } from '../theme/tokens';
-import { fetchBudgets, setBudget } from '../api/client';
+import { fetchBudgets, setBudget, deleteBudget } from '../api/client';
 import { queryKeys } from '../data/queryKeys';
 import { formatAmount } from './ui/AmountText';
 import Card from './ui/Card';
@@ -11,6 +11,7 @@ import Chip from './ui/Chip';
 import Input from './ui/Input';
 import Button from './ui/Button';
 import BottomSheet from './ui/BottomSheet';
+import Dialog from './ui/Dialog';
 
 // Mirrors BUDGET_CATEGORIES in backend/app/services/budgets.py (GET /budgets also returns it).
 const DEFAULT_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
@@ -58,11 +59,13 @@ function BudgetRow({ item, onPress }) {
   );
 }
 
-function BudgetEditSheet({ visible, initial, categories, onClose, onSave }) {
+function BudgetEditSheet({ visible, initial, categories, onClose, onSave, onRemove }) {
   const [category, setCategory] = useState(null);
   const [amount, setAmount] = useState('');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -70,6 +73,8 @@ function BudgetEditSheet({ visible, initial, categories, onClose, onSave }) {
       setAmount(initial?.budget ? String(initial.budget) : '');
       setError(null);
       setSaving(false);
+      setConfirmRemove(false);
+      setRemoving(false);
     }
   }, [visible, initial]);
 
@@ -92,6 +97,17 @@ function BudgetEditSheet({ visible, initial, categories, onClose, onSave }) {
     } catch (err) {
       setError(err?.message || 'Could not save the budget. Try again.');
       setSaving(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    try {
+      setRemoving(true);
+      await onRemove(initial.category);
+    } catch (err) {
+      setConfirmRemove(false);
+      setRemoving(false);
+      setError(err?.message || 'Could not remove the budget. Try again.');
     }
   };
 
@@ -128,13 +144,39 @@ function BudgetEditSheet({ visible, initial, categories, onClose, onSave }) {
         onPress={handleSave}
         loading={saving}
       />
+      {isEdit ? (
+        <Button
+          testID="budget-remove-button"
+          title="Remove budget"
+          variant="destructive_outline"
+          onPress={() => setConfirmRemove(true)}
+          disabled={saving || removing}
+          style={styles.removeButton}
+        />
+      ) : null}
+      {isEdit ? (
+        <Dialog
+          visible={confirmRemove}
+          onClose={() => setConfirmRemove(false)}
+          mascotMood="concerned"
+          title={`Remove the ${initial.category} budget?`}
+          description="Your spending stays recorded. You can set a budget again any time."
+          cancelTitle="Keep it"
+          confirmTitle="Remove"
+          confirmVariant="destructive"
+          onConfirm={handleRemove}
+          loading={removing}
+          testID="budget-remove-dialog"
+        />
+      ) : null}
     </BottomSheet>
   );
 }
 
 /**
- * Budgets section: this month's spent vs budget per category, and a sheet to set or edit one.
- * Spent comes from GET /budgets (the backend's spending definition); this only renders it.
+ * Budgets section: this month's spent vs budget per category, and a sheet to set, edit or
+ * remove one. Spent and state come from GET /budgets (the backend's spending definition):
+ * the bar turns warning at 80% (state 'near') and red at 100% (state 'over').
  */
 export default function BudgetsSection({ token, refreshTrigger = 0 }) {
   const queryClient = useQueryClient();
@@ -162,11 +204,21 @@ export default function BudgetsSection({ token, refreshTrigger = 0 }) {
     setSheetVisible(true);
   };
 
+  const closeSheet = () => {
+    setSheetVisible(false);
+    setEditing(null);
+  };
+
   const handleSave = async (category, amount) => {
     await setBudget(token, category, amount);
     await queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
-    setSheetVisible(false);
-    setEditing(null);
+    closeSheet();
+  };
+
+  const handleRemove = async (category) => {
+    await deleteBudget(token, category);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.budgets() });
+    closeSheet();
   };
 
   return (
@@ -203,11 +255,9 @@ export default function BudgetsSection({ token, refreshTrigger = 0 }) {
         visible={sheetVisible}
         initial={editing}
         categories={categories}
-        onClose={() => {
-          setSheetVisible(false);
-          setEditing(null);
-        }}
+        onClose={closeSheet}
         onSave={handleSave}
+        onRemove={handleRemove}
       />
     </Card>
   );
@@ -301,5 +351,8 @@ const styles = StyleSheet.create({
   },
   chip: {
     marginBottom: spacing.sm,
+  },
+  removeButton: {
+    marginTop: spacing.sm,
   },
 });
