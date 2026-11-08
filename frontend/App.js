@@ -26,6 +26,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import StyleguideScreen from './src/screens/StyleguideScreen';
 import StartupHealthGate from './src/components/ui/StartupHealthGate';
 import { colors } from './src/theme/tokens';
+import { startListenLinks } from './src/utils/listenTrigger';
 import './global.css';
 
 export default function App({ initialShowStyleguide = false }) {
@@ -47,6 +48,9 @@ export default function App({ initialShowStyleguide = false }) {
     NotoSansMalayalam_600SemiBold,
     NotoSansMalayalam_700Bold,
   });
+
+  // Catch pappu://listen from the first render, before the font and health gates finish.
+  useEffect(() => startListenLinks(), []);
 
   useEffect(() => {
     if (fontsLoaded && showStyleguide) {

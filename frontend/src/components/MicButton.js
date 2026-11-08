@@ -21,6 +21,9 @@ import {
 import { transcribeAudio } from '../api/client';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 import { useReduceMotion } from '../utils/reduceMotion';
+import { setMicBusy } from '../utils/micActivity';
+
+let nextMicId = 1;
 
 /**
  * MicButton with support for both standard mic icon and 70px Stitch Coin Mic.
@@ -36,6 +39,9 @@ export default function MicButton({
   onRecordingStateChange = null,
   // Called when an attempt ends without a transcript (permission, STT, empty, stop failure).
   onError = null,
+  // Each new non-zero value starts a recording on its own (pappu://listen). The
+  // transcript then reaches onTranscribed(text, { auto: true }).
+  autoStartKey = 0,
 }) {
   const reduceMotion = useReduceMotion();
   const [isRecording, setIsRecording] = useState(false);
@@ -49,6 +55,11 @@ export default function MicButton({
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const isMountedRef = useRef(true);
+  const autoModeRef = useRef(false);
+  const micIdRef = useRef(null);
+  if (micIdRef.current === null) micIdRef.current = nextMicId++;
+  // Busy from the start of an attempt until it ends: starting, recording, transcribing.
+  const markBusy = (busy) => setMicBusy(micIdRef.current, busy);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Pulse animation while recording (disabled on reduce motion)
@@ -88,6 +99,7 @@ export default function MicButton({
     return () => {
       isMountedRef.current = false;
       cleanupAudio();
+      markBusy(false);
     };
   }, []);
 
@@ -110,10 +122,12 @@ export default function MicButton({
     isRecordingRef.current = false;
   };
 
-  const startRecording = async () => {
+  const startRecording = async ({ auto = false } = {}) => {
     // A second tap while the recorder is still starting must not start another one.
     if (disabled || isTranscribing || isRecordingRef.current || isStartingRef.current) return;
     isStartingRef.current = true;
+    autoModeRef.current = auto;
+    markBusy(true);
     setErrorMessage(null);
     setPermissionDenied(false);
 
@@ -152,6 +166,7 @@ export default function MicButton({
           }
 
           if (audioChunksRef.current.length === 0) {
+            markBusy(false);
             if (isMountedRef.current) {
               setErrorMessage('No audio data was recorded.');
             }
@@ -181,7 +196,10 @@ export default function MicButton({
         if (nativeRecorder?.prepareToRecordAsync) {
           await nativeRecorder.prepareToRecordAsync();
           // Unmounted (e.g. sheet closed) while starting: don't start a recorder nobody can stop.
-          if (!isMountedRef.current) return;
+          if (!isMountedRef.current) {
+            markBusy(false);
+            return;
+          }
           nativeRecorder.record();
         }
       }
@@ -194,6 +212,7 @@ export default function MicButton({
     } catch (err) {
       console.warn('[MicButton] startRecording failed:', err);
       isRecordingRef.current = false;
+      markBusy(false);
       if (isMountedRef.current) {
         setIsRecording(false);
         if (onRecordingStateChange) onRecordingStateChange(false);
@@ -239,6 +258,7 @@ export default function MicButton({
       }
     } catch (err) {
       console.warn('[MicButton] stopRecording failed:', err);
+      markBusy(false);
       if (isMountedRef.current) {
         setErrorMessage(err.message || 'Failed to complete audio recording.');
         if (onError) onError(err);
@@ -248,6 +268,7 @@ export default function MicButton({
 
   const processAudio = async (audioData) => {
     if (!token) {
+      markBusy(false);
       if (isMountedRef.current) {
         setErrorMessage('Authentication required for voice input.');
         if (onError) onError(new Error('Authentication required for voice input.'));
@@ -268,7 +289,7 @@ export default function MicButton({
 
       if (transcript && transcript.length > 0) {
         if (onTranscribed) {
-          onTranscribed(transcript);
+          onTranscribed(transcript, { auto: autoModeRef.current });
         }
       } else {
         if (isMountedRef.current) {
@@ -282,11 +303,17 @@ export default function MicButton({
         if (onError) onError(err);
       }
     } finally {
+      markBusy(false);
       if (isMountedRef.current) {
         setIsTranscribing(false);
       }
     }
   };
+
+  // pappu://listen: start without a tap. The start guard above ignores it if busy.
+  useEffect(() => {
+    if (autoStartKey) startRecording({ auto: true });
+  }, [autoStartKey]);
 
   const handlePress = () => {
     if (isRecordingRef.current) {

@@ -64,6 +64,7 @@ export default function ConversationLog({
   assistantV2 = true,
   onBack = null,
   testID = 'assistant-modal',
+  route = null,
 }) {
   const reduceMotion = useReduceMotion();
   const [inputText, setInputText] = useState('');
@@ -86,6 +87,14 @@ export default function ConversationLog({
   const [showCoinShower, setShowCoinShower] = useState(false);
   const [currentlySpeakingId, setCurrentlySpeakingId] = useState(null);
   const [lastFailedMessage, setLastFailedMessage] = useState(null);
+
+  // pappu://listen opens this screen with a new autoListen id: start recording on our own.
+  const autoListenId = route?.params?.autoListen ?? null;
+  const [micAutoStartKey, setMicAutoStartKey] = useState(0);
+  useEffect(() => {
+    if (autoListenId == null) return;
+    setMicAutoStartKey((key) => key + 1);
+  }, [autoListenId]);
 
   // Typing dots animation: 3 dots cycle translateY(-4px -> 0) staggered by 120ms, 600ms loop per motion spec
   const dot1Anim = useRef(new Animated.Value(0)).current;
@@ -881,6 +890,7 @@ export default function ConversationLog({
             token={token}
             isCoinStyle={true}
             size={70}
+            autoStartKey={micAutoStartKey}
             onTranscribed={(transcript) => handleSendMessage(transcript, { input: 'voice' })}
             onRecordingStateChange={(recording) => {
               if (recording) {

@@ -78,7 +78,7 @@ describe('MicButton & Voice Input Integration', () => {
         expect.objectContaining({ uri: 'mock://audio.wav' }),
         null
       );
-      expect(mockOnTranscribed).toHaveBeenCalledWith('I spent 300 on transport today');
+      expect(mockOnTranscribed).toHaveBeenCalledWith('I spent 300 on transport today', { auto: false });
     });
 
     await waitFor(() => {

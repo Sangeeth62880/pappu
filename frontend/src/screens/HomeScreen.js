@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import {
   NavigationContainer,
   NavigationContext,
+  NavigationContainerRefContext,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -32,6 +33,7 @@ import { undoTransaction, clearChatHistory } from '../api/client';
 import { queryClient } from '../data/queryClient';
 import { queryKeys } from '../data/queryKeys';
 import { removeChunkedItem } from '../utils/chunkedSecureStore';
+import { useListenRequest, takeListenRequest, noteSignInShown } from '../utils/listenTrigger';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -56,6 +58,26 @@ function MainTabNavigator({
   const [currentTab, setCurrentTab] = useState('Home');
   const [historySearchTrigger, setHistorySearchTrigger] = useState(0);
   const [addPersonTrigger, setAddPersonTrigger] = useState(0);
+
+  // pappu://listen: this screen exists only once startup is done and the user is signed in.
+  const listenRequest = useListenRequest();
+  const navigationContainer = React.useContext(NavigationContainerRefContext);
+  useEffect(() => {
+    if (!listenRequest) return;
+    const request = takeListenRequest();
+    if (!request) return;
+    setVoiceSheetVisible?.(false);
+    const openAssistant = () => rootNavigation.navigate('Assistant', { autoListen: request.id });
+    // Cold start: the root stack has no state yet on its first mount, so a navigate now is lost.
+    if (!navigationContainer || navigationContainer.isReady()) {
+      openAssistant();
+      return;
+    }
+    const unsubscribe = navigationContainer.addListener('ready', () => {
+      unsubscribe();
+      openAssistant();
+    });
+  }, [listenRequest, rootNavigation, setVoiceSheetVisible, navigationContainer]);
 
   return (
     <SafeAreaView testID="home-screen" style={styles.screen} edges={['top', 'left', 'right']}>
@@ -268,6 +290,12 @@ function InnerHomeScreen({
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [authChecking]);
+
+  // A listen link while signed out waits for sign in, but only for a short window.
+  const listenRequest = useListenRequest();
+  useEffect(() => {
+    if (!authChecking && !token && listenRequest) noteSignInShown();
+  }, [authChecking, token, listenRequest]);
 
   const handleAuthenticated = (newSession) => {
     setSession(newSession);
