@@ -5,6 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
 import { useReduceMotion } from '../../utils/reduceMotion';
 import CoinButton from './CoinButton';
+import { openVoiceOverlay } from '../../utils/voiceOverlayStore';
 
 const LEFT_TABS = [
   { key: 'Home',    testID: 'tab-dashboard', label: 'Home',    icon: 'home' },
@@ -97,6 +98,12 @@ export default function CustomTabBar({
   const currentTabName = state.routes[state.index]?.name;
 
   const handleOpenAssistant = (data) => {
+    // Press and hold the coin: Pappu emerges over this screen and listens.
+    // A tap still opens the Assistant chat.
+    if (data?.recordedDuration !== undefined) {
+      openVoiceOverlay('coin');
+      return;
+    }
     if (onOpenAssistant) {
       onOpenAssistant(data);
     } else if (rootNavigation) {

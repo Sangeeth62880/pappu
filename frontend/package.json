@@ -53,7 +53,9 @@
       "^expo-audio$": "<rootDir>/tests/mocks/expoAudioMock.js",
       "^expo-font$": "<rootDir>/tests/mocks/expoFontMock.js",
       "^expo-secure-store$": "<rootDir>/tests/mocks/expoSecureStoreMock.js",
-      "^expo-splash-screen$": "<rootDir>/tests/mocks/expoSplashScreenMock.js"
+      "^expo-splash-screen$": "<rootDir>/tests/mocks/expoSplashScreenMock.js",
+      "^react-native-reanimated$": "<rootDir>/node_modules/react-native-reanimated/lib/module/mock.js",
+      "^react-native-worklets$": "<rootDir>/node_modules/react-native-worklets/lib/module/mock.js"
     }
   },
   "private": true,

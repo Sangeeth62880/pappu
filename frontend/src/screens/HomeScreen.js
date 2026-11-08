@@ -25,7 +25,7 @@ import PersonDetailScreen from './PersonDetailScreen';
 import AppHeader from '../components/ui/AppHeader';
 import CustomTabBar from '../components/ui/CustomTabBar';
 import Toast from '../components/ui/Toast';
-import VoiceListeningSheet from '../components/ui/VoiceListeningSheet';
+import VoiceOverlayHost from '../components/voiceOverlay/VoiceOverlayHost';
 
 import { colors, spacing } from '../theme/tokens';
 import { getSession, signOut, supabase } from '../api/supabase';
@@ -51,7 +51,6 @@ function MainTabNavigator({
   setSelectedPersonId,
   handleClearChatHistory,
   handleSignOut,
-  setVoiceSheetVisible,
   rootNavigation,
   initialTooltipVisible = null,
 }) {
@@ -66,7 +65,6 @@ function MainTabNavigator({
     if (!listenRequest) return;
     const request = takeListenRequest();
     if (!request) return;
-    setVoiceSheetVisible?.(false);
     const openAssistant = () => rootNavigation.navigate('Assistant', { autoListen: request.id });
     // Cold start: the root stack has no state yet on its first mount, so a navigate now is lost.
     if (!navigationContainer || navigationContainer.isReady()) {
@@ -77,7 +75,7 @@ function MainTabNavigator({
       unsubscribe();
       openAssistant();
     });
-  }, [listenRequest, rootNavigation, setVoiceSheetVisible, navigationContainer]);
+  }, [listenRequest, rootNavigation, navigationContainer]);
 
   return (
     <SafeAreaView testID="home-screen" style={styles.screen} edges={['top', 'left', 'right']}>
@@ -201,7 +199,6 @@ function InnerHomeScreen({
   const [token, setToken] = useState(initialToken || initialSession?.access_token || null);
   const [authChecking, setAuthChecking] = useState(!initialToken && !initialSession);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [voiceSheetVisible, setVoiceSheetVisible] = useState(false);
   const [historyFilter, setHistoryFilter] = useState(null);
   const [selectedPersonId, setSelectedPersonId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
@@ -383,7 +380,6 @@ function InnerHomeScreen({
                   setSelectedPersonId={setSelectedPersonId}
                   handleClearChatHistory={handleClearChatHistory}
                   handleSignOut={handleSignOut}
-                  setVoiceSheetVisible={setVoiceSheetVisible}
                   rootNavigation={props.navigation}
                   initialTooltipVisible={initialTooltipVisible}
                 />
@@ -443,14 +439,8 @@ function InnerHomeScreen({
         onDismiss={() => setToastVisible(false)}
       />
 
-      {/* Voice Listening Sheet */}
-      <VoiceListeningSheet
-        visible={voiceSheetVisible}
-        onClose={() => setVoiceSheetVisible(false)}
-        token={token}
-        onTransactionMutated={handleTransactionMutated}
-        setMessages={handleUpdateMessages}
-      />
+      {/* Voice overlay: Pappu over any screen (links, quick actions, coin hold) */}
+      <VoiceOverlayHost token={token} onTransactionMutated={handleTransactionMutated} />
     </View>
   );
 }
