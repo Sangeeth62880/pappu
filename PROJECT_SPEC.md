@@ -291,6 +291,8 @@ Decisions (made 2026-11-14, do not re-litigate). Approved screens: `design/stitc
 
 **Other rules**
 * Every bill query is scoped by the verified `user_id`; another user's bill is a 404.
+* Errors from `/bills` routes carry `detail: { message, code, detail }`; the app keys its behaviour on `code` (`does_not_add_up`, `unassigned_items`, `ambiguous_people`, `planner_failed`, `not_a_draft`, `share_paid`, `upi_id_missing`).
+* Every bill response includes `ready` (the bill adds up, every item is assigned and no name is unanswered), `question` (the one unassigned item Pappu is asking about, in the reply language) and `shares` (the preview for a draft, the stored shares once confirmed).
 * The bill flow is outside the §5b latency budget (OCR takes seconds); the app shows the Reading screen meanwhile.
 * Entry point: a receipt button in the People header. Replies and screen strings follow the existing reply language rules.
 
@@ -409,10 +411,12 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 | PUT | `/budgets/{category}` | Body `{amount}` (> 0). Creates or replaces that category's monthly budget; 422 for categories that cannot have one |
 | DELETE | `/budgets/{category}` | Removes that category's budget (204). 404 when the verified user has no budget there (another user's budget is never reachable); 422 for categories that cannot have one |
 | POST | `/bills` | Multipart bill image. Runs OCR and extraction, stores a `draft` bill, returns it with `items`, charges, `total`, `adds_up`, `difference`. 422 when no bill can be read |
+| POST | `/bills/manual` | A draft from typed items (`merchant`, `bill_date`, `items`, charges, `total`): the fallback when a photo cannot be read |
 | GET | `/bills/{id}` | The bill with items, assignments and, once assigned, the computed shares |
 | PATCH | `/bills/{id}` | Review screen edits to a draft: merchant, date, charges, total, and add/change/remove items. Returns the bill with `adds_up` recomputed |
 | POST | `/bills/{id}/assign` | Body `{ text, input: "text" \| "voice" }`. Runs the split planner and returns assignments, any unassigned items with a question, new names, and the share preview when complete |
 | PUT | `/bills/{id}/items/{item_id}/people` | Body `{ people: [...] }`. Manual assignment by tapping; no LLM |
+| POST | `/bills/{id}/people/resolve` | Body `{ name, use_existing }`. Answers a close name match: use the existing contact, or keep the name as a new person. Confirm is refused (409 `ambiguous_people`) while any name is unanswered |
 | POST | `/bills/{id}/confirm` | Writes the split (§5b Bill Split). 409 while the bill does not add up or has unassigned items |
 | DELETE | `/bills/{id}` | Cancels a draft (204). A confirmed bill is reverted by undo, not by this |
 | POST | `/bills/{id}/undo` | Reverts a confirmed bill: removes every transaction its confirm wrote and sets it to `undone`. 409 once any share is marked paid (undo that repayment first) |

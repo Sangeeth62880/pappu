@@ -126,6 +126,10 @@ def execute_undo(
 
             db.delete(action)
 
+        # A bill split is written as one batch; reverting that batch reverts the bill (§5b Bill Split).
+        from app.services.bills import mark_bills_undone
+        mark_bills_undone(db, user_id, latest_action.batch_id)
+
         db.commit()
 
         return ActionResult(
