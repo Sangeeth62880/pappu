@@ -48,12 +48,15 @@ LAST_MONTH = date(2026, 10, 30)
 
 @pytest.fixture(autouse=True)
 def frozen_ist_clock(monkeypatch):
+    # Freezes "today" for dates, budget months and replies. The add executor's clock is left real on
+    # purpose: it stamps created_at, and the 10 minute "recently added" check (last_touched.py)
+    # compares that with the real clock. Freezing it made edits of a just-added row ask for
+    # confirmation once the real date passed FROZEN_IST_NOW.
     for target in (
         "app.services.date_utils.get_current_ist_datetime",
         "app.services.budgets.get_current_ist_datetime",
         "app.assistant.context.get_current_ist_datetime",
         "app.assistant.validation.get_current_ist_datetime",
-        "app.assistant.executors.add.get_current_ist_datetime",
     ):
         monkeypatch.setattr(target, lambda: FROZEN_IST_NOW)
 
