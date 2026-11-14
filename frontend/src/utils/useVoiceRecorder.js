@@ -390,6 +390,8 @@ export function useVoiceRecorder({
     errorMessage,
     permissionDenied,
     isRecordingRef,
+    // True while start() waits on the mic permission prompt or the cue.
+    isStartingRef,
     start: startRecording,
     stop: stopRecording,
     // Drop whatever is being recorded: no STT, no message, mic released.

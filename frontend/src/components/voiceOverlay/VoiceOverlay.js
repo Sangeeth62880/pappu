@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useReducer, useRef } from 'react';
-import { Linking } from 'react-native';
+import { Linking, AppState } from 'react-native';
 import { useSharedValue, withTiming } from 'react-native-reanimated';
 import VoiceOverlayView from './VoiceOverlayView';
 import {
@@ -168,6 +168,22 @@ export default function VoiceOverlay({ token, onTransactionMutated, onClosed }) 
     if (ownsAudioRef.current) stopAudio();
     dispatch({ type: 'DISMISS' });
     exitTimerRef.current = setTimeout(finish, EXIT_FALLBACK_MS);
+  }, [finish]);
+
+  // App sent to the background mid-session: close at once (no animation), dropping the
+  // recording and stopping speech. Not while the mic permission prompt is up: on Android
+  // it backgrounds the app, on iOS it only makes it inactive.
+  useEffect(() => {
+    const subscription = AppState.addEventListener?.('change', (next) => {
+      if (next !== 'background' || recorderRef.current.isStartingRef.current) return;
+      if (!closingRef.current) {
+        closingRef.current = true;
+        recorderRef.current.cancel();
+        if (ownsAudioRef.current) stopAudio();
+      }
+      finish();
+    });
+    return () => subscription?.remove?.();
   }, [finish]);
 
   // Summon: a light tick, start listening right away, pick up the profile language.
