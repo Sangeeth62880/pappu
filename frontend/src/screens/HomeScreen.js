@@ -21,6 +21,10 @@ import PeopleScreen from '../components/PeopleScreen';
 import AuthScreen from './AuthScreen';
 import MeScreen from './MeScreen';
 import PersonDetailScreen from './PersonDetailScreen';
+import BillSplitScreen from './BillSplitScreen';
+import BillStartSheet from '../components/billSplit/BillStartSheet';
+import { pickBillImage } from '../utils/billPicker';
+import { t } from '../i18n/strings';
 import AppHeader from '../components/ui/AppHeader';
 import CustomTabBar from '../components/ui/CustomTabBar';
 import Toast from '../components/ui/Toast';
@@ -57,6 +61,22 @@ function MainTabNavigator({
   const [currentTab, setCurrentTab] = useState('Home');
   const [historySearchTrigger, setHistorySearchTrigger] = useState(0);
   const [addPersonTrigger, setAddPersonTrigger] = useState(0);
+  const [billStartVisible, setBillStartVisible] = useState(false);
+  const [billStartError, setBillStartError] = useState(null);
+  const billLanguage = queryClient.getQueryData(queryKeys.profile())?.language === 'ml' ? 'ml' : 'en';
+
+  // Split a bill: pick the photo here, then hand it to the BillSplit stack screen.
+  const handlePickBill = async (source) => {
+    setBillStartError(null);
+    try {
+      const image = await pickBillImage(source);
+      if (!image) return;
+      setBillStartVisible(false);
+      rootNavigation.navigate('BillSplit', { image });
+    } catch (err) {
+      setBillStartError(t(err.code === 'permission' ? 'bill.start.permission' : 'bill.error.generic', billLanguage));
+    }
+  };
 
 
   return (
@@ -71,6 +91,10 @@ function MainTabNavigator({
         }}
         onAddPersonPress={() => {
           setAddPersonTrigger((prev) => prev + 1);
+        }}
+        onSplitBillPress={() => {
+          setBillStartError(null);
+          setBillStartVisible(true);
         }}
       />
 
@@ -168,6 +192,14 @@ function MainTabNavigator({
           </Tab.Screen>
         </Tab.Navigator>
       </View>
+
+      <BillStartSheet
+        visible={billStartVisible}
+        onClose={() => setBillStartVisible(false)}
+        onPick={handlePickBill}
+        language={billLanguage}
+        error={billStartError}
+      />
     </SafeAreaView>
   );
 }
@@ -408,6 +440,24 @@ function InnerHomeScreen({
             >
               {(props) => (
                 <PersonDetailScreen
+                  {...props}
+                  token={token}
+                  onShowToast={showToast}
+                  onTransactionMutated={handleTransactionMutated}
+                />
+              )}
+            </RootStack.Screen>
+
+            {/* Bill split flow (design/stitch/bill_split.html) */}
+            <RootStack.Screen
+              name="BillSplit"
+              options={{
+                animation: 'slide_from_right',
+                headerShown: false,
+              }}
+            >
+              {(props) => (
+                <BillSplitScreen
                   {...props}
                   token={token}
                   onShowToast={showToast}

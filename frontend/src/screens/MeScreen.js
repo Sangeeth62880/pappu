@@ -24,6 +24,7 @@ import { fetchProfile, patchProfile } from '../api/client';
 import Dialog from '../components/ui/Dialog';
 import Button from '../components/ui/Button';
 import BottomSheet from '../components/ui/BottomSheet';
+import Input from '../components/ui/Input';
 import MascotDevToggle from '../components/ui/MascotDevToggle';
 import BudgetsSection from '../components/BudgetsSection';
 import QuickAccessSection from '../components/QuickAccessSection';
@@ -140,6 +141,10 @@ function MeScreenInner({
   const [mascotDevVisible, setMascotDevVisible] = useState(false);
   const [clearingChat, setClearingChat] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  // UPI ID: where friends pay their share of a split bill (bill split, Ask to pay).
+  const [upiSheetVisible, setUpiSheetVisible] = useState(false);
+  const [upiDraft, setUpiDraft] = useState('');
+  const [upiError, setUpiError] = useState(null);
 
   // Sync local state when profile loads
   useEffect(() => {
@@ -183,6 +188,23 @@ function MeScreenInner({
     setSelectedLanguage(lang);
     prefsMutation.mutate({ language: lang });
   }, [prefsMutation]);
+
+  const openUpiSheet = useCallback(() => {
+    setUpiDraft(profile?.upi_id || '');
+    setUpiError(null);
+    setUpiSheetVisible(true);
+  }, [profile]);
+
+  const saveUpiId = useCallback(() => {
+    setUpiError(null);
+    prefsMutation.mutate(
+      { upi_id: upiDraft.trim() },
+      {
+        onSuccess: () => setUpiSheetVisible(false),
+        onError: (err) => setUpiError(err.message || 'Could not save that UPI ID.'),
+      },
+    );
+  }, [prefsMutation, upiDraft]);
 
   const handleVoiceToggle = useCallback((val) => {
     setVoiceReplies(val);
@@ -302,6 +324,26 @@ function MeScreenInner({
 
         <View style={styles.divider} />
 
+        {/* Row: UPI ID for bill split pay requests */}
+        <TouchableOpacity
+          testID="profile-upi-row"
+          onPress={openUpiSheet}
+          style={styles.settingRow}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="UPI ID"
+        >
+          <Text style={styles.settingLabel}>UPI ID</Text>
+          <View style={styles.clearRowLeft}>
+            <Text testID="profile-upi-value" style={styles.upiValue} numberOfLines={1}>
+              {profile?.upi_id || 'Add'}
+            </Text>
+            <Feather name="chevron-right" size={18} color={colors.ink_muted} />
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.divider} />
+
         {/* Row 3: Clear Chat History Action */}
         <TouchableOpacity
           testID="profile-clear-chat-button"
@@ -385,6 +427,24 @@ function MeScreenInner({
         mascotMood="happy"
         mascotSize={72}
       />
+
+      {/* ── UPI ID Sheet ── */}
+      <BottomSheet visible={upiSheetVisible} onClose={() => setUpiSheetVisible(false)} testID="upi-bottom-sheet">
+        <Text style={styles.upiTitle}>UPI ID</Text>
+        <Text style={styles.upiHint}>
+          Friends pay their share of a split bill to this ID. Leave it empty to remove it.
+        </Text>
+        <Input
+          testID="upi-input"
+          value={upiDraft}
+          onChangeText={setUpiDraft}
+          placeholder="name@bank"
+          error={upiError}
+          style={{ marginBottom: 12 }}
+        />
+        {upiError ? <Text testID="upi-error" style={[styles.upiHint, { color: colors.expense }]}>{upiError}</Text> : null}
+        <Button testID="upi-save" title="Save" onPress={saveUpiId} loading={prefsMutation.isPending} />
+      </BottomSheet>
 
       {/* ── Mascot Showcase Dev Sheet ── */}
       <BottomSheet
@@ -517,6 +577,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  upiValue: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '600',
+    fontSize: 14,
+    color: colors.ink_muted,
+    maxWidth: 180,
+    marginRight: 6,
+  },
+  upiHint: {
+    fontFamily: typography.fonts.body,
+    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.ink_muted,
+    marginBottom: 12,
+  },
+  upiTitle: {
+    fontFamily: typography.fonts.display,
+    fontWeight: '700',
+    fontSize: 24,
+    lineHeight: 28,
+    color: colors.ink,
+    marginBottom: 8,
   },
   settingLabel: {
     fontFamily: typography.fonts.body,

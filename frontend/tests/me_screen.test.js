@@ -351,6 +351,47 @@ describe('MeScreen', () => {
     expect(containerStyle.height).toBe(36);
   });
 
+  // ── UPI ID (bill split pay requests) ──
+
+  test('UPI row shows Add when none is saved, and saves one', async () => {
+    client.patchProfile.mockResolvedValue({ ...defaultProfile, upi_id: 'me@upi' });
+    await render(<MeScreen token={mockToken} />, { wrapper: createWrapper() });
+    await screen.findByText('Sangeeth');
+    expect(screen.getByTestId('profile-upi-value').props.children).toBe('Add');
+    // After the save the screen refetches the profile; the server now has the new value.
+    client.fetchProfile.mockResolvedValue({ ...defaultProfile, upi_id: 'me@upi' });
+
+    await fireEvent.press(screen.getByTestId('profile-upi-row'));
+    await fireEvent.changeText(screen.getByTestId('upi-input'), ' me@upi ');
+    await fireEvent.press(screen.getByTestId('upi-save'));
+    await waitFor(() => expect(client.patchProfile).toHaveBeenCalledWith(mockToken, { upi_id: 'me@upi' }));
+    await waitFor(() => expect(screen.getByTestId('profile-upi-value').props.children).toBe('me@upi'));
+  });
+
+  test('a saved UPI ID is shown and can be cleared with an empty value', async () => {
+    client.fetchProfile.mockResolvedValue({ ...defaultProfile, upi_id: 'old@upi' });
+    client.patchProfile.mockResolvedValue({ ...defaultProfile, upi_id: null });
+    await render(<MeScreen token={mockToken} />, { wrapper: createWrapper() });
+    await waitFor(() => expect(screen.getByTestId('profile-upi-value').props.children).toBe('old@upi'));
+
+    await fireEvent.press(screen.getByTestId('profile-upi-row'));
+    expect(screen.getByTestId('upi-input').props.value).toBe('old@upi');
+    await fireEvent.changeText(screen.getByTestId('upi-input'), '');
+    await fireEvent.press(screen.getByTestId('upi-save'));
+    await waitFor(() => expect(client.patchProfile).toHaveBeenCalledWith(mockToken, { upi_id: '' }));
+  });
+
+  test('a rejected UPI ID shows the reason and keeps the sheet open', async () => {
+    client.patchProfile.mockRejectedValue(new Error('That does not look like a UPI ID. It should look like name@bank.'));
+    await render(<MeScreen token={mockToken} />, { wrapper: createWrapper() });
+    await screen.findByText('Sangeeth');
+    await fireEvent.press(screen.getByTestId('profile-upi-row'));
+    await fireEvent.changeText(screen.getByTestId('upi-input'), 'nope');
+    await fireEvent.press(screen.getByTestId('upi-save'));
+    await waitFor(() => expect(screen.getByTestId('upi-error')).toBeTruthy());
+    expect(screen.getByTestId('upi-input')).toBeTruthy();
+  });
+
   test('mascot showcase is rendered in __DEV__ but omitted when __DEV__ is false', async () => {
     const originalDev = global.__DEV__;
     try {
@@ -373,5 +414,6 @@ describe('MeScreen', () => {
       global.__DEV__ = originalDev;
     }
   });
+
 });
 

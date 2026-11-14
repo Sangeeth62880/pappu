@@ -7,13 +7,15 @@ import { colors, radius, spacing, typography } from '../../theme/tokens';
  * App Header identical on Home, History, People and Me.
  * Visual source of truth: Stitch HTML (home.html, history.html, people.html, me.html)
  * Left: 32px coin mark with inner rim and 'P', followed by Baloo 800 22px "Pappu" wordmark.
- * Right: Screen-specific action only (History: search 40px circle, People: add 40px gold circle, Home/Me: blank).
+ * Right: Screen-specific action only (History: search 40px circle, People: split a bill 40px circle then
+ * add 40px gold circle, Home/Me: blank). The split a bill button is from design/stitch/bill_split.html.
  * Strictly NO language chip, NO avatar, NO status text, NO gradients.
  */
 export default function AppHeader({
   screen = 'home',
   onSearchPress,
   onAddPersonPress,
+  onSplitBillPress,
   style,
 }) {
   return (
@@ -48,6 +50,19 @@ export default function AppHeader({
             <Feather name="search" size={20} color={colors.ink} />
           </TouchableOpacity>
         ) : screen === 'people' ? (
+          <>
+            {onSplitBillPress ? (
+              <TouchableOpacity
+                testID="header-split-bill-button"
+                onPress={onSplitBillPress}
+                style={styles.searchButton}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Split a bill"
+              >
+                <Feather name="file-text" size={20} color={colors.ink} />
+              </TouchableOpacity>
+            ) : null}
           <TouchableOpacity
             testID="header-add-person-button"
             onPress={onAddPersonPress}
@@ -58,6 +73,7 @@ export default function AppHeader({
           >
             <Feather name="plus" size={20} color={colors.ink} />
           </TouchableOpacity>
+          </>
         ) : (
           <View style={styles.blankPlaceholder} />
         )}
@@ -132,10 +148,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   rightActionGroup: {
-    width: 40,
+    minWidth: 40,
     height: 40,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
   searchButton: {
     width: 40,

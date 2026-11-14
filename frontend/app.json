@@ -44,6 +44,14 @@
           "backgroundColor": "#FFF8E7"
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Pappu reads a bill photo you choose so it can split the bill.",
+          "cameraPermission": "Pappu uses the camera to photograph a bill so it can split it.",
+          "microphonePermission": false
+        }
+      ],
       "./plugins/withListenEntryPoints"
     ],
     "extra": {

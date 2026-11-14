@@ -46,14 +46,32 @@ async function request(endpoint, { method = 'GET', token, body, params } = {}) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const errorMessage = data?.detail || `API request failed with status ${response.status}`;
-    const error = new Error(errorMessage);
-    error.status = response.status;
-    error.data = data;
-    throw error;
+    throw buildApiError(data, response.status, `API request failed with status ${response.status}`);
   }
 
   return data;
+}
+
+/**
+ * Turns an error response into an Error. `detail` is a plain string on most routes; the
+ * /bills routes send { message, code, detail }, so `error.code` is set for those.
+ */
+export function buildApiError(data, status, fallbackMessage) {
+  const detail = data?.detail;
+  const isStructured = detail && typeof detail === 'object' && !Array.isArray(detail);
+  const message = isStructured
+    ? detail.message
+    : typeof detail === 'string'
+      ? detail
+      : null;
+  const error = new Error(message || fallbackMessage);
+  error.status = status;
+  error.data = data;
+  if (isStructured) {
+    error.code = detail.code;
+    error.detail = detail.detail;
+  }
+  return error;
 }
 
 /**
@@ -399,12 +417,13 @@ export async function deleteBudget(token, category) {
 }
 
 /**
- * PATCH /profile - Updates user preferences (language, voice_replies).
+ * PATCH /profile - Updates user preferences (language, voice_replies, upi_id; '' clears the UPI ID).
  */
-export async function patchProfile(token, { language, voice_replies } = {}) {
+export async function patchProfile(token, { language, voice_replies, upi_id } = {}) {
   const body = {};
   if (language !== undefined) body.language = language;
   if (voice_replies !== undefined) body.voice_replies = voice_replies;
+  if (upi_id !== undefined) body.upi_id = upi_id;
   return request('/profile', {
     method: 'PATCH',
     token,
@@ -412,3 +431,112 @@ export async function patchProfile(token, { language, voice_replies } = {}) {
   });
 }
 
+// ── Bill split (PROJECT_SPEC.md §5b Bill Split) ──────────────────────────────────────────
+
+/**
+ * POST /bills - Uploads a bill photo and returns the draft bill read from it.
+ * `image` is a Blob/File (web) or { uri, name, type } (native picker asset).
+ */
+export async function uploadBill(token, image) {
+  const url = `${getApiBaseUrl().replace(/\/$/, '')}/bills`;
+  const formData = new FormData();
+  const isBlob = typeof Blob !== 'undefined' && image instanceof Blob;
+  if (isBlob) {
+    formData.append('file', image, image.name || 'bill.jpg');
+  } else {
+    formData.append('file', {
+      uri: image.uri,
+      name: image.name || 'bill.jpg',
+      type: image.type || 'image/jpeg',
+    });
+  }
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const fallback = 'Could not read that bill.';
+
+  // Same reason as transcribeAudio: Expo's fetch cannot send { uri } form parts, XHR can.
+  const isJestMock = typeof jest !== 'undefined' || (global.fetch && global.fetch._isMockFunction);
+  if (!isJestMock && !isBlob && typeof XMLHttpRequest !== 'undefined') {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      Object.entries(headers).forEach(([key, value]) => xhr.setRequestHeader(key, value));
+      xhr.onload = () => {
+        let data = null;
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch (_) {
+          data = null;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+        else reject(buildApiError(data, xhr.status, fallback));
+      };
+      xhr.onerror = () => reject(new Error('Network request failed'));
+      xhr.ontimeout = () => reject(new Error('Request timed out'));
+      xhr.send(formData);
+    });
+  }
+
+  const response = await fetch(url, { method: 'POST', headers, body: formData });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw buildApiError(data, response.status, fallback);
+  return data;
+}
+
+/** POST /bills/manual - A draft from typed items, for when a photo cannot be read. */
+export async function createManualBill(token, bill) {
+  return request('/bills/manual', { method: 'POST', token, body: bill });
+}
+
+/** GET /bills/{id} */
+export async function fetchBill(token, billId) {
+  return request(`/bills/${billId}`, { method: 'GET', token });
+}
+
+/** PATCH /bills/{id} - Review screen edits: merchant, bill_date, items, tax, service_charge, discount, total. */
+export async function patchBill(token, billId, patch) {
+  return request(`/bills/${billId}`, { method: 'PATCH', token, body: patch });
+}
+
+/** POST /bills/{id}/assign - "Who had what" as typed or spoken text. */
+export async function assignBill(token, billId, text, input = 'text') {
+  return request(`/bills/${billId}/assign`, { method: 'POST', token, body: { text, input } });
+}
+
+/** PUT /bills/{id}/items/{itemId}/people - Assign one item by tapping. [] clears it. */
+export async function setBillItemPeople(token, billId, itemId, people) {
+  return request(`/bills/${billId}/items/${itemId}/people`, { method: 'PUT', token, body: { people } });
+}
+
+/** POST /bills/{id}/people/resolve - Answer a close name match. */
+export async function resolveBillPerson(token, billId, name, useExisting) {
+  return request(`/bills/${billId}/people/resolve`, {
+    method: 'POST',
+    token,
+    body: { name, use_existing: useExisting },
+  });
+}
+
+/** POST /bills/{id}/confirm - Saves the split. The only call that writes the transactions. */
+export async function confirmBill(token, billId) {
+  return request(`/bills/${billId}/confirm`, { method: 'POST', token });
+}
+
+/** POST /bills/{id}/undo - Reverts a saved split. */
+export async function undoBill(token, billId) {
+  return request(`/bills/${billId}/undo`, { method: 'POST', token });
+}
+
+/** DELETE /bills/{id} - Cancels a draft. */
+export async function cancelBill(token, billId) {
+  return request(`/bills/${billId}`, { method: 'DELETE', token });
+}
+
+/** GET /bills/{id}/shares/{shareId}/request - UPI link and message for one friend's share. */
+export async function fetchPayRequest(token, billId, shareId) {
+  return request(`/bills/${billId}/shares/${shareId}/request`, { method: 'GET', token });
+}
+
+/** POST /bills/{id}/shares/{shareId}/paid - Marks a friend's share as paid back. */
+export async function markBillSharePaid(token, billId, shareId) {
+  return request(`/bills/${billId}/shares/${shareId}/paid`, { method: 'POST', token });
+}
