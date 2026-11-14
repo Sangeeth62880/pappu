@@ -274,6 +274,7 @@ Decisions (made 2026-11-14, do not re-litigate). Approved screens: `design/stitc
 * An item's amount is divided equally among the people assigned to it.
 * Tax, service charge, discount and round off are shared in proportion to each person's item subtotal.
 * Each friend's share is rounded to the nearest whole rupee. The user's share is `total - sum(friend shares)`, so the shares always add up to the bill total exactly.
+* When the user had nothing on the bill there is no user share and no Food transaction: the friend with the largest share absorbs the rounding remainder instead. No share is ever negative.
 * A bill with any unassigned item, or with `adds_up: false`, cannot be previewed or confirmed.
 
 **What gets written on confirm**
