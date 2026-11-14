@@ -7,9 +7,11 @@ import {
   initialOverlayState,
   hasPending,
   normalizeLevel,
+  overlayVisual,
   AUTO_DISMISS_MS,
   PHASES,
 } from './overlayMachine';
+import { hapticTick } from '../../utils/haptics';
 import { useVoiceRecorder } from '../../utils/useVoiceRecorder';
 import { useReduceMotion } from '../../utils/reduceMotion';
 import { playAudioBase64, stopAudio } from '../../utils/audioPlayer';
@@ -168,8 +170,9 @@ export default function VoiceOverlay({ token, onTransactionMutated, onClosed }) 
     exitTimerRef.current = setTimeout(finish, EXIT_FALLBACK_MS);
   }, [finish]);
 
-  // Summon: start listening right away; pick up the profile language if not cached.
+  // Summon: a light tick, start listening right away, pick up the profile language.
   useEffect(() => {
+    hapticTick('summon');
     listen();
     if (queryClient.getQueryData(queryKeys.profile()) === undefined && token) {
       Promise.resolve()
@@ -185,6 +188,14 @@ export default function VoiceOverlay({ token, onTransactionMutated, onClosed }) 
       if (ownsAudioRef.current) stopAudio();
     };
   }, []);
+
+  // A tick for a successful result or an error (once per state reached).
+  useEffect(() => {
+    if (state.phase === PHASES.error) hapticTick('error');
+    else if (state.phase === PHASES.result && overlayVisual(state).reaction === 'celebrate') {
+      hapticTick('success');
+    }
+  }, [state.phase, state.reply]);
 
   // Leave on its own a moment after the result, unless touched or waiting for an answer.
   useEffect(() => {

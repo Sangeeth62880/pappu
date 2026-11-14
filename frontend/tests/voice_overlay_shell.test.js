@@ -47,7 +47,7 @@ describe('VoiceOverlayHost', () => {
 
     await act(async () => openVoiceOverlay('link'));
     expect(utils.getByTestId('voice-overlay')).toBeTruthy();
-    expect(utils.getByTestId('voice-overlay-mascot')).toBeTruthy();
+    expect(utils.getByTestId('voice-overlay-mascot', { includeHiddenElements: true })).toBeTruthy();
   });
 
   test.each([

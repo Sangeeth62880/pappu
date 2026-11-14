@@ -1,5 +1,15 @@
 import React, { useEffect } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  AccessibilityInfo,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -229,7 +239,12 @@ function PendingCard({ pending, lang, onAnswer, onSelectCandidate }) {
 
 function ErrorCard({ error, lang, onRetry, onOpenSettings }) {
   return (
-    <View testID={`voice-overlay-error-${error.kind}`} style={styles.card}>
+    <View
+      testID={`voice-overlay-error-${error.kind}`}
+      style={styles.card}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="assertive"
+    >
       <Text style={[styles.cardBody, bodyFont(t(`overlay.error.${error.kind}`, lang))]}>
         {t(`overlay.error.${error.kind}`, lang)}
       </Text>
@@ -381,6 +396,22 @@ export default function VoiceOverlayView({
   const pending = hasPending(state) ? reply.pending : null;
   const clarify = phase === PHASES.result && String(reply?.mood || '') === 'confused' && !pending;
 
+  // VoiceOver has no live regions: announce each new state and the reply (TalkBack reads
+  // the live regions below instead, so Android is not announced twice).
+  const announcement =
+    phase === PHASES.error && error
+      ? t(`overlay.error.${error.kind}`, lang)
+      : showStatus
+      ? statusText
+      : showReply && text
+      ? text
+      : null;
+  useEffect(() => {
+    if (Platform.OS === 'ios' && announcement) {
+      AccessibilityInfo.announceForAccessibility?.(announcement);
+    }
+  }, [announcement]);
+
   return (
     <Modal
       testID={testID}
@@ -391,7 +422,9 @@ export default function VoiceOverlayView({
       navigationBarTranslucent
       onRequestClose={onClose}
     >
-      <GestureHandlerRootView style={styles.root}>
+      <GestureHandlerRootView style={styles.root} accessibilityViewIsModal>
+        {/* Dark icons over the cream scrim, whatever the screen underneath uses. */}
+        <StatusBar style="dark" />
         <Animated.View style={[StyleSheet.absoluteFill, scrimStyle]}>
           <Pressable
             testID="voice-overlay-scrim"
@@ -438,7 +471,7 @@ export default function VoiceOverlayView({
               ) : null}
 
               {showReply && text ? (
-                <View testID="voice-overlay-reply" style={styles.bubble}>
+                <View testID="voice-overlay-reply" style={styles.bubble} accessibilityLiveRegion="polite">
                   <Text style={[styles.bubbleText, bodyFont(text)]}>{text}</Text>
                   <View style={styles.bubbleTail} />
                 </View>
@@ -479,7 +512,12 @@ export default function VoiceOverlayView({
           </Animated.View>
 
           <GestureDetector gesture={swipe}>
-            <Animated.View testID="voice-overlay-mascot-area" style={[styles.mascotArea, mascotStyle]}>
+            <Animated.View
+              testID="voice-overlay-mascot-area"
+              style={[styles.mascotArea, mascotStyle]}
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+            >
               <Halo kind={visual.halo} level={level} reduceMotion={reduceMotion} />
               {/* mood accepts every pose (state only takes listening/thinking/speaking). */}
               <Pappu
@@ -493,7 +531,11 @@ export default function VoiceOverlayView({
           </GestureDetector>
 
           {showStatus ? (
-            <Text testID="voice-overlay-status" style={[styles.status, captionFont(statusText)]}>
+            <Text
+              testID="voice-overlay-status"
+              style={[styles.status, captionFont(statusText)]}
+              accessibilityLiveRegion="polite"
+            >
               {statusText}
             </Text>
           ) : (

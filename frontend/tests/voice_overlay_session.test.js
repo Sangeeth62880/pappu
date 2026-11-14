@@ -87,7 +87,7 @@ async function finishSpeaking() {
 }
 
 const pose = (utils) =>
-  utils.getByTestId('voice-overlay-mascot').children.find((c) => c.props?.testID?.startsWith('pappu-pose-'))
+  utils.getByTestId('voice-overlay-mascot', { includeHiddenElements: true }).children.find((c) => c.props?.testID?.startsWith('pappu-pose-'))
     ?.props.testID.replace('pappu-pose-', '');
 
 const added = {
@@ -154,7 +154,7 @@ describe('Voice overlay session', () => {
     expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1);
     expect(pose(utils)).toBe('listening');
     expect(utils.getByTestId('voice-overlay-status').props.children).toBe('Listening…');
-    expect(utils.getByTestId('voice-overlay-halo-level')).toBeTruthy();
+    expect(utils.getByTestId('voice-overlay-halo-level', { includeHiddenElements: true })).toBeTruthy();
 
     // thinking: the final transcript shows as soon as STT returns
     await advance(STOP_AFTER_SPEECH_MS);
@@ -162,7 +162,7 @@ describe('Voice overlay session', () => {
     expect(utils.getByTestId('voice-overlay-transcript').props.children).toEqual(['“', 'chaya 20', '”']);
     expect(pose(utils)).toBe('thinking');
     expect(utils.getByTestId('voice-overlay-status').props.children).toBe('One sec…');
-    expect(utils.getByTestId('voice-overlay-halo-dots')).toBeTruthy();
+    expect(utils.getByTestId('voice-overlay-halo-dots', { includeHiddenElements: true })).toBeTruthy();
     expect(client.sendAssistantMessage).toHaveBeenCalledWith(token, {
       text: 'chaya 20',
       input: 'voice',
@@ -246,7 +246,7 @@ describe('Voice overlay session', () => {
       expect(utils.getByTestId(`voice-overlay-error-${kind}`)).toBeTruthy();
       expect(utils.getByTestId('voice-overlay-retry')).toBeTruthy();
       expect(utils.queryByTestId('voice-overlay-status')).toBeNull();
-      expect(utils.queryByTestId('voice-overlay-halo-dots')).toBeNull();
+      expect(utils.queryByTestId('voice-overlay-halo-dots', { includeHiddenElements: true })).toBeNull();
       expect(pose(utils)).toBe('concerned');
       expect(isMicBusy()).toBe(false);
     }
