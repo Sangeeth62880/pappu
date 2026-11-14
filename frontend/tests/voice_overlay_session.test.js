@@ -5,6 +5,7 @@ import { render, act, fireEvent, waitFor, cleanup } from '@testing-library/react
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 import VoiceOverlayHost from '../src/components/voiceOverlay/VoiceOverlayHost';
+import VoiceOverlay from '../src/components/voiceOverlay/VoiceOverlay';
 import { AUTO_DISMISS_MS } from '../src/components/voiceOverlay/overlayMachine';
 import { HANDS_FREE } from '../src/utils/useVoiceRecorder';
 import * as client from '../src/api/client';
@@ -184,7 +185,7 @@ describe('Voice overlay session', () => {
     expect(utils.getByTestId('voice-overlay-undo')).toBeTruthy();
 
     // dismiss about 2.5s after speaking ends
-    await advance(AUTO_DISMISS_MS - 100);
+    await advance(2400);
     expect(isVoiceOverlayOpen()).toBe(true);
     await advance(600);
     expect(isVoiceOverlayOpen()).toBe(false);
@@ -448,6 +449,24 @@ describe('Voice overlay session', () => {
       expect(client.sendAssistantMessage).not.toHaveBeenCalled();
       expect(isVoiceOverlayOpen()).toBe(false);
       expect(isMicBusy()).toBe(false);
+    });
+
+    test('dismiss stops the mic at once, not when the exit animation ends', async () => {
+      levelAt = () => SPEECH;
+      const onClosed = jest.fn();
+      // Rendered without the host, so the session stays mounted after it closes.
+      const utils = await render(<VoiceOverlay token={token} onClosed={onClosed} />);
+      await act(async () => {});
+      expect(isMicBusy()).toBe(true);
+
+      await act(async () => fireEvent.press(utils.getByTestId('voice-overlay-scrim')));
+      await advance(HANDS_FREE.maxMs + 1000);
+
+      expect(onClosed).toHaveBeenCalledTimes(1);
+      expect(mockAudioRecorder.stop).toHaveBeenCalledTimes(1);
+      expect(isMicBusy()).toBe(false);
+      expect(client.transcribeAudio).not.toHaveBeenCalled();
+      expect(client.sendAssistantMessage).not.toHaveBeenCalled();
     });
 
     test('closing while thinking ignores the late reply (no speech, no data refresh)', async () => {

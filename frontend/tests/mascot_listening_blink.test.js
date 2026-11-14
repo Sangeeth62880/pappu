@@ -26,6 +26,14 @@ describe('Pappu blinkInListening (voice overlay)', () => {
     expect(screen.queryByTestId('pappu-blink-overlay')).toBeNull();
   });
 
+  test('without the opt in, the listening pose never blinks (other screens unchanged)', async () => {
+    await render(<Pappu mood="listening" enableBlinkInTest autoSleepy={false} />);
+    await act(async () => jest.advanceTimersByTime(4000));
+    expect(screen.queryByTestId('pappu-blink-overlay')).toBeNull();
+    await act(async () => jest.advanceTimersByTime(6000));
+    expect(screen.queryByTestId('pappu-blink-overlay')).toBeNull();
+  });
+
   test('other poses still never blink with the opt in', async () => {
     await render(<Pappu mood="thinking" enableBlinkInTest blinkInListening autoSleepy={false} />);
     await act(async () => jest.advanceTimersByTime(10000));
