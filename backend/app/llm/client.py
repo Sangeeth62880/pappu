@@ -93,7 +93,9 @@ class SarvamLLMClient:
                 "SARVAM_API_KEY is required. Set it in backend/.env or pass it directly."
             )
 
-    def _make_request(self, messages: list[dict], max_network_retries: int = 2) -> str:
+    def _make_request(
+        self, messages: list[dict], max_network_retries: int = 2, max_tokens: int = 1024
+    ) -> str:
         """
         Make a request to the Sarvam Chat Completions API with reasoning disabled.
         Returns the raw text content from response.choices[0].message.content.
@@ -107,7 +109,7 @@ class SarvamLLMClient:
             "model": self.model,
             "messages": messages,
             "temperature": 0.1,  # Low temperature for deterministic structured output
-            "max_tokens": 1024,   # Ensure completion budget is never truncated to 0
+            "max_tokens": max_tokens,   # Ensure completion budget is never truncated to 0
             "reasoning_effort": None,  # Serializes to `"reasoning_effort": null` in JSON
         }
 

@@ -46,4 +46,5 @@ SARVAM_TTS_API_URL = os.getenv(
 )
 SARVAM_TTS_DEFAULT_SPEAKER = os.getenv("SARVAM_TTS_DEFAULT_SPEAKER", "kavitha")
 
-
+# Sarvam Document AI (bill OCR, PROJECT_SPEC.md §2 and §5b Bill Split)
+SARVAM_DOC_AI_URL = os.getenv("SARVAM_DOC_AI_URL", "https://api.sarvam.ai/doc-ai/v1").rstrip("/")

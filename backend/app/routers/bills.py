@@ -10,13 +10,15 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user_id
 from app.database import get_db
+from app.ocr.client import OcrError, SarvamDocAIClient
 from app.services import bills as bill_service
+from app.services.bill_extract import BillExtractError, BillExtractor
 from app.services.bill_planner import SplitPlanner
 from app.services.bills import BillError
 
@@ -68,6 +70,26 @@ def get_split_planner() -> SplitPlanner:
     return SplitPlanner()
 
 
+def get_ocr_client() -> SarvamDocAIClient:
+    return SarvamDocAIClient()
+
+
+def get_bill_extractor() -> BillExtractor:
+    return BillExtractor()
+
+
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
+# What the file actually is, from its first bytes. The declared content type is not trusted.
+IMAGE_SIGNATURES = {b"\xff\xd8\xff": ("image/jpeg", "bill.jpg"), b"\x89PNG\r\n\x1a\n": ("image/png", "bill.png")}
+
+
+def _image_kind(data: bytes):
+    for signature, kind in IMAGE_SIGNATURES.items():
+        if data.startswith(signature):
+            return kind
+    return None
+
+
 def _http_error(err: BillError) -> HTTPException:
     return HTTPException(
         status_code=err.status_code,
@@ -77,6 +99,63 @@ def _http_error(err: BillError) -> HTTPException:
 
 def _items_payload(items: List[ItemIn]) -> List[Dict[str, Any]]:
     return [{"id": i.id, "name": i.name, "quantity": i.quantity, "amount": i.amount} for i in items]
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_bill_from_image(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    ocr: SarvamDocAIClient = Depends(get_ocr_client),
+    extractor: BillExtractor = Depends(get_bill_extractor),
+) -> Dict[str, Any]:
+    """
+    Bill photo in, draft bill out. The image is read into memory, sent for OCR and dropped:
+    it is never written to disk or stored.
+    """
+    data = file.file.read(MAX_IMAGE_BYTES + 1)
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail={"message": "That photo is larger than 8 MB.", "code": "image_too_large", "detail": None},
+        )
+    kind = _image_kind(data)
+    if kind is None:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail={"message": "Send the bill as a JPEG or PNG photo.", "code": "unsupported_image", "detail": None},
+        )
+    content_type, filename = kind
+
+    try:
+        text = ocr.read_image(data, filename, content_type)
+        parsed = extractor.extract(text)
+    except OcrError as err:
+        code = err.code
+        raise HTTPException(
+            status_code=422 if code == "unreadable" else 503,
+            detail={"message": str(err), "code": code, "detail": None},
+        )
+    except BillExtractError as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"message": str(err), "code": "unreadable", "detail": None},
+        )
+
+    try:
+        bill = bill_service.create_draft(
+            db, user_id, merchant=parsed.merchant, bill_date=parsed.bill_date, items=parsed.items,
+            tax=parsed.tax, service_charge=parsed.service_charge, discount=parsed.discount, total=parsed.total,
+        )
+    except BillError as err:
+        raise _http_error(err)
+    response = bill_service.serialize_bill(db, bill)
+    response["extraction"] = {
+        "confidence": parsed.confidence,
+        "requires_confirmation": True,
+        "missing_fields": parsed.missing_fields,
+    }
+    return response
 
 
 @router.post("/manual", status_code=status.HTTP_201_CREATED)
