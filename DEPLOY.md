@@ -50,6 +50,7 @@ Current files (the glob runs them in this order):
 | `20261015000000_add_contacts_phone_upi_and_profile_preferences.sql` | `contacts.phone`, `upi_id`; `profiles.voice_replies`, `haptic_feedback`, `sound_effects` |
 | `20261107000000_assistant_idempotency_reservations.sql` | **Idempotency**: `status`, `reserved_at`, nullable `response_json`, `uq_user_client_msg_id`, status check, RLS |
 | `20261108000000_create_category_budgets.sql` | **Budgets**: `category_budgets`, `uq_category_budget_user_category`, amount check, RLS |
+| `20261114000000_create_bill_split.sql` | **Bill split**: `bills`, `bill_items`, `bill_shares`, RLS; `profiles.upi_id` |
 
 No psql? Paste each file, in this order, into Supabase → SQL Editor and run it.
 

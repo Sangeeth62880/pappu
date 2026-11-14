@@ -126,6 +126,7 @@ CREATE TABLE bills (
     discount NUMERIC(12,2) NOT NULL DEFAULT 0,
     total NUMERIC(12,2) NOT NULL CHECK (total > 0),
     status TEXT NOT NULL DEFAULT 'draft', -- 'draft' | 'confirmed' | 'cancelled' | 'undone'
+    people JSONB NOT NULL DEFAULT '[]',   -- everyone at the table besides the user: [{"name", "contact_id" | null}]
     undo_batch_id UUID,                   -- set on confirm; matches undo_actions.batch_id
     created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -138,13 +139,15 @@ CREATE TABLE bill_items (
     quantity NUMERIC(8,2) NOT NULL DEFAULT 1,
     amount NUMERIC(12,2) NOT NULL,        -- line total
     needs_check BOOLEAN NOT NULL DEFAULT false, -- extraction was unsure of this line
-    assigned_to TEXT                      -- JSON list of people for this item: "me" or a name; null = nobody yet
+    assigned_to JSONB                     -- list of people for this item: "me" or a name; null = nobody yet
 );
 
 CREATE TABLE bill_shares (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
-    contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL, -- null = the user's own share
+    is_self BOOLEAN NOT NULL DEFAULT false, -- true = the user's own share
+    contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL, -- the friend; null for the user's share
+    name TEXT NOT NULL,                   -- "You" or the contact's name at confirm time
     amount NUMERIC(12,2) NOT NULL,
     transaction_id UUID,                  -- the transaction written for this share on confirm
     paid_transaction_id UUID              -- the repayment transaction, set by "Mark paid"
@@ -264,7 +267,7 @@ Decisions (made 2026-11-14, do not re-litigate). Approved screens: `design/stitc
 * `item` is the 1 based `position` of a bill item. An index that does not exist, or a plan that fails validation, is rejected (one retry, then the user is asked to assign by tapping).
 * `people` lists everyone at the table by the name the user said; `"me"` is the user; `"all"` means everyone in `people` plus the user.
 * `requires_confirmation` is always `true`. An item nobody was named for goes in `missing_fields` as `item:<position>` and the reply asks about exactly that item ("Who had the Lime Soda?"). `confidence: low` on an assignment leaves that item unassigned rather than guessed.
-* Names resolve through the existing contact resolver: exact match attaches the contact, a close match (0.85 Jaro Winkler) asks which one, a new name is shown as new on the preview and the contact is created only on confirm.
+* Names resolve through the existing contact resolver: exact match attaches the contact, a close match under the resolver's existing similarity rule asks which one, a new name is shown as new on the preview and the contact is created only on confirm.
 * The user can always assign or change an item by tapping instead of speaking.
 
 **Split maths**
@@ -411,6 +414,7 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 | PUT | `/bills/{id}/items/{item_id}/people` | Body `{ people: [...] }`. Manual assignment by tapping; no LLM |
 | POST | `/bills/{id}/confirm` | Writes the split (§5b Bill Split). 409 while the bill does not add up or has unassigned items |
 | DELETE | `/bills/{id}` | Cancels a draft (204). A confirmed bill is reverted by undo, not by this |
+| POST | `/bills/{id}/undo` | Reverts a confirmed bill: removes every transaction its confirm wrote and sets it to `undone`. 409 once any share is marked paid (undo that repayment first) |
 | GET | `/bills/{id}/shares/{share_id}/request` | UPI link and message text for one friend's share. 422 `upi_id_missing` when the profile has no UPI ID |
 | POST | `/bills/{id}/shares/{share_id}/paid` | Marks a share paid by writing the repayment transaction |
 

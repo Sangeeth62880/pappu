@@ -11,6 +11,8 @@ class Profile(Base):
     name = Column(String, nullable=False)
     preferred_language = Column(String, nullable=False, default="en", server_default="en")
     voice_replies = Column(Boolean, nullable=True, default=None)
+    # The user's own UPI ID. Used only to build bill split pay requests (PROJECT_SPEC.md §5b).
+    upi_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     transactions = relationship("Transaction", back_populates="profile", cascade="all, delete-orphan")

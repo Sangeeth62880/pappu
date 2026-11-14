@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import Optional
 import jwt
@@ -12,6 +13,8 @@ from app.models.profile import Profile
 router = APIRouter(prefix="/profile", tags=["profile"])
 
 VALID_LANGUAGES = {"en", "ml"}
+# name@handle, the shape every UPI ID has. Whether it exists is not something Pappu can check.
+UPI_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{2,256}@[A-Za-z][A-Za-z0-9.-]{1,63}$")
 
 
 class ProfileResponse(BaseModel):
@@ -19,11 +22,14 @@ class ProfileResponse(BaseModel):
     email: Optional[str] = None
     language: Optional[str] = None
     voice_replies: Optional[bool] = None
+    upi_id: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
     language: Optional[str] = None
     voice_replies: Optional[bool] = None
+    # A UPI ID sets it; an empty string clears it; leaving it out changes nothing.
+    upi_id: Optional[str] = None
 
 
 def _extract_email_from_jwt(authorization: Optional[str]) -> Optional[str]:
@@ -67,6 +73,7 @@ def get_profile(
         email=email,
         language=profile.preferred_language,
         voice_replies=profile.voice_replies,
+        upi_id=profile.upi_id,
     )
 
 
@@ -99,6 +106,15 @@ def update_profile(
     if body.voice_replies is not None:
         profile.voice_replies = body.voice_replies
 
+    if body.upi_id is not None:
+        upi_id = body.upi_id.strip()
+        if upi_id and not UPI_ID_PATTERN.match(upi_id):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="That does not look like a UPI ID. It should look like name@bank.",
+            )
+        profile.upi_id = upi_id or None
+
     db.commit()
     db.refresh(profile)
 
@@ -111,5 +127,6 @@ def update_profile(
         email=email,
         language=profile.preferred_language,
         voice_replies=profile.voice_replies,
+        upi_id=profile.upi_id,
     )
 

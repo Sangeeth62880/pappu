@@ -8,6 +8,7 @@ from app.models.assistant_trace import AssistantTrace
 from app.models.pending_action import PendingAction
 from app.models.idempotency import AssistantIdempotency
 from app.models.budget import CategoryBudget
+from app.models.bill import Bill, BillItem, BillShare
 
-__all__ = ["Profile", "Category", "Contact", "Transaction", "UndoAction", "ChatMessage", "AssistantTrace", "PendingAction", "AssistantIdempotency", "CategoryBudget"]
+__all__ = ["Profile", "Category", "Contact", "Transaction", "UndoAction", "ChatMessage", "AssistantTrace", "PendingAction", "AssistantIdempotency", "CategoryBudget", "Bill", "BillItem", "BillShare"]
 
