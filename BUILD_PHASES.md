@@ -23,6 +23,7 @@ Current suites: **621 pytest passed** (`backend/tests`), **279 Jest passed in 34
 | 11 Post Stitch polish | Done | `test_chat.py`, `transaction_edit.test.js`, `chat_history.test.js`, `voice_listening_sheet.test.js` | |
 | 12 Assistant v2 | Done | `app/assistant/`, `test_assistant_*.py`; eval planner-only 93.8% (152/162) in `tests/eval/eval_results/20261015_162746.json`; with `--execute` 84.3% (145/172), budgets 14/14, in `20261108_085648.json` (local, eval_results is gitignored) | The `--execute` failures are pre-existing (same cases fail at 7daf7e6, before the budgets brief): disambiguation/undo cases that seed no pending or undo rows, and relative dates resolved against the real clock instead of the case's 2026-10-14. `generate_cases.py` lacks the 13 hand-added `trace_*` cases, so don't regenerate `cases.jsonl` from it |
 | 13 Stitch redesign | Done (automated tests) | `home_stitch_fidelity.test.js`, `assistant_modal_fidelity.test.js`, `primitives.test.js`, `me_screen.test.js` | 390x844, 360x780 and 1.3 font scale not checked on a device in this session |
+| 14 Bill split | **Not started** (specified 2026-11-14) | `PROJECT_SPEC.md` §5b Bill Split; approved screens `design/stitch/bill_split.html` | All tasks. Task 7 (voice) waits for Phase 8 acceptance |
 
 ---
 
@@ -317,3 +318,32 @@ Note: The compare and group_by operations implemented in this phase cover analyt
 * Assistant Eval Suite: 93.8% overall accuracy (152/162 cases passed), 0.0% schema failures, 7/7 critical regression tests passing.
 
 **Acceptance criteria**: All screens and states match Stitch design specifications at 390x844, 360x780, and 1.3 font scale; all user-facing backend strings strictly follow the no-hyphen and no-em-dash rule; backend, frontend, and assistant evaluation suites pass without regressions.
+---
+
+## Phase 14: Bill Split
+
+Rules and contracts: `PROJECT_SPEC.md` §4 (tables), §5b Bill Split, §8 (endpoints). Screens: `design/stitch/bill_split.html` (approved 2026-11-14).
+
+Phases 8 and 9 are still open. Tasks 1 to 6 here do not depend on voice and can proceed; task 7 waits until Phase 8 is accepted. Per `CLAUDE.md` rule 5 the whole flow is built and tested on typed input before voice is wired in.
+
+**Tasks**
+1. **Schema**: `bills`, `bill_items`, `bill_shares` models and `profiles.upi_id`; extend `apply_schema.py`; RLS on the new tables as the secondary safeguard.
+2. **Split maths** (`app/services/bill_split.py`): pure functions for equal item division, proportional charges, whole rupee rounding with the user absorbing the remainder, and the adds up check. No LLM, no database.
+3. **Split planner**: `backend/app/llm/split_prompt.md`, Pydantic schema, validation with one retry, name resolution through the existing contact resolver. Typed bill items and typed text only.
+4. **Endpoints and writes**: `/bills` routes except image upload (a draft can be created from typed items for testing), confirm with one undo batch, idempotent confirm, cancel, mark paid.
+5. **Bill extraction**: spot check Sarvam Document Intelligence on real restaurant bills first (latency, single image support, accuracy) and record the provider decision in `PROJECT_SPEC.md` §2; then `POST /bills` with the image, `backend/app/llm/bill_extract_prompt.md`, `needs_check` flags, image discarded after extraction.
+6. **Frontend**: the eight approved screens using tokens and ui primitives only; receipt button in the People header; camera and gallery picker (new native dependency, needs a new dev build); UPI ID field on the Me screen.
+7. **Voice**: mic on the Who had what screen through the existing STT path; spoken question for an unassigned item.
+8. **Pay requests**: UPI link builder, QR on the Ask to pay sheet, share as image, mark paid.
+
+**Tests**
+- pytest, split maths: shared and single items, proportional tax and service charge, discount, rounding (shares always sum to the total), 1 person and 10 people, unassigned item rejected, mismatch above ₹1 rejected.
+- pytest, split planner, each with a mocked LLM and a hand written expected output: a clean high confidence case, a missing assignment case (`missing_fields` populated, one targeted question), an ambiguous name case (two close contacts, asks which), and a code mixed Malayalam English case; malformed output and out of range item indexes are rejected.
+- pytest, endpoints: nothing in `transactions` before confirm; confirm writes one Food expense plus one People expense per friend and totals match the bill; second confirm writes nothing; undo reverts the whole bill; budget alert fires on the user's share; mark paid writes the People income.
+- pytest, isolation: with two verified users, user A cannot read, edit, assign, confirm, cancel or mark paid user B's bill (404), tested through the API.
+- pytest, extraction: fixture OCR texts produce the expected items; a bill that does not add up returns `adds_up: false`; an unreadable image returns 422; OCR text containing instructions does not change the planner output.
+- Eval: add bill split cases (en, ml, Manglish) to the eval harness as their own suite.
+- Jest/RNTL: each screen renders its states (reading, adds up, mismatch blocked, unassigned item, preview, saved, ask to pay); Save split is the only action that calls confirm; UPI ID missing prompts for it.
+- Manual on a phone: photograph three real bills; scan the QR in two UPI apps and confirm the amount and payee are prefilled.
+
+**Acceptance criteria**: a real restaurant bill can be photographed, assigned by typed text and by voice in English and code mixed Malayalam, previewed and saved; the shares always equal the bill total; no transaction is written before the explicit confirm; the whole split can be undone; isolation holds across users; a friend can pay from the shared QR; all backend, frontend and eval suites pass without regressions.

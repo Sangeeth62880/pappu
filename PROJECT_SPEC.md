@@ -23,6 +23,7 @@ Scope: academic/mini project. Not a production financial product. Cost, latency 
 | STT | Sarvam AI — Saaras v3 |
 | TTS | Sarvam AI — Bulbul v3 |
 | LLM | Sarvam-105B (sarvam-30b is deprecated and no longer available via the Chat Completions API) |
+| Bill OCR (Phase 14) | Sarvam Document Intelligence (Sarvam Vision). If the Phase 14 task 5 spot check shows it is too slow or too weak on restaurant bills, fall back to a multimodal LLM and record the change here |
 | Backend testing | pytest |
 | Frontend testing | Jest + React Native Testing Library |
 
@@ -113,6 +114,43 @@ CREATE TABLE category_budgets (
     updated_at TIMESTAMPTZ DEFAULT now(),
     CONSTRAINT uq_category_budget_user_category UNIQUE (user_id, category_id)
 );
+
+-- Bill split (Phase 14, see §5b Bill Split). The bill photo is never stored; only the parsed bill is.
+CREATE TABLE bills (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    merchant TEXT,
+    bill_date DATE NOT NULL,
+    tax NUMERIC(12,2) NOT NULL DEFAULT 0,
+    service_charge NUMERIC(12,2) NOT NULL DEFAULT 0,
+    discount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    total NUMERIC(12,2) NOT NULL CHECK (total > 0),
+    status TEXT NOT NULL DEFAULT 'draft', -- 'draft' | 'confirmed' | 'cancelled' | 'undone'
+    undo_batch_id UUID,                   -- set on confirm; matches undo_actions.batch_id
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE bill_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,            -- 1-based order on the bill; the split planner refers to items by this
+    name TEXT NOT NULL,
+    quantity NUMERIC(8,2) NOT NULL DEFAULT 1,
+    amount NUMERIC(12,2) NOT NULL,        -- line total
+    needs_check BOOLEAN NOT NULL DEFAULT false, -- extraction was unsure of this line
+    assigned_to TEXT                      -- JSON list of people for this item: "me" or a name; null = nobody yet
+);
+
+CREATE TABLE bill_shares (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL, -- null = the user's own share
+    amount NUMERIC(12,2) NOT NULL,
+    transaction_id UUID,                  -- the transaction written for this share on confirm
+    paid_transaction_id UUID              -- the repayment transaction, set by "Mark paid"
+);
+
+-- profiles gains: upi_id TEXT (nullable). The user's own UPI ID, used only to build pay requests.
 ```
 
 **Row-Level Security (RLS):** enabled on `profiles`, `contacts`, `transactions`, and `chat_messages` as a defense-in-depth safeguard. Policy: a user can only `SELECT`/`INSERT`/`UPDATE`/`DELETE` rows where `user_id` (or `id` on `profiles`) matches `auth.uid()`.
@@ -194,6 +232,63 @@ Decisions (made 2026-11-08, do not re-litigate):
 * A `set_budget` with no category or no amount is replaced by a `clarify` action in the sanitizer (`missing ["category"]` or `["amount"]`), so a budget is never guessed. The prompt also tells the planner to emit that clarify itself.
 * State: `ok` below 80%, `near` from 80% up to (not including) 100%, `over` from 100% (the whole budget used). (Revised 2026-11-08: exactly 100% is now `over`, so the app's bar turns red at 100%.)
 * Alert: after an add, or an edit that raises spending, that moves its category's spending this month across a threshold (`ok` to `near`, or anything to `over`), the reply and spoken_text get one alert line. Mood becomes `concerned` only on the 100% crossing; the 80% line keeps the usual mood. Only spending (`is_spending_txn`) dated in the current IST month counts. Each threshold alerts once per crossing, not on every later change; a multi-action plan gets at most one line per category (the 100% one when both are crossed). Deletes and undo never alert. This covers adds and edits confirmed through a pending item. No push notifications.
+
+### Bill Split (Phase 14)
+Decisions (made 2026-11-14, do not re-litigate). Approved screens: `design/stitch/bill_split.html`.
+
+**Scope**
+* The user photographs a restaurant bill, says or types who had what, reviews the split and saves it. First version covers only "I paid the whole bill". "Someone else paid" is out of scope.
+* No split is created inside Google Pay, Paytm or any other payment app: they expose no API for it, and NPCI ended person to person collect requests on 2025-10-01. Pappu instead builds a UPI pay request per friend (see Pay requests below). Pappu never moves money and cannot see whether a friend paid.
+* Limits: one JPEG or PNG up to 8 MB, at most 40 items and 10 people per bill.
+
+**Flow and who does what**
+1. Extract: the image goes to OCR, then one LLM call (`backend/app/llm/bill_extract_prompt.md`) structures the text into merchant, date, items, tax, service charge, discount and total. The image is discarded after this step.
+2. Check: code compares `sum(items) + tax + service_charge - discount` with `total`. A difference of up to ₹1 is treated as round off. Anything larger sets `adds_up: false` and the bill cannot move on until the user fixes it on the review screen. Nothing is ever guessed to make it balance. Lines the extraction was unsure of carry `needs_check`.
+3. Assign: the split planner (`backend/app/llm/split_prompt.md`, its own versioned prompt and its own LLM call, separate from the assistant planner) reads the user's text plus the validated item list and returns only the object below. It never sees raw OCR text, never does arithmetic and never touches the database.
+4. Compute, preview, confirm and write are deterministic code (`app/services/bill_split.py`).
+
+**Split planner output**
+```json
+{
+  "language": "en | ml | mixed",
+  "assignments": [
+    { "item": 1, "people": ["me", "Rahul"] },
+    { "item": 2, "people": "all" }
+  ],
+  "people": ["Rahul", "Anu", "Pooja"],
+  "confidence": "high | low",
+  "requires_confirmation": true,
+  "missing_fields": ["item:5"]
+}
+```
+* `item` is the 1 based `position` of a bill item. An index that does not exist, or a plan that fails validation, is rejected (one retry, then the user is asked to assign by tapping).
+* `people` lists everyone at the table by the name the user said; `"me"` is the user; `"all"` means everyone in `people` plus the user.
+* `requires_confirmation` is always `true`. An item nobody was named for goes in `missing_fields` as `item:<position>` and the reply asks about exactly that item ("Who had the Lime Soda?"). `confidence: low` on an assignment leaves that item unassigned rather than guessed.
+* Names resolve through the existing contact resolver: exact match attaches the contact, a close match (0.85 Jaro Winkler) asks which one, a new name is shown as new on the preview and the contact is created only on confirm.
+* The user can always assign or change an item by tapping instead of speaking.
+
+**Split maths**
+* An item's amount is divided equally among the people assigned to it.
+* Tax, service charge, discount and round off are shared in proportion to each person's item subtotal.
+* Each friend's share is rounded to the nearest whole rupee. The user's share is `total - sum(friend shares)`, so the shares always add up to the bill total exactly.
+* A bill with any unassigned item, or with `adds_up: false`, cannot be previewed or confirmed.
+
+**What gets written on confirm**
+* Nothing is written to `transactions` before the user taps Save split on the preview. This overrides the §5 rule that adds execute immediately: a split writes several rows derived from OCR, so it always needs the explicit confirm.
+* The user's share: one `expense` in category Food, no contact, description `<merchant> (split)`, dated `bill_date`. It counts as spending and can raise a budget alert like any other add.
+* Each friend's share: one `expense` in category People with that contact, same description and date. Under §7 this is excluded from spending and shows as "X owes you".
+* All rows are written in one database transaction with one undo batch. "Undo this split" (or undo by voice while it is the latest action) reverts every row and sets the bill to `undone`.
+* Confirming an already confirmed bill returns the stored result and writes nothing.
+* No category is ever created; a bill split is always Food for the user's share.
+
+**Pay requests**
+* A request is a UPI link `upi://pay?pa=<profiles.upi_id>&pn=<profile name>&am=<share>&cu=INR&tn=<merchant>`, shown as a QR code and shared as an image with a short message (WhatsApp does not make `upi://` links tappable). Without `profiles.upi_id` the app asks the user to add it on the Me screen first.
+* "Mark paid" writes one `income` in category People from that contact for the share amount (the same row "Rahul paid me back 495" would create) and links it on the share. It is an explicit tap, has an undo entry, and is the only way a share becomes paid.
+
+**Other rules**
+* Every bill query is scoped by the verified `user_id`; another user's bill is a 404.
+* The bill flow is outside the §5b latency budget (OCR takes seconds); the app shows the Reading screen meanwhile.
+* Entry point: a receipt button in the People header. Replies and screen strings follow the existing reply language rules.
 
 ### Endpoints
 * `POST /assistant/message`: Primary conversational endpoint. Accepts `{ text: str, input: "text" | "voice", client_msg_id: str }`. Runs one LLM planner call, resolves entities, executes actions, and returns `{ reply, display_text, spoken_text, results, pending, changed }`.
@@ -309,6 +404,15 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 | GET | `/budgets` | This month's `{category, budget, spent, remaining, over_by, percent, state, month}` for every budget the user set, plus the budgetable `categories` |
 | PUT | `/budgets/{category}` | Body `{amount}` (> 0). Creates or replaces that category's monthly budget; 422 for categories that cannot have one |
 | DELETE | `/budgets/{category}` | Removes that category's budget (204). 404 when the verified user has no budget there (another user's budget is never reachable); 422 for categories that cannot have one |
+| POST | `/bills` | Multipart bill image. Runs OCR and extraction, stores a `draft` bill, returns it with `items`, charges, `total`, `adds_up`, `difference`. 422 when no bill can be read |
+| GET | `/bills/{id}` | The bill with items, assignments and, once assigned, the computed shares |
+| PATCH | `/bills/{id}` | Review screen edits to a draft: merchant, date, charges, total, and add/change/remove items. Returns the bill with `adds_up` recomputed |
+| POST | `/bills/{id}/assign` | Body `{ text, input: "text" \| "voice" }`. Runs the split planner and returns assignments, any unassigned items with a question, new names, and the share preview when complete |
+| PUT | `/bills/{id}/items/{item_id}/people` | Body `{ people: [...] }`. Manual assignment by tapping; no LLM |
+| POST | `/bills/{id}/confirm` | Writes the split (§5b Bill Split). 409 while the bill does not add up or has unassigned items |
+| DELETE | `/bills/{id}` | Cancels a draft (204). A confirmed bill is reverted by undo, not by this |
+| GET | `/bills/{id}/shares/{share_id}/request` | UPI link and message text for one friend's share. 422 `upi_id_missing` when the profile has no UPI ID |
+| POST | `/bills/{id}/shares/{share_id}/paid` | Marks a share paid by writing the repayment transaction |
 
 ### GET `/summary` Query & Response Contract
 
