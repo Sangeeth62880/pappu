@@ -10,7 +10,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import {
   NavigationContainer,
   NavigationContext,
-  NavigationContainerRefContext,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -34,6 +33,7 @@ import { queryClient } from '../data/queryClient';
 import { queryKeys } from '../data/queryKeys';
 import { removeChunkedItem } from '../utils/chunkedSecureStore';
 import { useListenRequest, takeListenRequest, noteSignInShown } from '../utils/listenTrigger';
+import { openVoiceOverlay } from '../utils/voiceOverlayStore';
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -58,24 +58,6 @@ function MainTabNavigator({
   const [historySearchTrigger, setHistorySearchTrigger] = useState(0);
   const [addPersonTrigger, setAddPersonTrigger] = useState(0);
 
-  // pappu://listen: this screen exists only once startup is done and the user is signed in.
-  const listenRequest = useListenRequest();
-  const navigationContainer = React.useContext(NavigationContainerRefContext);
-  useEffect(() => {
-    if (!listenRequest) return;
-    const request = takeListenRequest();
-    if (!request) return;
-    const openAssistant = () => rootNavigation.navigate('Assistant', { autoListen: request.id });
-    // Cold start: the root stack has no state yet on its first mount, so a navigate now is lost.
-    if (!navigationContainer || navigationContainer.isReady()) {
-      openAssistant();
-      return;
-    }
-    const unsubscribe = navigationContainer.addListener('ready', () => {
-      unsubscribe();
-      openAssistant();
-    });
-  }, [listenRequest, rootNavigation, navigationContainer]);
 
   return (
     <SafeAreaView testID="home-screen" style={styles.screen} edges={['top', 'left', 'right']}>
@@ -288,10 +270,18 @@ function InnerHomeScreen({
     }
   }, [authChecking]);
 
-  // A listen link while signed out waits for sign in, but only for a short window.
+  // pappu://listen (link, quick action, tile, assist): once startup is done and the user
+  // is signed in, Pappu emerges over the current screen. Signed out, the request waits
+  // for sign in, but only for a short window.
   const listenRequest = useListenRequest();
   useEffect(() => {
-    if (!authChecking && !token && listenRequest) noteSignInShown();
+    if (authChecking || !listenRequest) return;
+    if (!token) {
+      noteSignInShown();
+      return;
+    }
+    const request = takeListenRequest();
+    if (request) openVoiceOverlay(request.source);
   }, [authChecking, token, listenRequest]);
 
   const handleAuthenticated = (newSession) => {

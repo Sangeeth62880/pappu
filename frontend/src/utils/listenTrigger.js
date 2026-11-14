@@ -8,7 +8,8 @@ import { isMicBusy } from './micActivity';
  *
  * Links are caught from the very first render (cold start) and while the app runs
  * (warm start), then held here as one pending request until the app is ready to act on
- * it: fonts loaded, health check passed, session restored. HomeScreen consumes it.
+ * it: fonts loaded, health check passed, session restored. HomeScreen consumes it and
+ * opens the voice overlay.
  */
 export const LISTEN_URL = 'pappu://listen';
 
@@ -55,10 +56,10 @@ export function isListenUrl(url) {
  *
  * @returns {boolean} whether a request was queued
  */
-export function handleIncomingUrl(url, now = Date.now()) {
+export function handleIncomingUrl(url, now = Date.now(), source = 'link') {
   if (!isListenUrl(url)) return false;
   if (isMicBusy()) return false;
-  pending = { id: nextId++, at: now, signInShownAt: null };
+  pending = { id: nextId++, at: now, signInShownAt: null, source };
   emit();
   return true;
 }
@@ -97,7 +98,9 @@ export function startListenLinks() {
   if (!initialUrlHandled) {
     initialUrlHandled = true;
     const initialAction = QuickActions.initial;
-    if (initialAction?.params?.href) handleIncomingUrl(initialAction.params.href);
+    if (initialAction?.params?.href) {
+      handleIncomingUrl(initialAction.params.href, Date.now(), 'quick_action');
+    }
     Promise.resolve()
       .then(() => Linking.getInitialURL())
       .then((url) => {
@@ -107,7 +110,7 @@ export function startListenLinks() {
   }
   const linkSubscription = Linking.addEventListener('url', (event) => handleIncomingUrl(event?.url));
   const actionSubscription = QuickActions.addListener((action) =>
-    handleIncomingUrl(action?.params?.href)
+    handleIncomingUrl(action?.params?.href, Date.now(), 'quick_action')
   );
   return () => {
     linkSubscription?.remove?.();

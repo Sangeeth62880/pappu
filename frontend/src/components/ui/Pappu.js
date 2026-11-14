@@ -106,6 +106,8 @@ export default function Pappu({
   autoSleepy = true,
   inactivityTimeoutMs = 60000,
   enableBlinkInTest = false,
+  // Opt in to the idle blink in the listening pose too (voice overlay). Off elsewhere.
+  blinkInListening = false,
   size = 120,
   style,
   testID = 'pappu-mascot',
@@ -184,9 +186,11 @@ export default function Pappu({
   }, [resolvedPose, activePose, reduceMotion, isTest, crossfadeAnim, scaleAnim]);
 
   // Idle mascot eye blink: only in Idle pose at random 3 to 5 second intervals, duration 120ms
-  // Never while listening, thinking, speaking, or any other state. No blink under Reduce Motion.
+  // Never while thinking, speaking, or any other state; while listening only with
+  // blinkInListening. No blink under Reduce Motion.
+  const canBlink = activePose === 'idle' || (blinkInListening && activePose === 'listening');
   useEffect(() => {
-    if (reduceMotion || activePose !== 'idle') {
+    if (reduceMotion || !canBlink) {
       setIsBlinking(false);
       return;
     }
@@ -222,7 +226,7 @@ export default function Pappu({
       clearTimeout(blinkTimer);
       setIsBlinking(false);
     };
-  }, [activePose, reduceMotion, isTest, enableBlinkInTest]);
+  }, [activePose, canBlink, reduceMotion, isTest, enableBlinkInTest]);
 
   // Sleepy floating "z" particle animation (2000ms drift upward 12px every 4s)
   useEffect(() => {
@@ -318,16 +322,17 @@ export default function Pappu({
       ) : null}
 
       {/* Idle eye blink overlay: 120ms closed eyes taken from Sleepy pose artwork */}
-      {activePose === 'idle' && isBlinking && !reduceMotion && (
+      {canBlink && isBlinking && !reduceMotion && (
         <View
           testID="pappu-blink-overlay"
           pointerEvents="none"
           style={[styles.blinkOverlay, { width: size, height }]}
         >
           <Svg width={size} height={height} viewBox="0 0 100 110" fill="none">
-            {/* Skin patch covering open eyes: exact body gold color (#FFC83D) */}
-            <Ellipse cx="41" cy="48" rx="6.5" ry="8.5" fill={colors.gold} />
-            <Ellipse cx="59" cy="48" rx="6.5" ry="8.5" fill={colors.gold} />
+            {/* Skin patch covering open eyes: exact body gold color (#FFC83D). The
+                listening pose has larger eyes (7 x 9) at the same centers. */}
+            <Ellipse cx="41" cy="48" rx={activePose === 'listening' ? 7.5 : 6.5} ry={activePose === 'listening' ? 9.5 : 8.5} fill={colors.gold} />
+            <Ellipse cx="59" cy="48" rx={activePose === 'listening' ? 7.5 : 6.5} ry={activePose === 'listening' ? 9.5 : 8.5} fill={colors.gold} />
             {/* Closed eyes paths taken directly from pappu-sleepy.svg */}
             <Path
               d="M 37 50 Q 41 54 45 50"

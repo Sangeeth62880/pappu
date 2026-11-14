@@ -4,6 +4,7 @@ import { render, act, waitFor, fireEvent, cleanup } from '@testing-library/react
 import App from '../App';
 import MicButton from '../src/components/MicButton';
 import { isMicBusy } from '../src/utils/micActivity';
+import { resetVoiceOverlayForTests } from '../src/utils/voiceOverlayStore';
 import * as client from '../src/api/client';
 import * as supabaseApi from '../src/api/supabase';
 import * as SecureStore from 'expo-secure-store';
@@ -44,7 +45,6 @@ const summary = {
   category_breakdown: [],
   transaction_count: 0,
 };
-const PERMISSION_MSG = 'Microphone permission is required to record voice commands.';
 
 function deferred() {
   let resolve;
@@ -70,11 +70,6 @@ async function signIn() {
   });
 }
 
-function expectMicIdle(utils) {
-  expect(utils.queryByTestId('mic-recording-label')).toBeNull();
-  expect(utils.getByTestId('mic-button').props.accessibilityLabel).toBe('Start voice recording');
-}
-
 describe('isListenUrl', () => {
   test.each(['pappu://listen', 'pappu:///listen', 'pappu://listen/', 'PAPPU://listen?src=tile'])(
     'accepts %s',
@@ -92,6 +87,7 @@ describe('pappu://listen deep link', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetListenTriggerForTests();
+    resetVoiceOverlayForTests();
     clock = 1_000_000;
     jest.spyOn(Date, 'now').mockImplementation(() => clock);
 
@@ -127,7 +123,7 @@ describe('pappu://listen deep link', () => {
     Date.now.mockRestore();
   });
 
-  test('cold start: waits for the session restore, then opens the assistant and records', async () => {
+  test('cold start: waits for the session restore, then Pappu emerges and records', async () => {
     const restore = deferred();
     supabaseApi.getSession.mockReturnValue(restore.promise);
     Linking.getInitialURL.mockResolvedValue('pappu://listen');
@@ -138,32 +134,34 @@ describe('pappu://listen deep link', () => {
 
     await act(async () => restore.resolve(session));
 
-    expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+    expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
     await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
     expect(requestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-    expect(await utils.findByTestId('mic-recording-label')).toBeTruthy();
+    expect((await utils.findByTestId('voice-overlay-status')).props.children).toBe('Listening…');
   });
 
-  test('warm start: a link while the app is open opens the assistant and records', async () => {
+  test('warm start: a link while the app is open summons the overlay and records', async () => {
     const utils = await render(<App />);
     expect(await utils.findByTestId('dashboard-view')).toBeTruthy();
-    expect(utils.queryByTestId('assistant-modal')).toBeNull();
+    expect(utils.queryByTestId('voice-overlay')).toBeNull();
 
     await emitUrl('pappu://listen');
 
-    expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+    expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
     await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
   });
 
-  test('warm start with the assistant already open and idle starts recording there', async () => {
+  test('warm start with the Assistant chat open: Pappu emerges over the chat and records', async () => {
     const utils = await render(<App />);
     fireEvent.press(await utils.findByTestId('tab-assistant'));
     expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+    expect(utils.queryByTestId('voice-overlay')).toBeNull();
 
     await emitUrl('pappu://listen');
 
+    expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
     await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
-    expect(utils.getAllByTestId('assistant-modal')).toHaveLength(1);
+    expect(utils.getByTestId('assistant-modal')).toBeTruthy();
   });
 
   test('other URLs are ignored', async () => {
@@ -172,7 +170,7 @@ describe('pappu://listen deep link', () => {
 
     await emitUrl('pappu://somewhere-else');
 
-    expect(utils.queryByTestId('assistant-modal')).toBeNull();
+    expect(utils.queryByTestId('voice-overlay')).toBeNull();
     expect(mockAudioRecorder.record).not.toHaveBeenCalled();
   });
 
@@ -188,6 +186,7 @@ describe('pappu://listen deep link', () => {
     expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1);
     expect(mockAudioRecorder.stop).not.toHaveBeenCalled();
     expect(utils.getByTestId('mic-recording-label')).toBeTruthy();
+    expect(utils.queryByTestId('voice-overlay')).toBeNull();
   });
 
   test('a link while another mic (outside the assistant) records queues nothing', async () => {
@@ -210,7 +209,7 @@ describe('pappu://listen deep link', () => {
     expect(await utils.findByTestId('dashboard-view')).toBeTruthy();
 
     await emitUrl('pappu://listen');
-    expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+    expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
     await emitUrl('pappu://listen');
     await act(async () => permission.resolve({ status: 'granted', granted: true }));
 
@@ -230,7 +229,7 @@ describe('pappu://listen deep link', () => {
     clock += SIGN_IN_WINDOW_MS - 5000;
     await signIn();
 
-    expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+    expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
     await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
   });
 
@@ -244,7 +243,7 @@ describe('pappu://listen deep link', () => {
     await signIn();
 
     expect(await utils.findByTestId('dashboard-view')).toBeTruthy();
-    expect(utils.queryByTestId('assistant-modal')).toBeNull();
+    expect(utils.queryByTestId('voice-overlay')).toBeNull();
     expect(mockAudioRecorder.record).not.toHaveBeenCalled();
   });
 
@@ -260,14 +259,14 @@ describe('pappu://listen deep link', () => {
 
     const utils = await render(<App />);
 
-    expect(await utils.findByText(PERMISSION_MSG)).toBeTruthy();
+    expect(await utils.findByTestId('voice-overlay-error-permission')).toBeTruthy();
     expect(requestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
     expect(mockAudioRecorder.prepareToRecordAsync).not.toHaveBeenCalled();
     expect(mockAudioRecorder.record).not.toHaveBeenCalled();
     expect(client.transcribeAudio).not.toHaveBeenCalled();
-    expectMicIdle(utils);
     expect(isMicBusy()).toBe(false);
-    expect(utils.getByTestId('mic-open-settings')).toBeTruthy();
+    expect(utils.getByTestId('voice-overlay-retry')).toBeTruthy();
+    expect(utils.getByTestId('voice-overlay-settings')).toBeTruthy();
   });
 
   describe('"Talk to Pappu" icon quick action', () => {
@@ -280,21 +279,21 @@ describe('pappu://listen deep link', () => {
       expect(TALK_QUICK_ACTION.params.href).toBe('pappu://listen');
     });
 
-    test('cold start from the icon opens the assistant and records', async () => {
+    test('cold start from the icon summons the overlay and records', async () => {
       mockInitialQuickAction = action;
       const utils = await render(<App />);
 
-      expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+      expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
       await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
     });
 
-    test('warm start from the icon opens the assistant and records', async () => {
+    test('warm start from the icon summons the overlay and records', async () => {
       const utils = await render(<App />);
       expect(await utils.findByTestId('dashboard-view')).toBeTruthy();
 
       await act(async () => mockQuickActionListeners.forEach((fn) => fn(action)));
 
-      expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+      expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
       await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
     });
 
@@ -306,7 +305,7 @@ describe('pappu://listen deep link', () => {
         mockQuickActionListeners.forEach((fn) => fn({ id: 'x', title: 'X', params: { href: '/x' } }))
       );
 
-      expect(utils.queryByTestId('assistant-modal')).toBeNull();
+      expect(utils.queryByTestId('voice-overlay')).toBeNull();
       expect(mockAudioRecorder.record).not.toHaveBeenCalled();
     });
   });

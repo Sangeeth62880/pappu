@@ -9,6 +9,7 @@ import * as supabaseApi from '../src/api/supabase';
 import * as SecureStore from 'expo-secure-store';
 import { mockAudioRecorder, requestRecordingPermissionsAsync } from 'expo-audio';
 import { takeListenRequest, resetListenTriggerForTests } from '../src/utils/listenTrigger';
+import { resetVoiceOverlayForTests } from '../src/utils/voiceOverlayStore';
 
 jest.mock('../src/api/client');
 jest.mock('../src/api/supabase');
@@ -26,6 +27,7 @@ describe('Me screen: Quick access', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetListenTriggerForTests();
+    resetVoiceOverlayForTests();
     urlListeners = [];
     Linking.addEventListener.mockImplementation((type, fn) => {
       urlListeners.push(fn);
@@ -107,7 +109,7 @@ describe('Me screen: Quick access', () => {
     expect(takeListenRequest()).not.toBeNull();
   });
 
-  test('end to end: Test it on the Me tab opens the assistant and records', async () => {
+  test('end to end: Test it on the Me tab summons the overlay and records', async () => {
     supabaseApi.getSession.mockResolvedValue(session);
     supabaseApi.supabase = {
       auth: {
@@ -138,7 +140,7 @@ describe('Me screen: Quick access', () => {
       fireEvent.press(await utils.findByTestId('quick-access-test-button'));
     });
 
-    expect(await utils.findByTestId('assistant-modal')).toBeTruthy();
+    expect(await utils.findByTestId('voice-overlay')).toBeTruthy();
     await waitFor(() => expect(mockAudioRecorder.record).toHaveBeenCalledTimes(1));
   });
 });
