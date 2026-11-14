@@ -24,6 +24,10 @@ import Skeleton from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import Pappu, { PappuLogo, PappuWordmark } from '../components/ui/Pappu';
 import MascotDevToggle from '../components/ui/MascotDevToggle';
+import VoiceOverlayView from '../components/voiceOverlay/VoiceOverlayView';
+import { PREVIEW_STATES, previewState } from '../components/voiceOverlay/overlayPreviews';
+import { PHASES } from '../components/voiceOverlay/overlayMachine';
+import { useReduceMotion } from '../utils/reduceMotion';
 
 const ALL_MOODS = [
   'idle',
@@ -46,6 +50,11 @@ export default function StyleguideScreen({ onBack }) {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
+  // Voice overlay previews: one canned state at a time, no backend.
+  const [overlayLang, setOverlayLang] = useState('en');
+  const [overlayPreview, setOverlayPreview] = useState(null);
+  const reduceMotion = useReduceMotion();
+  const noop = () => {};
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -320,6 +329,48 @@ export default function StyleguideScreen({ onBack }) {
             <MascotDevToggle />
           </View>
         </View>
+
+        {/* 12. Voice overlay states (dev only) */}
+        {__DEV__ ? (
+          <View style={styles.section} testID="styleguide-overlay-section">
+            <Text style={styles.sectionTitle}>12. Voice Overlay States (no backend)</Text>
+            <SegmentedControl
+              testID="styleguide-overlay-lang"
+              segments={[
+                { key: 'en', label: 'English' },
+                { key: 'ml', label: 'മലയാളം' },
+              ]}
+              selectedKey={overlayLang}
+              onSelect={setOverlayLang}
+            />
+            <View style={[styles.swatchGrid, { marginTop: 12 }]}>
+              {PREVIEW_STATES.map((name) => (
+                <Chip
+                  key={name}
+                  testID={`styleguide-overlay-${name}`}
+                  label={name}
+                  onPress={() => setOverlayPreview(previewState(name, overlayLang))}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {overlayPreview ? (
+          <VoiceOverlayView
+            state={overlayPreview}
+            reduceMotion={reduceMotion}
+            onClose={() => setOverlayPreview((p) => (p ? { ...p, phase: PHASES.dismissing } : p))}
+            onExited={() => setOverlayPreview(null)}
+            onRetry={noop}
+            onOpenSettings={noop}
+            onUndo={() => setOverlayPreview((p) => ({ ...p, undone: true }))}
+            onAnswer={noop}
+            onSelectCandidate={noop}
+            onTalkAgain={noop}
+            onPin={noop}
+          />
+        ) : null}
 
         {/* Modals rendered conditionally */}
         <Dialog
