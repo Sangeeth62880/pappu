@@ -1,5 +1,6 @@
 import React from 'react';
 import { Linking } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { render, act, fireEvent, waitFor, cleanup } from '@testing-library/react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
@@ -474,6 +475,66 @@ describe('Voice overlay session', () => {
         ])
       );
       expect(isVoiceOverlayOpen()).toBe(true);
+    });
+  });
+
+  describe('Malayalam', () => {
+    const font = (el) => StyleSheet.flatten(el.props.style);
+
+    test('a Malayalam profile listens in Malayalam with the Malayalam font', async () => {
+      client.fetchProfile.mockResolvedValue({ language: 'ml' });
+      const utils = await summon();
+      await act(async () => {});
+
+      const status = utils.getByTestId('voice-overlay-status');
+      expect(status.props.children).toBe('കേൾക്കുന്നു…');
+      expect(font(status).fontFamily).toBe('NotoSansMalayalam_600SemiBold');
+    });
+
+    test('a Malayalam reply switches the overlay to Malayalam without clipping', async () => {
+      client.transcribeAudio.mockResolvedValueOnce({ transcript: 'ഇന്നലത്തെ ചായ ഒഴിവാക്കൂ' });
+      client.sendAssistantMessage.mockResolvedValueOnce({
+        display_text: 'നവംബർ 7ലെ ഭക്ഷണം ₹20 ഒഴിവാക്കട്ടെ?',
+        spoken_text: 'നവംബർ 7ലെ ഭക്ഷണം 20 രൂപ ഒഴിവാക്കട്ടെ?',
+        language: 'ml',
+        mood: 'concerned',
+        results: [],
+        pending: { id: 'p-ml', kind: 'confirm', question: 'നവംബർ 7ലെ ഭക്ഷണം ₹20 ഒഴിവാക്കട്ടെ?' },
+        changed: false,
+      });
+      const utils = await summon();
+      await advance(STOP_AFTER_SPEECH_MS);
+      await waitFor(() => expect(utils.getByTestId('voice-overlay-yes')).toBeTruthy());
+
+      expect(client.synthesizeSpeech).toHaveBeenCalledWith(token, expect.any(String), 'ml-IN');
+      const bubble = utils.getByText('നവംബർ 7ലെ ഭക്ഷണം ₹20 ഒഴിവാക്കട്ടെ?');
+      expect(font(bubble)).toMatchObject({ fontFamily: 'NotoSansMalayalam_600SemiBold', lineHeight: 24 });
+      expect(bubble.props.numberOfLines).toBeUndefined();
+      expect(font(utils.getByTestId('voice-overlay-transcript')).fontFamily).toBe('NotoSansMalayalam_600SemiBold');
+      expect(utils.getByText('അതെ')).toBeTruthy();
+      expect(utils.getByText('വേണ്ട')).toBeTruthy();
+      expect(font(utils.getByText('അതെ')).lineHeight).toBe(26);
+    });
+
+    test('a Malayalam transcript in an English session still gets the Malayalam font', async () => {
+      client.transcribeAudio.mockResolvedValueOnce({ transcript: 'ചായ 20 രൂപ' });
+      const utils = await summon();
+      await advance(STOP_AFTER_SPEECH_MS);
+      await waitFor(() => expect(utils.getByTestId('voice-overlay-transcript')).toBeTruthy());
+
+      expect(font(utils.getByTestId('voice-overlay-transcript')).fontFamily).toBe('NotoSansMalayalam_600SemiBold');
+      await waitFor(() => expect(utils.getByText('Added ₹20 to Food.')).toBeTruthy());
+      expect(font(utils.getByText('Added ₹20 to Food.')).fontFamily).toBe('Nunito_600SemiBold');
+    });
+
+    test('errors are in the session language', async () => {
+      client.fetchProfile.mockResolvedValue({ language: 'ml' });
+      client.sendAssistantMessage.mockRejectedValueOnce(new Error('Network request failed'));
+      const utils = await summon();
+      await advance(STOP_AFTER_SPEECH_MS);
+
+      expect(await utils.findByText('പപ്പുവിനെ കിട്ടുന്നില്ല. ഇന്റർനെറ്റ് കണക്ഷൻ നോക്കൂ.')).toBeTruthy();
+      expect(utils.getByText('വീണ്ടും')).toBeTruthy();
     });
   });
 });

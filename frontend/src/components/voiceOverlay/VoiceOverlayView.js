@@ -21,7 +21,7 @@ import Button from '../ui/Button';
 import AmountText, { formatAmount } from '../ui/AmountText';
 import ConfirmationCard from '../ui/ConfirmationCard';
 import { colors, radius, spacing, typography } from '../../theme/tokens';
-import { t } from '../../i18n/strings';
+import { t, isMalayalamText } from '../../i18n/strings';
 import {
   PHASES,
   transactionRows,
@@ -36,6 +36,14 @@ const HALO_SIZE = MASCOT_SIZE + 44;
 const SUMMON_SPRING = { damping: 12, stiffness: 190, mass: 0.9 };
 const EXIT_MS = 180;
 const DISMISS_DRAG = 110;
+
+// Malayalam text uses Noto Sans Malayalam with taller lines (no clipped conjuncts);
+// everything else keeps Nunito. Picked per text, so a Malayalam transcript renders
+// right even in an English session.
+const bodyFont = (text) => (isMalayalamText(text) ? typography.malayalam_body : null);
+const captionFont = (text) => (isMalayalamText(text) ? typography.malayalam_caption : null);
+// Button labels stay in Baloo Chettan 2 (it has Malayalam glyphs) with the Malayalam line height.
+const labelFont = (lang) => (lang === 'ml' ? { lineHeight: typography.malayalam_h2.lineHeight } : null);
 
 function replyText(reply) {
   return reply?.display_text || reply?.reply_text || reply?.spoken_text || '';
@@ -116,14 +124,25 @@ function TransactionCard({ state, lang, onUndo }) {
   const alert = budgetAlertOf(state.reply);
   if (!rows.length && !alert) return null;
   const titles = { add: 'overlay.added', edit: 'overlay.changed', delete: 'overlay.deleted' };
+  const alertText = !alert
+    ? null
+    : alert.alert === 'over'
+    ? t('overlay.budgetOver', lang, {
+        cat: alert.category,
+        spent: `₹${formatAmount(alert.spent)}`,
+        budget: `₹${formatAmount(alert.budget)}`,
+      })
+    : t('overlay.budgetNear', lang, { cat: alert.category, pct: alert.percent });
 
   return (
     <View testID="voice-overlay-result-card" style={styles.card}>
       {rows.map((row, i) => (
         <View key={i} style={styles.txnRow}>
           <View style={styles.txnText}>
-            <Text style={styles.cardLabel}>{t(titles[row.action], lang)}</Text>
-            <Text style={styles.cardBody}>
+            <Text style={[styles.cardLabel, captionFont(t(titles[row.action], lang))]}>
+              {t(titles[row.action], lang)}
+            </Text>
+            <Text style={[styles.cardBody, bodyFont([row.category, row.person].join(' '))]}>
               {[row.category, row.person].filter(Boolean).join(' · ')}
             </Text>
           </View>
@@ -134,33 +153,28 @@ function TransactionCard({ state, lang, onUndo }) {
       {alert ? (
         <View testID="voice-overlay-budget-alert" style={styles.alertRow}>
           <Feather name="alert-triangle" size={16} color={colors.warning} />
-          <Text style={[styles.cardBody, styles.alertText]}>
-            {alert.alert === 'over'
-              ? t('overlay.budgetOver', lang, {
-                  cat: alert.category,
-                  spent: `₹${formatAmount(alert.spent)}`,
-                  budget: `₹${formatAmount(alert.budget)}`,
-                })
-              : t('overlay.budgetNear', lang, { cat: alert.category, pct: alert.percent })}
-          </Text>
+          <Text style={[styles.cardBody, styles.alertText, bodyFont(alertText)]}>{alertText}</Text>
         </View>
       ) : null}
 
       {rows.length ? (
         state.undone ? (
-          <Text testID="voice-overlay-undone" style={styles.cardBody}>
+          <Text testID="voice-overlay-undone" style={[styles.cardBody, bodyFont(t('overlay.undone', lang))]}>
             {t('overlay.undone', lang)}
           </Text>
         ) : (
           <>
             {state.undoFailed ? (
-              <Text style={[styles.cardBody, styles.errorText]}>{t('overlay.undoFailed', lang)}</Text>
+              <Text style={[styles.cardBody, styles.errorText, bodyFont(t('overlay.undoFailed', lang))]}>
+                {t('overlay.undoFailed', lang)}
+              </Text>
             ) : null}
             <Button
               testID="voice-overlay-undo"
               title={t('overlay.undo', lang)}
               variant="secondary"
               size="dialog"
+              textStyle={labelFont(lang)}
               onPress={onUndo}
             />
           </>
@@ -196,6 +210,7 @@ function PendingCard({ pending, lang, onAnswer, onSelectCandidate }) {
         title={t('overlay.no', lang)}
         variant="secondary"
         size="dialog"
+        textStyle={labelFont(lang)}
         style={styles.flexButton}
         onPress={() => onAnswer(contact ? 'no' : 'cancel')}
       />
@@ -204,6 +219,7 @@ function PendingCard({ pending, lang, onAnswer, onSelectCandidate }) {
         title={t('overlay.yes', lang)}
         variant="primary"
         size="dialog"
+        textStyle={labelFont(lang)}
         style={styles.flexButton}
         onPress={() => onAnswer(contact ? 'yes' : 'confirm', contact ? 0 : null)}
       />
@@ -214,7 +230,9 @@ function PendingCard({ pending, lang, onAnswer, onSelectCandidate }) {
 function ErrorCard({ error, lang, onRetry, onOpenSettings }) {
   return (
     <View testID={`voice-overlay-error-${error.kind}`} style={styles.card}>
-      <Text style={styles.cardBody}>{t(`overlay.error.${error.kind}`, lang)}</Text>
+      <Text style={[styles.cardBody, bodyFont(t(`overlay.error.${error.kind}`, lang))]}>
+        {t(`overlay.error.${error.kind}`, lang)}
+      </Text>
       <View style={styles.buttonRow}>
         {error.kind === 'permission' && onOpenSettings ? (
           <Button
@@ -222,6 +240,7 @@ function ErrorCard({ error, lang, onRetry, onOpenSettings }) {
             title={t('overlay.settings', lang)}
             variant="secondary"
             size="dialog"
+            textStyle={labelFont(lang)}
             style={styles.flexButton}
             onPress={onOpenSettings}
           />
@@ -231,6 +250,7 @@ function ErrorCard({ error, lang, onRetry, onOpenSettings }) {
           title={t('overlay.retry', lang)}
           variant="primary"
           size="dialog"
+          textStyle={labelFont(lang)}
           style={styles.flexButton}
           onPress={onRetry}
         />
@@ -409,14 +429,17 @@ export default function VoiceOverlayView({
               keyboardShouldPersistTaps="handled"
             >
               {state.transcript ? (
-                <Text testID="voice-overlay-transcript" style={styles.transcript}>
+                <Text
+                  testID="voice-overlay-transcript"
+                  style={[styles.transcript, bodyFont(state.transcript)]}
+                >
                   “{state.transcript}”
                 </Text>
               ) : null}
 
               {showReply && text ? (
                 <View testID="voice-overlay-reply" style={styles.bubble}>
-                  <Text style={styles.bubbleText}>{text}</Text>
+                  <Text style={[styles.bubbleText, bodyFont(text)]}>{text}</Text>
                   <View style={styles.bubbleTail} />
                 </View>
               ) : null}
@@ -438,6 +461,7 @@ export default function VoiceOverlayView({
                   title={t('overlay.talkAgain', lang)}
                   variant="secondary"
                   size="dialog"
+                  textStyle={labelFont(lang)}
                   onPress={onTalkAgain}
                 />
               ) : null}
@@ -469,7 +493,7 @@ export default function VoiceOverlayView({
           </GestureDetector>
 
           {showStatus ? (
-            <Text testID="voice-overlay-status" style={styles.status}>
+            <Text testID="voice-overlay-status" style={[styles.status, captionFont(statusText)]}>
               {statusText}
             </Text>
           ) : (
