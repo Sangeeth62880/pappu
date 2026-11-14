@@ -23,7 +23,7 @@ Scope: academic/mini project. Not a production financial product. Cost, latency 
 | STT | Sarvam AI — Saaras v3 |
 | TTS | Sarvam AI — Bulbul v3 |
 | LLM | Sarvam-105B (sarvam-30b is deprecated and no longer available via the Chat Completions API) |
-| Bill OCR (Phase 14) | Sarvam Document Intelligence (Sarvam Vision). If the Phase 14 task 5 spot check shows it is too slow or too weak on restaurant bills, fall back to a multimodal LLM and record the change here |
+| Bill OCR (Phase 14) | Sarvam Document AI parse job (`POST /doc-ai/v1/job/parse`, Markdown output), then Sarvam-105B to structure the text. Checked 2026-11-15 on one printed test receipt: about 3 s to read and 1.5 s to structure, every line correct. Real photographed bills are not checked yet; if they read poorly, fall back to a multimodal LLM and record the change here |
 | Backend testing | pytest |
 | Frontend testing | Jest + React Native Testing Library |
 
@@ -286,7 +286,7 @@ Decisions (made 2026-11-14, do not re-litigate). Approved screens: `design/stitc
 * No category is ever created; a bill split is always Food for the user's share.
 
 **Pay requests**
-* A request is a UPI link `upi://pay?pa=<profiles.upi_id>&pn=<profile name>&am=<share>&cu=INR&tn=<merchant>`, shown as a QR code and shared as an image with a short message (WhatsApp does not make `upi://` links tappable). Without `profiles.upi_id` the app asks the user to add it on the Me screen first.
+* A request is a UPI link `upi://pay?pa=<profiles.upi_id>&pn=<profile name>&am=<share>&cu=INR&tn=<merchant>`, shown as a QR code on the Ask to pay sheet. Share sends a short text message with the amount and the UPI ID (WhatsApp does not make `upi://` links tappable); Copy details copies the same text. Sharing the QR itself as an image is not built yet. Without `profiles.upi_id` the app asks the user to add it on the Me screen first.
 * "Mark paid" writes one `income` in category People from that contact for the share amount (the same row "Rahul paid me back 495" would create) and links it on the share. It is an explicit tap, has an undo entry, and is the only way a share becomes paid.
 
 **Other rules**
@@ -294,6 +294,7 @@ Decisions (made 2026-11-14, do not re-litigate). Approved screens: `design/stitc
 * Errors from `/bills` routes carry `detail: { message, code, detail }`; the app keys its behaviour on `code` (`does_not_add_up`, `unassigned_items`, `ambiguous_people`, `planner_failed`, `not_a_draft`, `share_paid`, `upi_id_missing`).
 * Every bill response includes `ready` (the bill adds up, every item is assigned and no name is unanswered), `question` (the one unassigned item Pappu is asking about, in the reply language) and `shares` (the preview for a draft, the stored shares once confirmed).
 * The bill flow is outside the §5b latency budget (OCR takes seconds); the app shows the Reading screen meanwhile.
+* The user's UPI ID is set on the Me screen, or on the Ask to pay sheet the first time it is needed.
 * Entry point: a receipt button in the People header. Replies and screen strings follow the existing reply language rules.
 
 ### Endpoints

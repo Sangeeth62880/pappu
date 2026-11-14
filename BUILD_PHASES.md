@@ -4,7 +4,7 @@ Build in this order. Do not start a phase until the previous phase's acceptance 
 
 ## Status (verified 2026-11-08 against code and tests, not earlier claims)
 
-Current suites: **621 pytest passed** (`backend/tests`), **279 Jest passed in 34 suites** (`frontend/tests`). Test counts written inside the phase sections below are historical.
+Current suites (2026-11-15): **874 pytest passed** (`backend/tests`), **542 Jest passed in 51 suites** (`frontend/tests`). Test counts written inside the phase sections below are historical.
 
 | Phase | Status | Evidence | Open |
 |---|---|---|---|
@@ -23,7 +23,7 @@ Current suites: **621 pytest passed** (`backend/tests`), **279 Jest passed in 34
 | 11 Post Stitch polish | Done | `test_chat.py`, `transaction_edit.test.js`, `chat_history.test.js`, `voice_listening_sheet.test.js` | |
 | 12 Assistant v2 | Done | `app/assistant/`, `test_assistant_*.py`; eval planner-only 93.8% (152/162) in `tests/eval/eval_results/20261015_162746.json`; with `--execute` 84.3% (145/172), budgets 14/14, in `20261108_085648.json` (local, eval_results is gitignored) | The `--execute` failures are pre-existing (same cases fail at 7daf7e6, before the budgets brief): disambiguation/undo cases that seed no pending or undo rows, and relative dates resolved against the real clock instead of the case's 2026-10-14. `generate_cases.py` lacks the 13 hand-added `trace_*` cases, so don't regenerate `cases.jsonl` from it |
 | 13 Stitch redesign | Done (automated tests) | `home_stitch_fidelity.test.js`, `assistant_modal_fidelity.test.js`, `primitives.test.js`, `me_screen.test.js` | 390x844, 360x780 and 1.3 font scale not checked on a device in this session |
-| 14 Bill split | **Not started** (specified 2026-11-14) | `PROJECT_SPEC.md` §5b Bill Split; approved screens `design/stitch/bill_split.html` | All tasks. Task 7 (voice) waits for Phase 8 acceptance |
+| 14 Bill split | **Built and unit tested, not accepted** (2026-11-15) | `test_bill_schema.py`, `test_bill_split_maths.py`, `test_bill_planner.py`, `test_bills_api.py`, `test_bill_extract.py`; `bill_split_flow.test.js`, `bill_api_and_upi.test.js`; live check of OCR, extraction and the split planner on one printed test receipt | Migration `20261114000000_create_bill_split.sql` not applied to the target DB; no eval suite cases; manual phone run (real bills, camera, QR scan in two UPI apps, voice on the Who had what screen) not done; QR is not shared as an image; needs a new dev build for the camera picker |
 
 ---
 
@@ -324,7 +324,7 @@ Note: The compare and group_by operations implemented in this phase cover analyt
 
 Rules and contracts: `PROJECT_SPEC.md` §4 (tables), §5b Bill Split, §8 (endpoints). Screens: `design/stitch/bill_split.html` (approved 2026-11-14).
 
-Phases 8 and 9 are still open. Tasks 1 to 6 here do not depend on voice and can proceed; task 7 waits until Phase 8 is accepted. Per `CLAUDE.md` rule 5 the whole flow is built and tested on typed input before voice is wired in.
+Phases 8 and 9 are still open. Tasks 1 to 6 and 8 are built. Task 7 is wired (the Who had what screen uses the existing `MicButton` and STT path, tested with the mic mocked) but, like Phases 6 to 8, it is not accepted until the manual phone run. Per `CLAUDE.md` rule 5 the whole flow is built and tested on typed input before voice is wired in.
 
 **Tasks**
 1. **Schema**: `bills`, `bill_items`, `bill_shares` models and `profiles.upi_id`; extend `apply_schema.py`; RLS on the new tables as the secondary safeguard.
