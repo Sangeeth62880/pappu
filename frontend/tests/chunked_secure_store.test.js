@@ -141,4 +141,42 @@ describe('Chunked SecureStore Storage Adapter', () => {
     const retrieved = await chunkedSecureStoreAdapter.getItem(legacyKey);
     expect(retrieved).toBe(legacyValue);
   });
+
+  describe('on web, where expo-secure-store has no implementation', () => {
+    const { Platform } = require('react-native');
+    const originalOS = Platform.OS;
+    let store;
+
+    beforeEach(() => {
+      Platform.OS = 'web';
+      store = {};
+      global.window = global.window || {};
+      global.window.localStorage = {
+        getItem: (k) => (k in store ? store[k] : null),
+        setItem: (k, v) => { store[k] = String(v); },
+        removeItem: (k) => { delete store[k]; },
+      };
+    });
+
+    afterEach(() => {
+      Platform.OS = originalOS;
+      delete global.window.localStorage;
+    });
+
+    test('round trips through localStorage and never calls SecureStore', async () => {
+      const set = jest.spyOn(SecureStore, 'setItemAsync');
+      const get = jest.spyOn(SecureStore, 'getItemAsync');
+      const value = 'x'.repeat(CHUNK_SIZE * 3);
+
+      await chunkedSecureStoreAdapter.setItem('sb-web-token', value);
+      expect(store['sb-web-token']).toBe(value);
+      expect(await chunkedSecureStoreAdapter.getItem('sb-web-token')).toBe(value);
+
+      await chunkedSecureStoreAdapter.removeItem('sb-web-token');
+      expect(await chunkedSecureStoreAdapter.getItem('sb-web-token')).toBeNull();
+
+      expect(set).not.toHaveBeenCalled();
+      expect(get).not.toHaveBeenCalled();
+    });
+  });
 });

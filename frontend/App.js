@@ -20,6 +20,7 @@ import {
   NotoSansMalayalam_700Bold,
 } from '@expo-google-fonts/noto-sans-malayalam';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './src/data/queryClient';
 import HomeScreen from './src/screens/HomeScreen';
@@ -28,6 +29,12 @@ import StartupHealthGate from './src/components/ui/StartupHealthGate';
 import { colors } from './src/theme/tokens';
 import { startListenLinks } from './src/utils/listenTrigger';
 import './global.css';
+
+// Starting metrics so the first render is not held back waiting for a measurement.
+const ZERO_METRICS = {
+  frame: { x: 0, y: 0, width: 0, height: 0 },
+  insets: { top: 0, left: 0, right: 0, bottom: 0 },
+};
 
 export default function App({ initialShowStyleguide = false }) {
   const [showStyleguide, setShowStyleguide] = useState(() => {
@@ -68,6 +75,8 @@ export default function App({ initialShowStyleguide = false }) {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Web needs this: SafeAreaView there reads insets from context and throws without a provider. */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics ?? ZERO_METRICS}>
       <QueryClientProvider client={queryClient}>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <StartupHealthGate>
@@ -80,6 +89,7 @@ export default function App({ initialShowStyleguide = false }) {
           <StatusBar style="dark" />
         </View>
       </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

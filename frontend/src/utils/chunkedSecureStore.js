@@ -1,14 +1,29 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 export const CHUNK_SIZE = 1024;
 export const INDEX_SUFFIX = '__index';
 export const CHUNK_PREFIX = '__chunk_';
+
+// expo-secure-store has no web implementation (its calls throw "is not a function" in a browser),
+// so on web the session is kept in localStorage, which is what supabase-js uses by default there.
+function webStorage() {
+  if (Platform.OS !== 'web') return null;
+  return typeof window !== 'undefined' && window.localStorage ? window.localStorage : null;
+}
 
 /**
  * Stores a value in SecureStore, chunking it if it exceeds CHUNK_SIZE.
  * Uses an index key (${key}__index) containing metadata ({ chunkCount, totalLength }).
  */
 export async function setChunkedItem(key, value) {
+  const web = webStorage();
+  if (web) {
+    if (value === null || value === undefined) web.removeItem(key);
+    else web.setItem(key, String(value));
+    return;
+  }
+
   if (value === null || value === undefined) {
     await removeChunkedItem(key);
     return;
@@ -63,6 +78,9 @@ export async function setChunkedItem(key, value) {
  * Falls back to legacy direct key if index key is not found.
  */
 export async function getChunkedItem(key) {
+  const web = webStorage();
+  if (web) return web.getItem(key);
+
   try {
     const indexStr = await SecureStore.getItemAsync(`${key}${INDEX_SUFFIX}`);
     if (indexStr) {
@@ -96,6 +114,12 @@ export async function getChunkedItem(key) {
  * Removes all chunks and the index key for a given key.
  */
 export async function removeChunkedItem(key) {
+  const web = webStorage();
+  if (web) {
+    web.removeItem(key);
+    return;
+  }
+
   try {
     const indexStr = await SecureStore.getItemAsync(`${key}${INDEX_SUFFIX}`);
     if (indexStr) {
