@@ -167,33 +167,7 @@ def test_stt_transcription_flows_to_intent_and_routing(mock_jwks_client, test_db
         transcribed_text = stt_resp.json()["transcript"]
         assert transcribed_text == "I paid 350 for lunch today"
 
-    # 2. Pass transcribed text into intent parser
-    intent_payload = {
-        "action": "add",
-        "language": "en",
-        "fields": {"amount": 350, "category": "Food", "date": "2026-08-31"},
-        "matched_transactions": [],
-        "confidence": "high",
-        "requires_confirmation": False,
-        "missing_fields": [],
-    }
-
-    with patch("app.llm.client.SarvamLLMClient.parse_intent") as mock_parse:
-        from app.schemas.intent import parse_and_validate_intent
-        import json
-        mock_parse.return_value = parse_and_validate_intent(json.dumps(intent_payload))
-
-        parse_resp = client.post(
-            "/intent/parse",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"text": transcribed_text},
-        )
-        assert parse_resp.status_code == 200
-        intent = parse_resp.json()["intent"]
-        assert intent["action"] == "add"
-        assert intent["fields"]["amount"] == 350
-
-    # 3. Process via assistant message -> executes immediately in DB
+    # 2. Process via assistant message -> executes immediately in DB
     from app.assistant.schemas import Plan, AddAction
     add_plan = Plan(ops=[AddAction(op="add", kind="expense", amount=350, category="Food", date="2026-08-31")])
     with patch("app.assistant.planner.AssistantPlanner.plan", return_value=add_plan):

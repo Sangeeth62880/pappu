@@ -26,7 +26,6 @@ if backend_root not in sys.path:
 from pydantic import ValidationError
 
 from app.assistant.schemas import PlanV2
-from tests.eval.baseline_adapter import is_case_expressible, old_intent_to_v2_plan
 
 REGRESSION_CASES = [
     "regression_query_who_owes_me",
@@ -162,37 +161,6 @@ def compare_plans(actual: PlanV2, expected: PlanV2) -> Tuple[bool, str]:
             pass
 
     return True, "Match"
-
-
-def create_baseline_planner() -> Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool, float, int]]:
-    """
-    Creates a baseline planner that runs the legacy SarvamLLMClient
-    adapted to the PlanV2 shape. Returns (plan_dict, expressible, latency_ms, tokens).
-    """
-    from app.llm.client import SarvamLLMClient
-
-    llm_client = SarvamLLMClient()
-
-    def baseline_planner(text: str, context: Dict[str, Any], case: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], bool, float, int]:
-        if not is_case_expressible(case):
-            return None, False, 0.0, 0
-
-        for attempt in range(3):
-            try:
-                time.sleep(0.1)
-                t0 = time.perf_counter()
-                intent = llm_client.parse_intent(text)
-                latency_ms = (time.perf_counter() - t0) * 1000.0
-                plan = old_intent_to_v2_plan(intent)
-                return plan.model_dump(), True, latency_ms, 0
-            except Exception as e:
-                if "429" in str(e) or "Rate limit" in str(e):
-                    time.sleep(2.0 * (attempt + 1))
-                    continue
-                return None, True, 0.0, 0
-        return None, True, 0.0, 0
-
-    return baseline_planner
 
 
 def create_v2_planner(include_reasoning: bool = False) -> Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool, float, int]]:
@@ -461,7 +429,7 @@ def compare_end_state(
 def run_evaluation(
     cases_file: str,
     planner_fn: Callable[[str, Dict[str, Any], Dict[str, Any]], Tuple[Optional[Dict[str, Any]], bool, float, int]],
-    planner_name: str = "baseline",
+    planner_name: str = "v2",
     max_workers: int = 4,
     output_dir: Optional[str] = None,
     execute: bool = False,
@@ -739,12 +707,6 @@ def run_evaluation(
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(result_payload, f, indent=2, ensure_ascii=False)
 
-    if planner_name == "baseline":
-        baseline_file = out_dir / "baseline.json"
-        with open(baseline_file, "w", encoding="utf-8") as f:
-            json.dump(result_payload, f, indent=2, ensure_ascii=False)
-        print(f"Saved baseline results to {baseline_file}")
-
     print(f"Saved timestamped results to {out_file}")
 
     return result_payload
@@ -753,16 +715,14 @@ def run_evaluation(
 def main():
     parser = argparse.ArgumentParser(description="Pappu Assistant v2 Evaluation Runner")
     parser.add_argument("--cases", default=str(Path(__file__).parent / "cases.jsonl"), help="Path to cases.jsonl")
-    parser.add_argument("--planner", default="baseline", help="Planner name: 'baseline', 'v2', 'v2_reasoning'")
+    parser.add_argument("--planner", default="v2", help="Planner name: 'v2', 'v2_reasoning'")
     parser.add_argument("--workers", type=int, default=5, help="Number of concurrent worker threads")
     parser.add_argument("--output-dir", default=None, help="Directory to save evaluation results")
     parser.add_argument("--execute", action="store_true", help="Execute generated plan and verify end state")
 
     args = parser.parse_args()
 
-    if args.planner == "baseline":
-        planner_fn = create_baseline_planner()
-    elif args.planner == "v2":
+    if args.planner == "v2":
         planner_fn = create_v2_planner(include_reasoning=False)
     elif args.planner == "v2_reasoning":
         planner_fn = create_v2_planner(include_reasoning=True)

@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.tts.client import SarvamTTSClient, TTSError, normalize_tts_language_code
 from app.schemas.tts import TTSResponse
-from app.llm.response_generator import generate_spoken_response
 from tests.test_auth import create_test_es256_jwt, test_public_key, MockSigningKey
 
 MOCK_BASE64_AUDIO = "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
@@ -142,65 +141,3 @@ class TestTTSEndpoint:
             assert data["audio_base64"] == MOCK_BASE64_AUDIO
             assert data["language_code"] == "en-IN"
             assert data["audio_format"] == "audio/wav"
-
-
-class TestResponseGenerator:
-    """Tests for bilingual spoken response generation."""
-
-    def test_add_response_english(self):
-        res = generate_spoken_response(
-            decision="EXECUTE",
-            action="add",
-            language="en",
-            fields={"amount": 500, "category": "Food"},
-        )
-        assert "500" in res
-        assert "Food" in res
-
-    def test_add_response_malayalam(self):
-        res = generate_spoken_response(
-            decision="EXECUTE",
-            action="add",
-            language="ml",
-            fields={"amount": 500, "category": "Food"},
-        )
-        assert "500" in res
-        assert "ചേർത്തു" in res
-
-    def test_confirmation_response_english(self):
-        res = generate_spoken_response(
-            decision="ASK_CONFIRMATION",
-            action="delete",
-            language="en",
-            target_transaction={"amount": 350, "category_name": "Food"},
-        )
-        assert "Are you sure" in res
-        assert "350" in res
-
-    def test_confirmation_response_malayalam(self):
-        res = generate_spoken_response(
-            decision="ASK_CONFIRMATION",
-            action="delete",
-            language="ml",
-            target_transaction={"amount": 350, "category_name": "Food"},
-        )
-        assert "350" in res
-        assert "ഡിലീറ്റ് ചെയ്യണോ" in res
-
-    def test_disambiguation_response_bilingual(self):
-        res_en = generate_spoken_response(
-            decision="ASK_DISAMBIGUATION",
-            action="delete",
-            language="en",
-            matched_count=3,
-        )
-        assert "Multiple transactions match" in res_en
-
-        res_ml = generate_spoken_response(
-            decision="ASK_DISAMBIGUATION",
-            action="delete",
-            language="ml",
-            matched_count=3,
-        )
-        assert "3" in res_ml
-        assert "ഇടപാടുകൾ" in res_ml

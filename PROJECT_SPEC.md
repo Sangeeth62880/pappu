@@ -164,6 +164,8 @@ CREATE TABLE bill_shares (
 
 ## 5. LLM Intent Schema
 
+> **Status (2026-11-15):** this is the original Phase 3 contract. The code that implemented it (`/intent/parse`, `intent_prompt.md`, `schemas/intent.py`, `services/routing.py`) was removed because the app only uses the v2 planner (§5b). The section is kept as the record of the rule that every LLM output states its certainty: `confidence`, `requires_confirmation` and `missing_fields` are still required on the bill split planner output (§5b Bill Split), and the v2 Plan expresses the same thing through `clarify` actions with `missing_fields` and the resolver's confirm and disambiguate steps (§6).
+
 Every LLM output must conform to this JSON shape. This is the contract between the LLM layer and the confirmation/backend layers — nothing downstream should have to guess at the LLM's certainty.
 
 ```json

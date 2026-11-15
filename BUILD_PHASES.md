@@ -11,8 +11,8 @@ Current suites (2026-11-15): **874 pytest passed** (`backend/tests`), **542 Jest
 | 0 Scaffolding | Done | `test_health.py`, `frontend/tests/App.test.js` | |
 | 1 Schema | Done | `app/models/`, `services/category_seed.py`, `test_models.py`, `test_schema.py`; `apply_schema.py` asserts tables and the 8 categories on the target DB | Target DB not re-checked in this session |
 | 2 CRUD + Auth | Done | `app/auth.py` (ES256 JWKS, `aud = authenticated`), `test_auth.py`, `test_transactions.py`, `test_isolation.py`, `test_summary.py` | |
-| 3 LLM intent layer | Done, superseded by the v2 planner (Phase 12) | `test_intent_parsing.py` | Legacy path |
-| 4 Confirmation routing | Done | `services/routing.py`, `test_routing.py`, `test_confirmation_integration.py`; v2 `assistant/pending.py`, `test_assistant_pending.py` | |
+| 3 LLM intent layer | Done, superseded by the v2 planner (Phase 12). Legacy code removed 2026-11-15 | `test_assistant_planner.py`, `test_assistant_planner_cases.py` | `/intent`, `intent_prompt.md`, `schemas/intent.py`, `services/routing.py` and `llm/response_generator.py` were deleted; the app had stopped calling them |
+| 4 Confirmation routing | Done | v2 `assistant/pending.py`, `test_assistant_pending.py`, `test_confirmation_integration.py` | The legacy `services/routing.py` was removed 2026-11-15 |
 | 5 Dashboard UI | Done (automated tests) | `dashboard.test.js`, `conversation.test.js`, `home_screen.test.js` | Manual demo QA run has no record in the repo |
 | 5.5 People | Done | `test_people.py`, `people_screen.test.js` | |
 | 6 STT | Built and unit tested, **not accepted** | `app/stt/`, `test_stt.py`, `mic_button.test.js`, `voice_*.test.js` | Manual phone spot check: `VOICE_TEST_CHECKLIST.md` §3, §4 |

@@ -1,6 +1,6 @@
 """
 Tests for the evaluation harness and PlanV2 schema.
-Verifies cases.jsonl completeness, schema validation, and baseline adapter mapping.
+Verifies cases.jsonl completeness, and schema validation.
 """
 
 import json
@@ -20,8 +20,6 @@ from app.schemas.plan_v2 import (
     direction_to_type,
 )
 from tests.eval.runner import validate_plan_schema, compare_plans
-from tests.eval.baseline_adapter import is_case_expressible, old_intent_to_v2_plan
-from app.schemas.intent import IntentObject, IntentFields
 
 
 def test_direction_to_type_mapping():
@@ -112,43 +110,6 @@ def test_cases_jsonl_integrity_and_minimum_counts():
     ]
     for reg_id in required_regressions:
         assert reg_id in case_ids, f"Missing required regression case: {reg_id}"
-
-
-def test_baseline_adapter_expressibility():
-    # Multi-action is not expressible
-    multi_case = {
-        "group": "multi_action",
-        "expected_plan": {
-            "ops": [
-                {"op": "add", "kind": "expense", "amount": 250},
-                {"op": "add", "kind": "expense", "amount": 80}
-            ]
-        }
-    }
-    assert is_case_expressible(multi_case) is False
-
-    # Undo is not expressible
-    undo_case = {"group": "undo", "expected_plan": {"ops": [{"op": "undo"}]}}
-    assert is_case_expressible(undo_case) is False
-
-    # Simple add is expressible
-    add_case = {"group": "basic_add", "expected_plan": {"ops": [{"op": "add", "kind": "expense", "amount": 250}]}}
-    assert is_case_expressible(add_case) is True
-
-
-def test_baseline_adapter_mapping():
-    legacy_intent = IntentObject(
-        action="add",
-        language="en",
-        fields=IntentFields(amount=250, category="Food", description="lunch"),
-        confidence="high",
-        requires_confirmation=False,
-    )
-    v2_plan = old_intent_to_v2_plan(legacy_intent)
-    assert len(v2_plan.ops) == 1
-    assert v2_plan.ops[0].op == "add"
-    assert v2_plan.ops[0].amount == 250
-    assert v2_plan.ops[0].category == "Food"
 
 
 def test_held_out_eval_dataset():
