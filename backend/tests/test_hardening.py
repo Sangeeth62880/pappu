@@ -164,13 +164,12 @@ class TestRateLimit:
 
     @pytest.mark.parametrize("path,bucket", [
         ("/assistant/message", "assistant"), ("/stt/transcribe", "stt"), ("/tts/synthesize", "tts"),
-        ("/bills", "bill_read"), ("/bills/{bill_id}/assign", "bill_assign"),
+        ("/bills", "bill_read"), (f"/bills/{uuid.uuid4()}/assign", "bill_assign"),
     ])
-    def test_every_costly_route_has_a_limit(self, path, bucket):
-        route = next(r for r in app.routes if getattr(r, "path", None) == path and "POST" in r.methods)
-        names = [d.call.__qualname__ for d in route.dependant.dependencies]
-        assert any("rate_limit" in n for n in names), f"{path} has no rate limit"
-        assert bucket in rl.RATE_LIMITS
+    def test_every_costly_route_has_a_limit(self, client, monkeypatch, path, bucket):
+        # With the bucket's limit at zero the route must refuse before doing anything else.
+        monkeypatch.setitem(rl.RATE_LIMITS, bucket, 0)
+        assert client.post(path, json={}).status_code == 429
 
 
 class TestLikeWildcards:

@@ -98,7 +98,7 @@ def update_profile(
     if body.language is not None:
         if body.language not in VALID_LANGUAGES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"Language must be one of: {', '.join(sorted(VALID_LANGUAGES))}",
             )
         profile.preferred_language = body.language
@@ -110,7 +110,7 @@ def update_profile(
         upi_id = body.upi_id.strip()
         if upi_id and not UPI_ID_PATTERN.match(upi_id):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="That does not look like a UPI ID. It should look like name@bank.",
             )
         profile.upi_id = upi_id or None

@@ -65,7 +65,7 @@ def create_new_contact(
     clean_name = normalize_name(raw_name).strip()
     if not clean_name:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Contact name is required",
         )
 

@@ -63,7 +63,7 @@ def get_budgets(
 def _require_budget_category(category: str) -> None:
     if not budget_service.budget_category_name(category):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Budgets can be set for: {', '.join(budget_service.BUDGET_CATEGORIES)}",
         )
 
@@ -81,7 +81,7 @@ def put_budget(
         item = budget_service.set_budget(db, user_id, category, body.amount)
     except ValueError as e:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
     return BudgetItem(**item)
 
 

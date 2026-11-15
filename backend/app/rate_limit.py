@@ -35,7 +35,8 @@ def _check(user_id: uuid.UUID, bucket: str, limit: int, now: float) -> float:
         while hits and now - hits[0] >= WINDOW_SECONDS:
             hits.popleft()
         if len(hits) >= limit:
-            return max(1.0, WINDOW_SECONDS - (now - hits[0]))
+            # A limit of zero (route switched off by config) has no hit to wait on.
+            return max(1.0, WINDOW_SECONDS - (now - hits[0])) if hits else WINDOW_SECONDS
         hits.append(now)
         return 0.0
 

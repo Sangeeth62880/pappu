@@ -139,7 +139,7 @@ def create_bill_from_image(
         )
     except BillExtractError as err:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"message": str(err), "code": "unreadable", "detail": None},
         )
 
