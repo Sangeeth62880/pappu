@@ -266,6 +266,12 @@ class TestPromptAndContext:
         for required in ("confidence", "requires_confirmation", "missing_fields"):
             assert required in text
 
+    def test_prompt_strips_malayalam_endings_from_vowel_ending_names(self):
+        # Seen live on 2026-11-15: "Poojayum" came back as a new person instead of Pooja.
+        text = PROMPT_FILE_PATH.read_text(encoding="utf-8")
+        assert '"Poojayum"' in text and '"Anuvum"' in text
+        assert '["me","Pooja"]' in text
+
     def test_context_carries_items_but_never_amounts(self):
         ctx = json.loads(render_context(paragon({1: [ME, "Rahul"]}), ["Rahul"], 5))
         assert ctx["asked_about"] == 5 and ctx["people"] == ["Rahul"]
