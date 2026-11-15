@@ -15,9 +15,9 @@ Current suites (2026-11-15): **874 pytest passed** (`backend/tests`), **542 Jest
 | 4 Confirmation routing | Done | v2 `assistant/pending.py`, `test_assistant_pending.py`, `test_confirmation_integration.py` | The legacy `services/routing.py` was removed 2026-11-15 |
 | 5 Dashboard UI | Done (automated tests) | `dashboard.test.js`, `conversation.test.js`, `home_screen.test.js` | Manual demo QA run has no record in the repo |
 | 5.5 People | Done | `test_people.py`, `people_screen.test.js` | |
-| 6 STT | Built and unit tested, **not accepted** | `app/stt/`, `test_stt.py`, `mic_button.test.js`, `voice_*.test.js` | Manual phone spot check: `VOICE_TEST_CHECKLIST.md` §3, §4 |
+| 6 STT | Built and unit tested, **not accepted** | `app/stt/`, `test_stt.py`, `mic_button.test.js`, `voice_*.test.js` | Manual phone spot check: `docs/checklists/VOICE_TEST_CHECKLIST.md` §3, §4 |
 | 7 TTS | Built and unit tested, **not accepted** | `app/tts/`, `test_tts.py`, `test_reply_language.py`, `tts_language.test.js`, `audio_player.test.js` | Manual spoken check: checklist §3, §4, §7 |
-| 8 End to end voice | **In progress** | Voice hardening (0a8967a, 434eead, b699a0c, 0b99bae, 31c9a54), retry idempotency (220de03) | No end to end voice script exists; acceptance is the manual run of `VOICE_TEST_CHECKLIST.md` |
+| 8 End to end voice | **In progress** | Voice hardening (0a8967a, 434eead, b699a0c, 0b99bae, 31c9a54), retry idempotency (220de03) | No end to end voice script exists; acceptance is the manual run of `docs/checklists/VOICE_TEST_CHECKLIST.md` |
 | 9 Intelligence + polish | **In progress** | Category breakdown, highest category, period compare (`test_period_analytics.py`, `test_query_shapes.py`); budgets and budget alerts (`test_budgets.py`, `budgets_section.test.js`); UI polish via Phase 13 | Savings estimation not implemented; final spec drift review not done; Phase 8 regression pass blocked on Phase 8 |
 | 10 Light design system | Done, theme later replaced by Phase 13 | `test_period_analytics.py`, `primitives.test.js` | |
 | 11 Post Stitch polish | Done | `test_chat.py`, `transaction_edit.test.js`, `chat_history.test.js`, `voice_listening_sheet.test.js` | |

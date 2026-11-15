@@ -123,9 +123,6 @@ Render dashboard; the rest have values in `render.yaml`.
 only `SUPABASE_URL` is set, the JWKS URL is derived from it. JWTs must be ES256
 with `aud = "authenticated"` (`app/auth.py`).
 
-`TEST_USER_EMAIL` / `TEST_USER_PASSWORD` in `backend/.env.example` are only for
-`backend/test_live_api.py`. Do not set them on Render.
-
 Render service settings (from `render.yaml`): root dir `backend`, build
 `pip install -r requirements.txt`, start
 `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, health check `/health`.
@@ -196,4 +193,4 @@ vars above are configured for the `production` environment too.
 
 ## 5. After install
 
-Run `VOICE_TEST_CHECKLIST.md` on a real phone.
+Run `docs/checklists/VOICE_TEST_CHECKLIST.md` on a real phone.
