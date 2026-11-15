@@ -9,6 +9,8 @@ import logging
 from typing import Optional
 import httpx
 
+from app.http_client import post as http_post
+
 from app.config import SARVAM_API_KEY, SARVAM_STT_MODEL, SARVAM_STT_API_URL
 from app.schemas.stt import STTResponse
 
@@ -78,14 +80,14 @@ class SarvamSTTClient:
         }
 
         try:
-            with httpx.Client(timeout=30.0) as client:
-                response = client.post(
-                    self.api_url,
-                    headers=headers,
-                    files=files,
-                    data=data,
-                )
-                response.raise_for_status()
+            response = http_post(
+                self.api_url,
+                timeout=30.0,
+                headers=headers,
+                files=files,
+                data=data,
+            )
+            response.raise_for_status()
 
             res_data = response.json()
             transcript = res_data.get("transcript", "")

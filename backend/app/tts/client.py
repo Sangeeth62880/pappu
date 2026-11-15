@@ -8,6 +8,8 @@ import logging
 from typing import Optional
 import httpx
 
+from app.http_client import post as http_post
+
 from app.config import (
     SARVAM_API_KEY,
     SARVAM_TTS_MODEL,
@@ -115,13 +117,13 @@ class SarvamTTSClient:
         }
 
         try:
-            with httpx.Client(timeout=30.0) as client:
-                response = client.post(
-                    self.api_url,
-                    headers=headers,
-                    json=payload,
-                )
-                response.raise_for_status()
+            response = http_post(
+                self.api_url,
+                timeout=30.0,
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
 
             res_data = response.json()
             audios = res_data.get("audios", [])

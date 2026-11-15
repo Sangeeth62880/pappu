@@ -15,6 +15,7 @@ from app.services.date_utils import get_current_ist_datetime
 import httpx
 
 from app.config import SARVAM_API_KEY, SARVAM_MODEL, SARVAM_API_URL
+from app.http_client import post as http_post
 from app.schemas.intent import (
     IntentObject,
     IntentValidationError,
@@ -118,9 +119,8 @@ class SarvamLLMClient:
 
         for attempt in range(1 + max_network_retries):
             try:
-                with httpx.Client(timeout=timeout) as client:
-                    response = client.post(self.api_url, json=payload, headers=headers)
-                    response.raise_for_status()
+                response = http_post(self.api_url, timeout=timeout, json=payload, headers=headers)
+                response.raise_for_status()
 
                 data = response.json()
                 logger.debug("Sarvam LLM response payload: %s", data)
