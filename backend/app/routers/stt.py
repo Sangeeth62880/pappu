@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 
 from app.auth import get_current_user_id
+from app.rate_limit import rate_limit
 from app.stt.client import SarvamSTTClient, STTError
 from app.schemas.stt import STTResponse
 
@@ -15,7 +16,7 @@ MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
 
 # A plain `def`: the Sarvam call blocks, so it must run in the thread pool, not on the event loop.
-@router.post("/transcribe", response_model=STTResponse)
+@router.post("/transcribe", response_model=STTResponse, dependencies=[Depends(rate_limit("stt"))])
 def transcribe_audio(
     file: UploadFile = File(...),
     language_code: Optional[str] = Form(None),

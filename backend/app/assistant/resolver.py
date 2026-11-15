@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Optional, Literal, Union
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+from app.services.sql_text import LIKE_ESCAPE, escape_like
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.contact import Contact
@@ -167,7 +168,9 @@ def resolve(
     if text_val:
         clean_text = str(text_val).strip()
         filters_used["text"] = clean_text
-        query = query.filter(Transaction.description.ilike(f"%{clean_text}%"))
+        query = query.filter(
+            Transaction.description.ilike(f"%{escape_like(clean_text)}%", escape=LIKE_ESCAPE)
+        )
 
     # Ordering
     if for_mutation:

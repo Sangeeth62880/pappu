@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth import get_current_user_id
+from app.rate_limit import rate_limit
 from app.models.profile import Profile
 from app.models.chat_message import ChatMessage
 from app.models.pending_action import PendingAction
@@ -179,7 +180,7 @@ def get_active_pending_endpoint(
 STILL_PROCESSING_RETRY_AFTER_SECONDS = 2
 
 
-@router.post("/message", response_model=AssistantResponse)
+@router.post("/message", response_model=AssistantResponse, dependencies=[Depends(rate_limit("assistant"))])
 def handle_assistant_message(
     body: AssistantMessageRequest,
     background_tasks: BackgroundTasks = None,

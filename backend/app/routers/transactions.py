@@ -4,6 +4,7 @@ from typing import Optional, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
+from app.services.sql_text import LIKE_ESCAPE, escape_like
 from app.database import get_db
 from app.auth import get_current_user_id
 from app.models import Transaction, Category, Profile, Contact
@@ -173,7 +174,7 @@ def update_transaction(
             )
         txn.category_id = payload.category_id
     elif payload.category_name is not None:
-        category = db.query(Category).filter(Category.name.ilike(payload.category_name.strip())).first()
+        category = db.query(Category).filter(Category.name.ilike(escape_like(payload.category_name.strip()), escape=LIKE_ESCAPE)).first()
         if not category:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

@@ -187,6 +187,27 @@ class AssistantTracer:
         }
 
 
+def _purge_old_traces(db: Session, user_id, retention_days: Optional[int] = None) -> int:
+    """
+    Deletes this user's traces older than the retention period. Off (0) by default.
+    Returns how many rows were deleted.
+    """
+    from datetime import datetime, timedelta, timezone
+    from app.config import TRACE_RETENTION_DAYS
+
+    days = TRACE_RETENTION_DAYS if retention_days is None else retention_days
+    if not days or days <= 0:
+        return 0
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    deleted = (
+        db.query(AssistantTrace)
+        .filter(AssistantTrace.user_id == user_id, AssistantTrace.created_at < cutoff)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return deleted
+
+
 def save_trace_background(trace_dict: Dict[str, Any], db_override: Optional[Session] = None) -> None:
     """
     Persist assistant trace asynchronously in background task, off the request path.
@@ -228,6 +249,7 @@ def save_trace_background(trace_dict: Dict[str, Any], db_override: Optional[Sess
         )
         bg_db.add(trace)
         bg_db.commit()
+        _purge_old_traces(bg_db, trace_dict["user_id"])
     except Exception as e:
         bg_db.rollback()
         logger.error("Failed to save assistant trace in background for user %s: %s", trace_dict.get("user_id"), e)

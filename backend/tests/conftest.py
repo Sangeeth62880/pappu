@@ -70,3 +70,12 @@ def make_user(bill_db):
         return user_id, {"Authorization": f"Bearer {token}"}
 
     return _make
+
+
+@_pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """Rate limit counts are process-wide; start every test with none."""
+    from app.rate_limit import reset_rate_limits
+    reset_rate_limits()
+    yield
+    reset_rate_limits()

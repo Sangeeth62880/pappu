@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth import get_current_user_id
+from app.rate_limit import rate_limit
 from app.schemas.tts import TTSRequest, TTSResponse
 from app.tts.client import SarvamTTSClient, TTSError
 
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/tts", tags=["text-to-speech"])
 
 
 # A plain `def`: the Sarvam call blocks, so it must run in the thread pool, not on the event loop.
-@router.post("/synthesize", response_model=TTSResponse)
+@router.post("/synthesize", response_model=TTSResponse, dependencies=[Depends(rate_limit("tts"))])
 def synthesize_speech(
     request: TTSRequest,
     current_user_id: uuid.UUID = Depends(get_current_user_id),

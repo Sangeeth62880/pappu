@@ -426,6 +426,13 @@ Use `PyJWT` (with the `[crypto]` extra) or `python-jose`, with their JWKS-client
 | GET | `/bills/{id}/shares/{share_id}/request` | UPI link and message text for one friend's share. 422 `upi_id_missing` when the profile has no UPI ID |
 | POST | `/bills/{id}/shares/{share_id}/paid` | Marks a share paid by writing the repayment transaction |
 
+### Rate limits and input limits (decided 2026-11-15)
+
+- **Per-user rate limits** on the routes that cost money per call, counted per verified `user_id` over a sliding minute: `/assistant/message` 30, `/stt/transcribe` 30, `/tts/synthesize` 60, `POST /bills` (bill photo) 6, `/bills/{id}/assign` 30. Over the limit returns `429` with `Retry-After`. Each limit has an env override (`RATE_LIMIT_*_PER_MIN`); `RATE_LIMITS_ENABLED=false` turns them off. Counts are kept in memory, so they are per process: running more than one worker or instance needs a shared store first.
+- **Input limits**: assistant message 2,000 characters, pending answer 500, chat message 8,000 (role must be `user` or `assistant`), voice upload 10 MB, bill photo 8 MB.
+- **Errors**: responses never carry upstream (Sarvam) or exception text; that goes to the server log. An unhandled error is a JSON `500` `{"detail": "Internal server error"}`.
+- **Trace retention**: `TRACE_RETENTION_DAYS` (default `0`, keep forever). When set, a user's assistant traces older than that are deleted each time a new trace of theirs is saved.
+
 ### GET `/summary` Query & Response Contract
 
 - **Query Parameters**:

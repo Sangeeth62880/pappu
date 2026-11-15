@@ -48,3 +48,25 @@ SARVAM_TTS_DEFAULT_SPEAKER = os.getenv("SARVAM_TTS_DEFAULT_SPEAKER", "kavitha")
 
 # Sarvam Document AI (bill OCR, PROJECT_SPEC.md §2 and §5b Bill Split)
 SARVAM_DOC_AI_URL = os.getenv("SARVAM_DOC_AI_URL", "https://api.sarvam.ai/doc-ai/v1").rstrip("/")
+
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, "") or default)
+    except ValueError:
+        return default
+
+
+# Per-user calls per minute on the routes that cost money per call (app/rate_limit.py).
+RATE_LIMITS_ENABLED = os.getenv("RATE_LIMITS_ENABLED", "true").strip().lower() not in ("0", "false", "no")
+RATE_LIMITS = {
+    "assistant": _int_env("RATE_LIMIT_ASSISTANT_PER_MIN", 30),
+    "stt": _int_env("RATE_LIMIT_STT_PER_MIN", 30),
+    "tts": _int_env("RATE_LIMIT_TTS_PER_MIN", 60),
+    "bill_read": _int_env("RATE_LIMIT_BILL_READ_PER_MIN", 6),
+    "bill_assign": _int_env("RATE_LIMIT_BILL_ASSIGN_PER_MIN", 30),
+}
+
+# Assistant traces older than this many days are deleted for a user whenever a new trace
+# of theirs is saved. 0 keeps them forever (the default, so nothing is deleted unasked).
+TRACE_RETENTION_DAYS = _int_env("TRACE_RETENTION_DAYS", 0)

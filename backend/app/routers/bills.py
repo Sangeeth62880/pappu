@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user_id
+from app.rate_limit import rate_limit
 from app.database import get_db
 from app.ocr.client import OcrError, SarvamDocAIClient
 from app.services import bills as bill_service
@@ -101,7 +102,7 @@ def _items_payload(items: List[ItemIn]) -> List[Dict[str, Any]]:
     return [{"id": i.id, "name": i.name, "quantity": i.quantity, "amount": i.amount} for i in items]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit("bill_read"))])
 def create_bill_from_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -204,7 +205,7 @@ def patch_bill(
         raise _http_error(err)
 
 
-@router.post("/{bill_id}/assign")
+@router.post("/{bill_id}/assign", dependencies=[Depends(rate_limit("bill_assign"))])
 def assign(
     bill_id: uuid.UUID,
     body: AssignIn,
