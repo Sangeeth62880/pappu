@@ -1,299 +1,212 @@
 <div align="center">
 
-  <img src="assets/brand/icon.png" alt="Pappu Logo" width="140" style="border-radius: 28px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);" />
+  <img src="assets/brand/icon.png" alt="Pappu Logo" width="140" />
 
   # Pappu (പപ്പു)
-  ### The Bilingual (Malayalam ⇄ English) Voice-First Financial Assistant
+  ### A voice-first money assistant for Malayalam, Manglish and English
 
-  [![Live Backend](https://img.shields.io/badge/Render-Deployed%20Live-brightgreen?style=for-the-badge&logo=render&logoColor=white)](https://pappu-78n5.onrender.com/health)
-  [![EAS Build](https://img.shields.io/badge/EAS-Android%20APK%20Ready-blue?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/accounts/sangeeth122/projects/pappu/builds/c1078d20-4c3c-49ed-9ad6-69e14d6acfe4)
-  [![Python](https://img.shields.io/badge/Python-3.12%20Pinned-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-  [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+  [![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-0.163-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
   [![React Native](https://img.shields.io/badge/React%20Native-Expo%20SDK%2057-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://expo.dev/)
   [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
-  [![Sarvam AI](https://img.shields.io/badge/Sarvam%20AI-Saaras%20%7C%20Bulbul%20%7C%20105B-FF6B6B?style=for-the-badge)](https://www.sarvam.ai/)
-  [![Tests](https://img.shields.io/badge/Tests-312%20Backend%20%7C%20230%20Frontend%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white)](tests)
+  [![Sarvam AI](https://img.shields.io/badge/Sarvam%20AI-Saaras%20%7C%20Bulbul%20%7C%20105B%20%7C%20Document%20AI-FF6B6B?style=for-the-badge)](https://www.sarvam.ai/)
+  [![Tests](https://img.shields.io/badge/Tests-821%20backend%20%7C%20542%20frontend-success?style=for-the-badge&logo=pytest&logoColor=white)](#testing)
 
   <p align="center">
-    <b>Speak naturally in Malayalam, Manglish, or English.</b><br/>
-    Pappu tracks expenses, manages debts, schedules reminders, and reports real-time insights with high-fidelity voice and emotional mascot feedback.
+    <b>Say it the way you would say it to a friend.</b><br/>
+    "Innale biriyanikku 250 aayi." Pappu records it, keeps track of who owes whom, and answers back.
   </p>
-
-  [**Explore Features**](#-key-features) •
-  [**System Architecture**](#-system-architecture) •
-  [**Mascot System**](#-mascot-character-states) •
-  [**Live Deployment**](#-live-deployment--downloads) •
-  [**Getting Started**](#-getting-started)
 
 </div>
 
 ---
 
-## 🌟 Highlights
+## What it does
 
-- 🗣️ **Voice-First & Code-Mixed Understanding**: Fluent understanding of Malayalam, Manglish (*"Innale biriyanikku 250 roopa aayi"*), and English voice inputs.
-- 🪙 **Animated Mascot (Pappu)**: 10 expressive vector SVG states that react in real-time to user speech, financial balance, and assistant processing.
-- 🧠 **Sarvam AI Intelligence Stack**:
-  - **Saaras v3** for speech-to-text with Indian accent & code-mixed Malayalam fluency.
-  - **Sarvam-105B** for conversational context, multi-turn dialogue, and structured intent classification.
-  - **Bulbul v3** for low-latency natural text-to-speech audio feedback.
-- 🛡️ **Risk-Gated Action Planner**: High-risk financial operations (bulk deletion, large transfers) prompt interactive confirmations before touching the database.
-- 📱 **Cross-Platform**: Production-ready Android standalone APK (EAS internal distribution) and iOS compatible via Expo Go / Xcode personal development.
+- **Track spending by voice or text.** Add, edit, delete and ask about expenses and income in English, Malayalam or Manglish, often mixed in one sentence.
+- **People and debts.** "Rahulinu 500 koduthu" records money given to Rahul. The People tab shows who owes you and whom you owe.
+- **Budgets.** Monthly budgets per category, with a warning when you get close or go over.
+- **Split a bill.** Photograph a restaurant bill, say who had what, and Pappu works out each share, saves it, and shows a UPI QR to ask a friend to pay.
+- **Undo.** The last action, including a whole bill split, can be undone.
+- **Pappu the mascot.** A coin character with 10 moods that reacts to listening, thinking, speaking and the state of your money.
 
----
+Nothing is ever edited or deleted without a confirmation, and a bill split is only saved after you review it.
 
-## 🏗️ System Architecture
+## How it works
 
-Pappu operates on an audited six-layer decoupled pipeline:
+One LLM call decides **what the user means**. Everything after that is ordinary code.
 
 ```mermaid
-graph TD
-    subgraph Client ["Frontend (React Native / Expo SDK 57)"]
-        UI[Mobile UI & Dashboard]
-        Mic[Audio Recorder]
-        Mascot[Pappu Mascot Animator]
-        Gate[Startup Health Gate]
+graph LR
+    subgraph App ["App (React Native, Expo SDK 57)"]
+        Mic[Mic or text box]
+        UI[Screens and mascot]
     end
-
-    subgraph VoiceAI ["Sarvam AI Speech & Language Stack"]
-        STT["Saaras v3 (STT)<br/>Malayalam / English / Manglish"]
-        LLM["Sarvam-105B LLM<br/>Intent & Entity Extraction"]
-        TTS["Bulbul v3 (TTS)<br/>Bilingual Voice Response"]
+    subgraph API ["Backend (FastAPI)"]
+        STT["/stt/transcribe"]
+        Planner["Planner: one LLM call, returns a JSON plan"]
+        Code["Resolver, confirmation, executors, reply text (no LLM)"]
+        TTS["/tts/synthesize"]
     end
+    Sarvam["Sarvam AI: Saaras v3, Sarvam-105B, Bulbul v3, Document AI"]
+    DB[(Supabase Postgres)]
+    Auth[Supabase Auth]
 
-    subgraph Backend ["Backend API (FastAPI / Render Cloud)"]
-        Router[FastAPI Route Handlers]
-        RiskGate[Confirmation & Risk Filter]
-        Service[Financial & Contact Engine]
-    end
-
-    subgraph DataStore ["Database & Identity (Supabase)"]
-        Auth[Supabase Auth / JWT]
-        PG[(PostgreSQL + RLS)]
-    end
-
-    %% Flow
-    Mic -->|Voice Audio| STT
-    STT -->|Raw Transcribed Text| LLM
-    LLM -->|Structured Intent JSON| Router
-    Router --> RiskGate
-    RiskGate -->|Safe / Confirmed Action| Service
-    Service -->|Query / Mutate| PG
-    Auth -.->|Verify Token| Router
-    Service -->|Execution Result| LLM
-    LLM -->|Natural Language Text| TTS
-    TTS -->|Audio Stream| UI
-    Router -->|JSON State Update| UI
-    Router -->|State Trigger| Mascot
+    Mic --> STT --> Sarvam
+    Mic --> Planner --> Sarvam
+    Planner --> Code --> DB
+    Code --> UI
+    UI --> TTS --> Sarvam
+    Auth -. JWT verified on every request .-> API
 ```
 
-### End-to-End Processing Flow
+A voice turn, step by step:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant App as Mobile App (Expo)
-    participant Saaras as Sarvam Saaras v3 (STT)
-    participant Backend as FastAPI (Render)
-    participant SarvamLLM as Sarvam-105B
-    participant DB as Supabase PostgreSQL
-    participant Bulbul as Sarvam Bulbul v3 (TTS)
+1. The app records audio and sends it to `/stt/transcribe` (Sarvam Saaras v3).
+2. The transcript goes to `/assistant/message`. The planner sends it to Sarvam-105B with a small context (contacts, recent turns, today's date) and gets back a JSON plan such as `add`, `edit`, `delete`, `query`, `clarify`.
+3. Code validates the plan, finds the matching rows, and either runs it or asks: one match to edit or delete means "confirm?", several matches mean "which one?".
+4. Code writes the reply text in the user's language. The LLM does not write replies.
+5. The app sends the reply to `/tts/synthesize` (Sarvam Bulbul v3) and plays it.
 
-    User->>App: Speaks "Rahulinu 500 roopa koduthu"
-    App->>Saaras: Stream WAV / M4A Audio
-    Saaras-->>App: Transcribed: "Rahulinu 500 roopa koduthu"
-    App->>Backend: POST /api/assistant/chat (text + context)
-    Backend->>SarvamLLM: Intent parsing with user financial context
-    SarvamLLM-->>Backend: Intent: {action: "add_expense", amount: 500, contact: "Rahul"}
-    Backend->>DB: INSERT into transactions & update contact balance
-    DB-->>Backend: Transaction Record ID created
-    Backend->>SarvamLLM: Generate conversational Malayalam response
-    SarvamLLM-->>Backend: "Rahulinu 500 roopa nalkiyathayi record cheythu."
-    Backend->>Bulbul: Synthesize speech
-    Bulbul-->>Backend: Audio base64 / URL
-    Backend-->>App: {reply, audio, transaction, mascot_state: "happy"}
-    App->>User: Play voice response & show animated Happy Mascot!
-```
+Bill split uses the same idea: Sarvam Document AI reads the photo, one LLM call copies the lines into a structure, a second maps items to people, and the arithmetic is plain code that always adds up to the bill total.
 
----
+The rules the project holds to:
 
-## 🎨 Mascot Character States
+- The LLM never touches the database. It only returns JSON.
+- Edits and deletes always go through confirmation.
+- Categories are a fixed list of eight. The LLM cannot invent one.
+- Login is Supabase Auth. The backend verifies the JWT and takes the user from it, never from the request body.
+- Every query is scoped to the verified user.
 
-Pappu is represented by a coin mascot with dynamic real-time poses extracted from the design system:
+Full detail is in [`PROJECT_SPEC.md`](PROJECT_SPEC.md) and progress is in [`BUILD_PHASES.md`](BUILD_PHASES.md).
 
-| State | Preview Pose | Description & Trigger |
-|:---|:---:|:---|
-| **Idle** | [`pappu-idle.svg`](assets/pappu/svg/pappu-idle.svg) | Default calm state on dashboard ready for interactions. |
-| **Listening** | [`pappu-listening.svg`](assets/pappu/svg/pappu-listening.svg) | Active microphone recording, soundwave glyphs, cupped ear. |
-| **Thinking** | [`pappu-thinking.svg`](assets/pappu/svg/pappu-thinking.svg) | Processing speech transcript and calculating AI intent. |
-| **Speaking** | [`pappu-speaking.svg`](assets/pappu/svg/pappu-speaking.svg) | Playing Sarvam Bulbul TTS voice response. |
-| **Happy** | [`pappu-happy.svg`](assets/pappu/svg/pappu-happy.svg) | Successful savings, debt settlement, or low expenses. |
-| **Excited** | [`pappu-excited.svg`](assets/pappu/svg/pappu-excited.svg) | Milestone achieved, salary credited, or debt fully paid. |
-| **Concerned** | [`pappu-concerned.svg`](assets/pappu/svg/pappu-concerned.svg) | Budget threshold exceeded or pending high borrow amounts. |
-| **Worried** | [`pappu-worried.svg`](assets/pappu/svg/pappu-worried.svg) | Negative balance warning or critical expense overspend. |
-| **Confused** | [`pappu-confused.svg`](assets/pappu/svg/pappu-confused.svg) | Ambiguous speech input prompting clarification. |
-| **Sleepy** | [`pappu-sleepy.svg`](assets/pappu/svg/pappu-sleepy.svg) | Inactivity mode and calm nighttime backdrop. |
+## Current status
 
----
+| Area | State |
+|:---|:---|
+| Text and voice assistant, people, budgets, undo | Built and tested |
+| Bill split (Phase 14) | Built and tested, checked end to end in the web app. Camera, voice on the split screen and scanning the QR in a UPI app still need a phone run |
+| Voice end to end (Phases 6 to 8) | Built; final acceptance is a manual phone checklist in [`docs/checklists/`](docs/checklists/) |
+| Hosted backend on Render | The service at `pappu-78n5.onrender.com` was not responding when last checked (15 Nov 2026). Run the backend locally for now |
+| Android build | An earlier APK exists on EAS; it predates bill split. Bill split needs a new build because it adds the camera picker |
 
-## 🚀 Live Deployment & Downloads
+## Tech stack
 
-| Service | Environment | Status | Endpoint / Link |
-|:---|:---|:---:|:---|
-| **Backend API** | Render (Standard Web Service) | [![Live](https://img.shields.io/badge/status-active-brightgreen)](https://pappu-78n5.onrender.com/health) | [`https://pappu-78n5.onrender.com`](https://pappu-78n5.onrender.com) |
-| **Health Check** | Render Cloud | `200 OK` | [`/health`](https://pappu-78n5.onrender.com/health) |
-| **Database** | Supabase Managed PostgreSQL | `connected` | Supabase Cloud (`mvobtveaewxgiczulyrq`) |
-| **Android APK** | Standalone Android Build | [![Passed](https://img.shields.io/badge/EAS%20Build-Passed-success)](https://expo.dev/accounts/sangeeth122/projects/pappu/builds/c1078d20-4c3c-49ed-9ad6-69e14d6acfe4) | [Download Latest APK (EAS)](https://expo.dev/accounts/sangeeth122/projects/pappu/builds/c1078d20-4c3c-49ed-9ad6-69e14d6acfe4) |
-| **iOS Testing** | Expo Go / Sideload | `active` | Project slug: `pappu` (SDK 57) |
+| Layer | What |
+|:---|:---|
+| App | React Native, Expo SDK 57, React Navigation, React Query, Reanimated, react-native-svg |
+| Backend | Python 3.12, FastAPI, SQLAlchemy 2.0, Pydantic v2, httpx |
+| Data and login | Supabase Postgres and Supabase Auth (ES256 JWTs verified through JWKS) |
+| AI | Sarvam AI: Saaras v3 (speech to text), Sarvam-105B (planner), Bulbul v3 (text to speech), Document AI (bill photos) |
+| Hosting | Render (`render.yaml`), Expo EAS for builds |
 
----
+## Getting started
 
-## 💻 Tech Stack Matrix
+You need Python 3.12, Node.js 20 or newer, a Supabase project and a Sarvam AI key.
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                              FRONTEND                                  │
-├─────────────────┬─────────────────┬──────────────────┬─────────────────┤
-│ React Native    │ Expo SDK 57     │ Tailwind CSS     │ React Navigation│
-│ NativeWind v4   │ Reanimated 4    │ React Query v5   │ SVG Vectors     │
-├─────────────────┴─────────────────┴──────────────────┴─────────────────┤
-│                              BACKEND                                   │
-├─────────────────┬─────────────────┬──────────────────┬─────────────────┤
-│ Python 3.12.0   │ FastAPI         │ SQLAlchemy ORM   │ Pydantic v2     │
-│ Uvicorn ASGI    │ psycopg2-binary │ Pytest (312 T.)  │ Docker Slim     │
-├─────────────────┴─────────────────┴──────────────────┴─────────────────┤
-│                            CLOUD & AI                                  │
-├─────────────────┬─────────────────┬──────────────────┬─────────────────┤
-│ Supabase Auth   │ PostgreSQL RLS  │ Sarvam Saaras v3 │ Sarvam 105B LLM │
-│ Sarvam Bulbul v3│ Render Hosting  │ Expo EAS Cloud   │ Tailscale Dev   │
-└─────────────────┴─────────────────┴──────────────────┴─────────────────┘
-```
-
----
-
-## 🛠️ Getting Started
-
-### Prerequisites
-
-- **Python 3.12.x** (Strictly pinned for backend stability)
-- **Node.js 20+** and `npm`
-- **Expo CLI** (`npm install -g eas-cli`)
-- Free or Pro account on **Supabase** and **Sarvam AI**
-
-### 1. Clone the Repository
+### 1. Clone
 
 ```bash
 git clone https://github.com/Sangeeth62880/pappu.git
 cd pappu
-git checkout ui-stitch-v3
 ```
 
-### 2. Backend Setup
+### 2. Backend
 
 ```bash
 cd backend
-
-# Create virtual environment with Python 3.12
 python3.12 -m venv .venv
 source .venv/bin/activate
-
-# Install pinned dependencies
 pip install -r requirements.txt
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your Supabase DB URL and Sarvam API keys
+```
 
-# Run unit tests
-pytest
+Fill in `backend/.env`: `DATABASE_URL`, `SUPABASE_URL` (or `SUPABASE_JWKS_URL`) and `SARVAM_API_KEY`. The backend refuses to start without the Supabase setting.
 
-# Start local server
+Create the tables once (this also applies later schema changes):
+
+```bash
+python apply_schema.py
+```
+
+Run it:
+
+```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 3. Frontend Setup
+### 3. App
 
 ```bash
-cd ../frontend
-
-# Install dependencies
+cd frontend
 npm install
-
-# Configure environment
 cp .env.example .env
-# Set EXPO_PUBLIC_API_URL=https://pappu-78n5.onrender.com (or local IP)
-# Set your EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
-
-# Run unit and component test suite
-npm test
-
-# Launch Expo Dev Server
-npx expo start -c
 ```
 
-### 4. Running on Physical Devices
-
-- **Android**:
-  Download and install the standalone `.apk` directly onto your phone from the [EAS Build Page](https://expo.dev/accounts/sangeeth122/projects/pappu/builds/c1078d20-4c3c-49ed-9ad6-69e14d6acfe4).
-- **iPhone (iOS)**:
-  1. Install **Expo Go** from the Apple App Store.
-  2. Run `npx expo start -c` on your Mac.
-  3. Scan the terminal QR code with your iPhone Camera to open Pappu instantly.
-
----
-
-## 🧪 Testing & Verification
-
-Comprehensive test suites protect against regressions across backend business logic and frontend UI components:
+Fill in `frontend/.env`: `EXPO_PUBLIC_API_URL` (for example `http://localhost:8000`), `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 
 ```bash
-# Backend Test Suite (312 tests passing)
-cd backend && pytest -v
+npx expo start
+```
 
-# Frontend Test Suite (230 tests across 27 suites passing)
+Press `w` for the web version, or scan the QR code with a development build on a phone. Voice recording and the camera need a phone; the web version is fine for everything typed.
+
+Deployment notes are in [`DEPLOY.md`](DEPLOY.md).
+
+## Testing
+
+```bash
+cd backend && pytest
+```
+
+```bash
 cd frontend && npm test
 ```
 
-- **Health Verification**: Startup health gate verifies database connectivity and provides automatic cold-start recovery screens without crashing.
-- **Safety Audit**: Zero credentials or service keys committed in Git history (`.gitignore` enforced for all `.env*` files).
+821 backend tests and 542 frontend tests pass as of 15 Nov 2026. The backend tests mock Sarvam, so they need no API key. There is also a live evaluation set for the planner in `backend/tests/eval/` that does call Sarvam.
 
----
+## Safety and limits
 
-## 📁 Repository Structure
+- Per-user rate limits on the routes that cost money per call (assistant, speech, bill reading); over the limit returns `429`.
+- Size limits on messages, voice uploads (10 MB) and bill photos (8 MB). Bill photos are read and discarded, never stored.
+- Error responses never include internal or upstream error text.
+- `.env` files are ignored by git. An early commit did contain a test account password; that password has since been changed.
+
+## Repository layout
 
 ```
 pappu/
-├── assets/
-│   ├── brand/               # App icons, splash screens, foregrounds
-│   └── pappu/               # 10 Mascot poses (SVG & PNG catalog)
 ├── backend/
 │   ├── app/
-│   │   ├── api/             # REST Routers (auth, assistant, transactions, contacts)
-│   │   ├── core/            # Config, security, logging
-│   │   ├── models/          # SQLAlchemy ORM schemas
-│   │   ├── services/        # AI orchestration, Sarvam client, planners
-│   │   └── main.py          # FastAPI application factory & health probe
-│   ├── tests/               # 312 Pytest test cases & evaluation harnesses
-│   ├── .python-version      # Pinned Python version (3.12.0)
-│   ├── Dockerfile           # Production container specification
-│   └── requirements.txt     # Pinned production Python dependencies
+│   │   ├── assistant/     # v2 planner, resolver, pending confirmations, executors, replies
+│   │   ├── routers/       # assistant, bills, budgets, chat, contacts, profile, stt, tts, summary, transactions
+│   │   ├── services/      # bill split maths and flow, budgets, balances, undo, tracing
+│   │   ├── llm/           # Sarvam LLM client and versioned prompt files
+│   │   ├── stt/ tts/ ocr/ # Sarvam speech and Document AI clients
+│   │   ├── models/        # SQLAlchemy models
+│   │   └── main.py
+│   ├── tests/             # pytest suite and the planner eval set
+│   ├── apply_schema.py    # creates and updates the database schema
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── api/             # HTTP & WebSocket API client
-│   │   ├── components/      # UI components, Mascot, StartupHealthGate
-│   │   ├── navigation/      # TabBar, Stack Navigators
-│   │   └── screens/         # Home, Chat, History, People, Settings
-│   ├── eas.json             # EAS Build Profiles (Android APK & iOS)
-│   ├── app.json             # Expo application configuration & plugins
-│   └── tests/               # 230 Jest test cases
-├── supabase/
-│   └── migrations/          # PostgreSQL schema, RLS, audit logs
-└── render.yaml              # Render Cloud Infrastructure as Code
+│   │   ├── screens/       # Home, Me, Auth, PersonDetail, BillSplit
+│   │   ├── components/    # dashboard, history, people, conversation, voice overlay, bill split, ui primitives
+│   │   ├── api/           # backend client
+│   │   ├── i18n/          # English and Malayalam strings
+│   │   └── theme/         # design tokens
+│   └── tests/             # Jest and React Native Testing Library
+├── supabase/migrations/   # SQL migrations
+├── design/                # approved screen designs
+├── docs/                  # reports and manual test checklists
+├── assets/                # app icons and the 10 mascot poses
+├── PROJECT_SPEC.md        # the spec
+├── BUILD_PHASES.md        # phases and their status
+└── render.yaml
 ```
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ for bilingual speakers • Malayalam & English • Powered by Sarvam AI & Supabase</sub>
+  <sub>Malayalam and English, powered by Sarvam AI and Supabase</sub>
 </div>
