@@ -582,7 +582,7 @@ export default function BillSplitFlow({
                   <Icon name="check" size={20} color={colors.income} />
                 ) : (
                   <Button testID={`bill-ask-${share.name}`} title={tr('bill.saved.ask')} size="sm"
-                    onPress={() => openAsk(share)} />
+                    onPress={() => openAsk(share)} style={styles.askButton} />
                 )}
               </View>
             ))}
@@ -643,6 +643,8 @@ function SummaryLine({ label, value, strong = false, valueStyle }) {
 }
 
 const styles = StyleSheet.create({
+  // Button draws its face absolutely, so a button inside a row needs a width of its own.
+  askButton: { width: 132 },
   screen: { flex: 1, backgroundColor: colors.bg },
   header: {
     height: 56, paddingHorizontal: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
