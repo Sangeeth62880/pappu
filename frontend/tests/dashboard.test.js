@@ -67,6 +67,20 @@ describe('Dashboard Component (Analytics-first Redesign)', () => {
     expect(queryByTestId('dashboard-undo-button')).toBeNull();
   });
 
+  test('Home shows the Split a bill card and pressing it opens the start sheet', async () => {
+    client.fetchSummary.mockResolvedValue(mockSummary);
+    client.fetchTransactions.mockResolvedValue(mockTransactions);
+    const onSplitBill = jest.fn();
+
+    const { getByTestId, getByText } = await render(<Dashboard token="test_token" onSplitBill={onSplitBill} />);
+
+    await waitFor(() => expect(getByTestId('home-split-bill-card')).toBeTruthy());
+    expect(getByText('Split a bill')).toBeTruthy();
+    expect(getByText('Snap the bill, say who had what')).toBeTruthy();
+    await fireEvent.press(getByTestId('home-split-bill-card'));
+    expect(onSplitBill).toHaveBeenCalled();
+  });
+
   test('period toggle refetches data with selected period and re-renders', async () => {
     client.fetchSummary.mockResolvedValue(mockSummary);
     client.fetchTransactions.mockResolvedValue(mockTransactions);

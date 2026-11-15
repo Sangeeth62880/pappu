@@ -27,6 +27,7 @@ import { colors, radius, spacing, typography } from '../theme/tokens';
 import EmptyState from './ui/EmptyState';
 import TransactionEditSheet from './ui/TransactionEditSheet';
 import Pappu from './ui/Pappu';
+import { SplitBillButton } from './billSplit/SplitBillEntry';
 import { useReduceMotion } from '../utils/reduceMotion';
 import { queryClient } from '../data/queryClient';
 import { queryKeys, invalidateOnTransactionChange } from '../data/queryKeys';
@@ -62,6 +63,8 @@ export default function PeopleScreen({
   onShowToast = null,
   onTransactionMutated = null,
   onSelectPerson = null,
+  onSplitBill = null,
+  language = 'en',
 }) {
   const reduceMotion = useReduceMotion();
 
@@ -558,6 +561,11 @@ export default function PeopleScreen({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Split a bill: labelled entry above the balances */}
+        {onSplitBill ? (
+          <SplitBillButton onPress={onSplitBill} language={language} style={{ marginBottom: 16 }} />
+        ) : null}
 
         {/* 2. Overview Card: Two tiles + Net balance row */}
         <View style={styles.overviewCard}>

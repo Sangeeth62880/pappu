@@ -114,6 +114,21 @@ describe('PeopleScreen Component', () => {
     expect(formatTransactionCount(5)).toBe('5 transactions');
   });
 
+  test('shows a labelled Split a bill button above the balances that opens the start sheet', async () => {
+    const onSplitBill = jest.fn();
+    await render(<PeopleScreen token={mockToken} onSplitBill={onSplitBill} />);
+    await waitFor(() => expect(screen.getByTestId('people-split-bill-button')).toBeTruthy());
+    expect(screen.getByText('Split a bill')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('people-split-bill-button'));
+    expect(onSplitBill).toHaveBeenCalled();
+  });
+
+  test('has no Split a bill button when the screen is not given the action', async () => {
+    await render(<PeopleScreen token={mockToken} />);
+    await waitFor(() => expect(screen.getByTestId('people-view')).toBeTruthy());
+    expect(screen.queryByTestId('people-split-bill-button')).toBeNull();
+  });
+
   test('renders people list with header gold plus, tiles with correct friend plurals, net balance, and contact rows', async () => {
     await render(<PeopleScreen token={mockToken} />);
 

@@ -297,7 +297,7 @@ Decisions (made 2026-11-14, do not re-litigate). Approved screens: `design/stitc
 * Every bill response includes `ready` (the bill adds up, every item is assigned and no name is unanswered), `question` (the one unassigned item Pappu is asking about, in the reply language) and `shares` (the preview for a draft, the stored shares once confirmed).
 * The bill flow is outside the §5b latency budget (OCR takes seconds); the app shows the Reading screen meanwhile.
 * The user's UPI ID is set on the Me screen, or on the Ask to pay sheet the first time it is needed.
-* Entry point: a receipt button in the People header. Replies and screen strings follow the existing reply language rules.
+* Entry points (changed 2026-11-16, approved by the owner; the unlabelled receipt icon in the People header was too easy to miss and is removed): a "Split a bill" card on Home directly under the people block, and a full-width labelled "Split a bill" button on the People tab above the balances. Both open the same start sheet. Replies and screen strings follow the existing reply language rules.
 
 ### Endpoints
 * `POST /assistant/message`: Primary conversational endpoint. Accepts `{ text: str, input: "text" | "voice", client_msg_id: str }`. Runs one LLM planner call, resolves entities, executes actions, and returns `{ reply, display_text, spoken_text, results, pending, changed }`.

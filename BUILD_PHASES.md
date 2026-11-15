@@ -332,7 +332,7 @@ Phases 8 and 9 are still open. Tasks 1 to 6 and 8 are built. Task 7 is wired (th
 3. **Split planner**: `backend/app/llm/split_prompt.md`, Pydantic schema, validation with one retry, name resolution through the existing contact resolver. Typed bill items and typed text only.
 4. **Endpoints and writes**: `/bills` routes except image upload (a draft can be created from typed items for testing), confirm with one undo batch, idempotent confirm, cancel, mark paid.
 5. **Bill extraction**: spot check Sarvam Document Intelligence on real restaurant bills first (latency, single image support, accuracy) and record the provider decision in `PROJECT_SPEC.md` §2; then `POST /bills` with the image, `backend/app/llm/bill_extract_prompt.md`, `needs_check` flags, image discarded after extraction.
-6. **Frontend**: the eight approved screens using tokens and ui primitives only; receipt button in the People header; camera and gallery picker (new native dependency, needs a new dev build); UPI ID field on the Me screen.
+6. **Frontend**: the eight approved screens using tokens and ui primitives only; entry points are a Split a bill card on Home and a labelled button on the People tab (the original header icon was replaced 2026-11-16); camera and gallery picker (new native dependency, needs a new dev build); UPI ID field on the Me screen.
 7. **Voice**: mic on the Who had what screen through the existing STT path; spoken question for an unassigned item.
 8. **Pay requests**: UPI link builder, QR on the Ask to pay sheet, share as image, mark paid.
 

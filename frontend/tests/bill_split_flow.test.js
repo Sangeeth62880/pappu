@@ -5,6 +5,7 @@ import { Share } from 'react-native';
 import BillSplitFlow from '../src/components/billSplit/BillSplitFlow';
 import BillStartSheet from '../src/components/billSplit/BillStartSheet';
 import AppHeader from '../src/components/ui/AppHeader';
+import { SplitBillCard, SplitBillButton } from '../src/components/billSplit/SplitBillEntry';
 import * as client from '../src/api/client';
 import { formatRupees, lineDetail, billLanguage } from '../src/components/billSplit/format';
 
@@ -482,17 +483,32 @@ describe('start sheet and header', () => {
     expect(screen.getByTestId('bill-start-error')).toBeTruthy();
   });
 
-  test('the People header has the split a bill button next to add person', async () => {
-    const onSplitBillPress = jest.fn();
-    await render(<AppHeader screen="people" onAddPersonPress={jest.fn()} onSplitBillPress={onSplitBillPress} />);
-    await fireEvent.press(screen.getByTestId('header-split-bill-button'));
-    expect(onSplitBillPress).toHaveBeenCalled();
-    expect(screen.getByTestId('header-add-person-button')).toBeTruthy();
+  test('Home card shows the name and what it does, and opens the start sheet', async () => {
+    const onPress = jest.fn();
+    await render(<SplitBillCard onPress={onPress} />);
+    expect(screen.getByText('Split a bill')).toBeTruthy();
+    expect(screen.getByText('Snap the bill, say who had what')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('home-split-bill-card'));
+    expect(onPress).toHaveBeenCalled();
   });
 
-  test('other tabs do not get the button', async () => {
-    await render(<AppHeader screen="history" onSplitBillPress={jest.fn()} />);
+  test('People button is labelled and opens the start sheet', async () => {
+    const onPress = jest.fn();
+    await render(<SplitBillButton onPress={onPress} />);
+    expect(screen.getByText('Split a bill')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('people-split-bill-button'));
+    expect(onPress).toHaveBeenCalled();
+  });
+
+  test('both entry points speak Malayalam', async () => {
+    await render(<><SplitBillCard onPress={jest.fn()} language="ml" /><SplitBillButton onPress={jest.fn()} language="ml" /></>);
+    expect(screen.getAllByText('ബിൽ പങ്കിടാം')).toHaveLength(2);
+  });
+
+  test('the People header no longer carries an unlabelled bill icon', async () => {
+    await render(<AppHeader screen="people" onAddPersonPress={jest.fn()} />);
     expect(screen.queryByTestId('header-split-bill-button')).toBeNull();
+    expect(screen.getByTestId('header-add-person-button')).toBeTruthy();
   });
 });
 

@@ -25,6 +25,7 @@ import Card from './ui/Card';
 import SpendingChart from './ui/SpendingChart';
 import Button from './ui/Button';
 import TransactionEditSheet from './ui/TransactionEditSheet';
+import { SplitBillCard } from './billSplit/SplitBillEntry';
 
 const PERIOD_SEGMENTS = [
   { key: 'week', label: 'Week' },
@@ -70,6 +71,8 @@ function DashboardInner({
   onNavigateToPeople = null,
   onShowToast = null,
   onTransactionMutated = null,
+  onSplitBill = null,
+  language = 'en',
 }) {
   const queryClient = useQueryClient();
   const reduceMotion = useReduceMotion();
@@ -515,6 +518,9 @@ function DashboardInner({
           </>
         )}
       </Card>
+
+      {/* ── Split a bill entry (under the people block) ── */}
+      {onSplitBill ? <SplitBillCard onPress={onSplitBill} language={language} /> : null}
 
       {/* ── 6. Where It Went Card ── */}
       <Card style={styles.card}>

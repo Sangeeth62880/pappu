@@ -30,6 +30,7 @@ export const STRINGS = {
 
   // Bill split (design/stitch/bill_split.html)
   'bill.start.title': { en: 'Split a bill', ml: 'ബിൽ പങ്കിടാം' },
+  'bill.entry.subtitle': { en: 'Snap the bill, say who had what', ml: 'ബിൽ ഫോട്ടോ എടുക്കൂ, ആര് എന്ത് കഴിച്ചു എന്ന് പറയൂ' },
   'bill.start.intro': { en: 'Show me the bill, then tell me who had what. I will work out each share.', ml: 'ബിൽ കാണിക്കൂ, ആര് എന്ത് കഴിച്ചെന്ന് പറയൂ. ഓരോരുത്തരുടെയും പങ്ക് ഞാൻ കണക്കാക്കാം.' },
   'bill.start.camera': { en: 'Take a photo', ml: 'ഫോട്ടോ എടുക്കാം' },
   'bill.start.gallery': { en: 'Choose from gallery', ml: 'ഗാലറിയിൽ നിന്ന്' },

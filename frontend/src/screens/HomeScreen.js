@@ -65,6 +65,11 @@ function MainTabNavigator({
   const [billStartError, setBillStartError] = useState(null);
   const billLanguage = queryClient.getQueryData(queryKeys.profile())?.language === 'ml' ? 'ml' : 'en';
 
+  const openBillStart = () => {
+    setBillStartError(null);
+    setBillStartVisible(true);
+  };
+
   // Split a bill: pick the photo here, then hand it to the BillSplit stack screen.
   const handlePickBill = async (source) => {
     setBillStartError(null);
@@ -92,10 +97,6 @@ function MainTabNavigator({
         onAddPersonPress={() => {
           setAddPersonTrigger((prev) => prev + 1);
         }}
-        onSplitBillPress={() => {
-          setBillStartError(null);
-          setBillStartVisible(true);
-        }}
       />
 
       {/* ── Tab Navigator with Custom 5-Slot Tab Bar ── */}
@@ -122,6 +123,8 @@ function MainTabNavigator({
               <Dashboard
                 {...props}
                 token={token}
+                onSplitBill={openBillStart}
+                language={billLanguage}
                 refreshTrigger={refreshTrigger}
                 onUndo={handleUndo}
                 onShowToast={showToast}
@@ -161,6 +164,8 @@ function MainTabNavigator({
               <PeopleScreen
                 {...props}
                 token={token}
+                onSplitBill={openBillStart}
+                language={billLanguage}
                 refreshTrigger={refreshTrigger}
                 addPersonTrigger={addPersonTrigger}
                 showHeader={false}

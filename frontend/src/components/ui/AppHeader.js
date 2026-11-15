@@ -15,7 +15,6 @@ export default function AppHeader({
   screen = 'home',
   onSearchPress,
   onAddPersonPress,
-  onSplitBillPress,
   style,
 }) {
   return (
@@ -51,18 +50,6 @@ export default function AppHeader({
           </TouchableOpacity>
         ) : screen === 'people' ? (
           <>
-            {onSplitBillPress ? (
-              <TouchableOpacity
-                testID="header-split-bill-button"
-                onPress={onSplitBillPress}
-                style={styles.searchButton}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Split a bill"
-              >
-                <Feather name="file-text" size={20} color={colors.ink} />
-              </TouchableOpacity>
-            ) : null}
           <TouchableOpacity
             testID="header-add-person-button"
             onPress={onAddPersonPress}
