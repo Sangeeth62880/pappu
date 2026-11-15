@@ -144,7 +144,7 @@ The `desc_clean` value comes from `IntentFields.description`, which is extracted
 | `load_response_prompt()` | [`response_generator.py:14-17`](file:///Users/sangeethps/pappu/backend/app/llm/response_generator.py#L14-L17) | Never called — dead code |
 | `response_prompt.md` | [`llm/response_prompt.md`](file:///Users/sangeethps/pappu/backend/app/llm/response_prompt.md) | Loaded by dead function, never used |
 | Duplicate import line | [`schemas/intent.py:9`](file:///Users/sangeethps/pappu/backend/app/schemas/intent.py#L9) | Superseded by line 10 |
-| `test_live_api.py` hardcoded creds | [`test_live_api.py:26`](file:///Users/sangeethps/pappu/backend/test_live_api.py#L26) | Contains hardcoded `test@pappu.dev` / `testpass123` test account |
+| `test_live_api.py` hardcoded creds | [`test_live_api.py:26`](file:///Users/sangeethps/pappu/backend/test_live_api.py#L26) | Contains hardcoded `test@pappu.dev` / `<redacted>` test account |
 | `apply_schema.py` | [`apply_schema.py`](file:///Users/sangeethps/pappu/backend/apply_schema.py) | Operational script, not dead, but exists outside `app/` and is not referenced by the application lifecycle |
 
 ---
@@ -239,7 +239,7 @@ BUILD_PHASES Phase 5 Task 1 says: "Build dashboard: balance, totals, category br
 
 ### 9.2 `test_live_api.py` has hardcoded test credentials
 
-[`test_live_api.py`](file:///Users/sangeethps/pappu/backend/test_live_api.py#L26) contains `email: "test@pappu.dev"` and `password: "testpass123"`. This file **is** tracked in git (it's not in `.gitignore`). If the test account has any real data or admin privileges, this is a credential leak.
+[`test_live_api.py`](file:///Users/sangeethps/pappu/backend/test_live_api.py#L26) contains `email: "test@pappu.dev"` and `password: "<redacted>"`. This file **is** tracked in git (it's not in `.gitignore`). If the test account has any real data or admin privileges, this is a credential leak.
 
 ### 9.3 No rate limiting on LLM endpoints
 
