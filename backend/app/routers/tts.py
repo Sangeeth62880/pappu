@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/tts", tags=["text-to-speech"])
 
 
+# A plain `def`: the Sarvam call blocks, so it must run in the thread pool, not on the event loop.
 @router.post("/synthesize", response_model=TTSResponse)
-async def synthesize_speech(
+def synthesize_speech(
     request: TTSRequest,
     current_user_id: uuid.UUID = Depends(get_current_user_id),
 ):
@@ -37,11 +38,12 @@ async def synthesize_speech(
         logger.error(f"TTS error in /tts/synthesize: {e}", exc_info=True)
         raise HTTPException(
             status_code=e.status_code,
-            detail=f"Speech synthesis failed: {str(e)}",
+            # Our own 400s are safe to show; upstream error text stays in the log.
+            detail=str(e) if e.status_code == 400 else "Speech synthesis failed",
         )
     except Exception as e:
         logger.error(f"Unexpected internal error in /tts/synthesize: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal error processing TTS: {str(e)}",
+            detail="Internal error processing TTS",
         )

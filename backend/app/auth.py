@@ -64,6 +64,6 @@ def get_current_user_id(authorization: str | None = Header(None)) -> uuid.UUID:
     except (InvalidTokenError, PyJWKClientError, PyJWKError, ValueError) as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {str(e)}",
+            detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )

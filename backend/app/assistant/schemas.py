@@ -228,7 +228,7 @@ class PendingAnswerRequest(BaseModel):
     """
     Request body for POST /assistant/pending/{id}/answer.
     """
-    answer: str
+    answer: str = Field(..., max_length=500)
     index: Optional[int] = None
 
 
@@ -268,6 +268,7 @@ class AssistantMessageRequest(BaseModel):
     """
     Request body for POST /assistant/message.
     """
-    text: str
+    # One spoken or typed command. The cap bounds LLM cost per request.
+    text: str = Field(..., max_length=2000)
     input: Literal["typed", "voice"] = "typed"
-    client_msg_id: Optional[str] = None
+    client_msg_id: Optional[str] = Field(default=None, max_length=128)
